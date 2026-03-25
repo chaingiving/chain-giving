@@ -30,7 +30,7 @@
 
 [**A Public Blockchain Designed for Humanitarian Activities	7**](#a-public-blockchain-designed-for-humanitarian-activities)
 
-[**Technical Implementation	8**](#technical-implementation)
+[**Technical Specifications	8**](#technical-specifications)
 
 4.1 [Distribution	9](#distribution)
 
@@ -58,14 +58,12 @@ However, we offer a viable solution by introducing a fully public and open block
 
 [Chain.Giving](https://chain.giving) is a public blockchain initiative tailored to equip NPOs (non profit organisations) with the tools needed to efficiently deliver Digital Humanitarian Assistance. It will provide a comprehensive platform for everyone involved:
 
-* For Donors: Offers trustless\* and permissionless giving.  
+* For Donors: Offers _trustless_ and _permissionless_ giving.  
 * For NPOs: Equip them with effective and powerful tools to organise the provision of any kind of assistance whether it is financial (eg. Cash and Voucher Assistance) or in kind by providing goods and services in the field.  
 * For individuals: Empower them to receive help faster  
 * For watchers: Enables anyone to audit money raised and tokens distributed on the public blockchain.
 
-*\*Trustless* in the context of trustless giving, refers to providing explicit on-chain evidence to verify an NPO’s transactions. Trust is no longer needed when data is provided.
-
-# 
+* *Trustless* in the context of trustless giving, refers to providing explicit on-chain evidence to verify an NPO’s transactions. Trust is no longer needed when data is provided.
 
 # Why do we need a Blockchain for Digital Humanitarian Assistance? {#why-do-we-need-a-blockchain-for-digital-humanitarian-assistance?}
 
@@ -87,8 +85,6 @@ However, despite digital monetary assistance being proven to be highly effective
 
 So far, those solutions have been limited to larger organisations and still have a long way to reach large scale adoption. **We have identified the opportunity to offer an open and decentralised solution: a public Humanitarian Blockchain accessible to organisations of all sizes.**
 
-# 
-
 # A public blockchain designed for Humanitarian activities {#a-public-blockchain-designed-for-humanitarian-activities}
 
 [ChainGiving](https://chain.giving) (CG) is a public blockchain initiative designed to provide a comprehensive toolkit for Non-Profit Organisations (NPOs) to deliver Digital Humanitarian Assistance. At its launch, the platform will feature two primary functions: a crowdfunding module and an aid token distribution module.
@@ -106,9 +102,7 @@ To explain the different user journeys and the flow of actions within the [Chain
 4. End-users can then visit a participating provider (e.g., a local supermarket collaborating with the NPO) and redeem their tokens in exchange for the program’s goods or services using the Chain.Giving mobile wallet.  
 5. Periodically, local aid providers trigger the burning (destruction) of program tokens and receive fiat currency from the NPO.
 
-# Technical implementation {#technical-implementation}
-
-Chain.Giving is developed as a set of Ethereum smart contracts.
+# Technical specifications {#technical-specifications}
 
 ## Distribution {#distribution}
 
@@ -161,6 +155,12 @@ Programs offers the following functionalities:
 * setProgramCrowdfunding: initialise a crowdfunding for the the program allow with completion conditions that will simultaneously trigger the crowdfunding withdrawal and the distributions token transfers  
 * cancelProgram: cancel all crowdfunding and distributions of this program and refund donated funds.
 
+## Ethereum Smart contracts
+
+Chain.Giving is developed as a set of Ethereum smart contracts.
+See [Smart Contracts](./tech-specs/cg-smart-contracts.md)/
+
+
 ## User Interfaces {#user-interfaces}
 
 To make the chain-giving blockchain usable to conduct aid programs, the following user facing applications (front-end) have to be developed:
@@ -169,3 +169,5 @@ To make the chain-giving blockchain usable to conduct aid programs, the followin
 * NonProfit BackOffice: Allow NPOs to create programs by specifying the associated crowdfundings and distributions. It also lets them manage the lifecycle of their programs until completion  
 * User wallet: Allows users to view their tokens and redeem them for goods and services at physical and online locations.  
 * Blockchain Data Explorer: Based on an index of blockchain data, allows anyone to monitor current and past program executions, including viewing live updates on token redemptions.
+
+See [Frontend](./tech-specs/cg-frontend.md)/

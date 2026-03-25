@@ -158,7 +158,7 @@ Programs offers the following functionalities:
 ## Ethereum Smart contracts
 
 Chain.Giving is developed as a set of Ethereum smart contracts.
-See [Smart Contracts](./tech-specs/cg-smart-contracts.md)/
+See [Smart Contracts](tech-specs/cg-smart-contracts-1.0.md)/
 
 
 ## User Interfaces {#user-interfaces}

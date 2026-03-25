@@ -100,4 +100,14 @@ contract CGDistribution is Ownable {
 	function beneficiaryCount() external view returns (uint256) {
 		return beneficiaries.length;
 	}
+
+	/// @notice Return the full beneficiaries array.
+	function getBeneficiaries() external view returns (address[] memory) {
+		return beneficiaries;
+	}
+
+	/// @notice Return the full amounts array.
+	function getAmounts() external view returns (uint256[] memory) {
+		return amounts;
+	}
 }

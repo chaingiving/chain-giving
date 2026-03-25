@@ -17,6 +17,30 @@ contract CGProgram is Ownable {
 		CANCELLED
 	}
 
+	struct TokenInfo {
+		address addr;
+		string name;
+		string symbol;
+		uint256 totalSupply;
+	}
+
+	struct CrowdfundingInfo {
+		address addr;
+		uint256 fundingTarget;
+		uint256 deadline;
+		CGCrowdfunding.State state;
+		uint256 totalRaised;
+	}
+
+	struct DistributionInfo {
+		address addr;
+		CGDistribution.State state;
+		uint256 beneficiaryCount;
+		uint256 totalRequired;
+		address[] beneficiaries;
+		uint256[] amounts;
+	}
+
 	string public name;
 	bool public immutable lockDistributions;
 	CGToken public token;
@@ -186,6 +210,66 @@ contract CGProgram is Ownable {
 	/// @notice Number of distributions in this program.
 	function distributionCount() external view returns (uint256) {
 		return distributions.length;
+	}
+
+	/// @notice Return token info in a single call.
+	function getTokenInfo()
+		external
+		view
+		returns (TokenInfo memory)
+	{
+		return
+			TokenInfo({
+				addr: address(token),
+				name: token.name(),
+				symbol: token.symbol(),
+				totalSupply: token.totalSupply()
+			});
+	}
+
+	/// @notice Return all crowdfunding info in a single call.
+	function getCrowdfundingInfo()
+		external
+		view
+		returns (CrowdfundingInfo memory info)
+	{
+		if (address(crowdfunding) == address(0)) return info;
+
+		info = CrowdfundingInfo({
+			addr: address(crowdfunding),
+			fundingTarget: crowdfunding.fundingTarget(),
+			deadline: crowdfunding.deadline(),
+			state: crowdfunding.state(),
+			totalRaised: crowdfunding.totalRaised()
+		});
+	}
+
+	/// @notice Return info for a single distribution.
+	function getDistributionInfo(
+		uint256 index
+	) public view returns (DistributionInfo memory) {
+		CGDistribution dist = distributions[index];
+		return
+			DistributionInfo({
+				addr: address(dist),
+				state: dist.state(),
+				beneficiaryCount: dist.beneficiaryCount(),
+				totalRequired: dist.totalRequired(),
+				beneficiaries: dist.getBeneficiaries(),
+				amounts: dist.getAmounts()
+			});
+	}
+
+	/// @notice Return info for all distributions.
+	function getAllDistributionsInfo()
+		external
+		view
+		returns (DistributionInfo[] memory infos)
+	{
+		infos = new DistributionInfo[](distributions.length);
+		for (uint256 i = 0; i < distributions.length; i++) {
+			infos[i] = getDistributionInfo(i);
+		}
 	}
 
 	function _crowdfundingHasContributions() internal view returns (bool) {

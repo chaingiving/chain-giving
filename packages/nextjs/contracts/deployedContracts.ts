@@ -7,7 +7,7 @@ import { GenericContractsDeclaration } from "~~/utils/scaffold-eth/contract";
 const deployedContracts = {
   31337: {
     CGProgram: {
-      address: "0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9",
+      address: "0x959922bE3CAee4b8Cd9a407cc3ac1C251C2007B1",
       abi: [
         {
           inputs: [
@@ -272,6 +272,177 @@ const deployedContracts = {
         },
         {
           inputs: [],
+          name: "getAllDistributionsInfo",
+          outputs: [
+            {
+              components: [
+                {
+                  internalType: "address",
+                  name: "addr",
+                  type: "address",
+                },
+                {
+                  internalType: "enum CGDistribution.State",
+                  name: "state",
+                  type: "uint8",
+                },
+                {
+                  internalType: "uint256",
+                  name: "beneficiaryCount",
+                  type: "uint256",
+                },
+                {
+                  internalType: "uint256",
+                  name: "totalRequired",
+                  type: "uint256",
+                },
+                {
+                  internalType: "address[]",
+                  name: "beneficiaries",
+                  type: "address[]",
+                },
+                {
+                  internalType: "uint256[]",
+                  name: "amounts",
+                  type: "uint256[]",
+                },
+              ],
+              internalType: "struct CGProgram.DistributionInfo[]",
+              name: "infos",
+              type: "tuple[]",
+            },
+          ],
+          stateMutability: "view",
+          type: "function",
+        },
+        {
+          inputs: [],
+          name: "getCrowdfundingInfo",
+          outputs: [
+            {
+              components: [
+                {
+                  internalType: "address",
+                  name: "addr",
+                  type: "address",
+                },
+                {
+                  internalType: "uint256",
+                  name: "fundingTarget",
+                  type: "uint256",
+                },
+                {
+                  internalType: "uint256",
+                  name: "deadline",
+                  type: "uint256",
+                },
+                {
+                  internalType: "enum CGCrowdfunding.State",
+                  name: "state",
+                  type: "uint8",
+                },
+                {
+                  internalType: "uint256",
+                  name: "totalRaised",
+                  type: "uint256",
+                },
+              ],
+              internalType: "struct CGProgram.CrowdfundingInfo",
+              name: "info",
+              type: "tuple",
+            },
+          ],
+          stateMutability: "view",
+          type: "function",
+        },
+        {
+          inputs: [
+            {
+              internalType: "uint256",
+              name: "index",
+              type: "uint256",
+            },
+          ],
+          name: "getDistributionInfo",
+          outputs: [
+            {
+              components: [
+                {
+                  internalType: "address",
+                  name: "addr",
+                  type: "address",
+                },
+                {
+                  internalType: "enum CGDistribution.State",
+                  name: "state",
+                  type: "uint8",
+                },
+                {
+                  internalType: "uint256",
+                  name: "beneficiaryCount",
+                  type: "uint256",
+                },
+                {
+                  internalType: "uint256",
+                  name: "totalRequired",
+                  type: "uint256",
+                },
+                {
+                  internalType: "address[]",
+                  name: "beneficiaries",
+                  type: "address[]",
+                },
+                {
+                  internalType: "uint256[]",
+                  name: "amounts",
+                  type: "uint256[]",
+                },
+              ],
+              internalType: "struct CGProgram.DistributionInfo",
+              name: "",
+              type: "tuple",
+            },
+          ],
+          stateMutability: "view",
+          type: "function",
+        },
+        {
+          inputs: [],
+          name: "getTokenInfo",
+          outputs: [
+            {
+              components: [
+                {
+                  internalType: "address",
+                  name: "addr",
+                  type: "address",
+                },
+                {
+                  internalType: "string",
+                  name: "name",
+                  type: "string",
+                },
+                {
+                  internalType: "string",
+                  name: "symbol",
+                  type: "string",
+                },
+                {
+                  internalType: "uint256",
+                  name: "totalSupply",
+                  type: "uint256",
+                },
+              ],
+              internalType: "struct CGProgram.TokenInfo",
+              name: "",
+              type: "tuple",
+            },
+          ],
+          stateMutability: "view",
+          type: "function",
+        },
+        {
+          inputs: [],
           name: "lockDistributions",
           outputs: [
             {
@@ -415,7 +586,7 @@ const deployedContracts = {
         renounceOwnership: "@openzeppelin/contracts/access/Ownable.sol",
         transferOwnership: "@openzeppelin/contracts/access/Ownable.sol",
       },
-      deployedOnBlock: 7,
+      deployedOnBlock: 22,
     },
   },
 } as const;

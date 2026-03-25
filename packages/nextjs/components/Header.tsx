@@ -86,7 +86,7 @@ export const Header = () => {
             <Image alt="SE2 logo" className="cursor-pointer" fill src="/logo.svg" />
           </div>
           <div className="flex flex-col">
-            <span className="font-bold leading-tight">Scaffold-ETH</span>
+            <span className="font-bold leading-tight">Chain.Giving</span>
             <span className="text-xs">Ethereum dev stack</span>
           </div>
         </Link>

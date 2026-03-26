@@ -11,6 +11,18 @@ import { getParsedError, notification } from "~~/utils/scaffold-eth";
 
 const cgProgramAbi = deployedContracts[31337].CGProgram.abi;
 
+const cgCrowdfundingAbi = [
+  {
+    name: "contributions",
+    type: "function",
+    stateMutability: "view",
+    inputs: [{ name: "", type: "address" }],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+  { name: "cancelContribution", type: "function", stateMutability: "nonpayable", inputs: [], outputs: [] },
+  { name: "refund", type: "function", stateMutability: "nonpayable", inputs: [], outputs: [] },
+] as const;
+
 const PROGRAM_STATES = ["Active", "Executing", "Completed", "Cancelled"] as const;
 const CROWDFUNDING_STATES = ["Unfunded", "Funded", "Withdrawn", "Cancelled"] as const;
 const DISTRIBUTION_STATES = ["Inactive", "Ready", "Distributed"] as const;
@@ -187,6 +199,7 @@ export const CGProgramView = ({ address }: { address: Address }) => {
             isOwner={isOwner}
             lockDistributions={lockDistributions}
             distributions={distributionsInfo ?? []}
+            connectedAddress={connectedAddress}
           />
           <DistributionsSection
             distributions={distributionsInfo ?? []}
@@ -337,6 +350,7 @@ function CrowdfundingSection({
   isOwner,
   lockDistributions,
   distributions,
+  connectedAddress,
 }: {
   crowdfundingInfo: CrowdfundingInfo | undefined;
   programAddress: Address;
@@ -344,10 +358,40 @@ function CrowdfundingSection({
   isOwner: boolean;
   lockDistributions: boolean | undefined;
   distributions: DistributionInfo[];
+  connectedAddress: Address | undefined;
 }) {
   const [contributeAmount, setContributeAmount] = useState("");
   const write = useCGProgramWrite(programAddress);
   const cfLink = useBlockExplorerLink(crowdfundingInfo?.addr);
+  const { writeContractAsync } = useWriteContract();
+  const writeTx = useTransactor();
+
+  const cfAddr = crowdfundingInfo?.addr;
+  const isValidCf = cfAddr && !isAddressEqual(cfAddr, zeroAddress);
+
+  const { data: userContribution, refetch: refetchUserContribution } = useReadContract({
+    address: isValidCf ? cfAddr : undefined,
+    abi: cgCrowdfundingAbi,
+    functionName: "contributions",
+    args: connectedAddress ? [connectedAddress] : undefined,
+    query: { enabled: !!isValidCf && !!connectedAddress, refetchInterval: 5000 },
+  });
+
+  const writeCf = async (functionName: "cancelContribution" | "refund") => {
+    if (!cfAddr) return;
+    try {
+      await writeTx(() =>
+        writeContractAsync({
+          address: cfAddr,
+          abi: cgCrowdfundingAbi,
+          functionName,
+        } as any),
+      );
+      refetchUserContribution();
+    } catch (e) {
+      notification.error(getParsedError(e));
+    }
+  };
 
   const isZeroAddr = !crowdfundingInfo || isAddressEqual(crowdfundingInfo.addr, zeroAddress);
 
@@ -409,6 +453,35 @@ function CrowdfundingSection({
         </div>
         <progress className="progress progress-primary w-full" value={Math.min(progress, 100)} max="100" />
       </div>
+
+      {connectedAddress && userContribution !== undefined && userContribution > 0n && (
+        <div className="mt-4 p-4 rounded-xl bg-base-200 border border-base-300">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide opacity-60 mb-0.5">Your contribution</p>
+              <p className="text-2xl font-bold font-mono">{formatEther(userContribution)} ETH</p>
+            </div>
+            <div className="flex gap-2">
+              {crowdfundingInfo.state === 0 && (
+                <button className="btn btn-sm btn-outline btn-error" onClick={() => writeCf("cancelContribution")}>
+                  Cancel contribution
+                </button>
+              )}
+              {crowdfundingInfo.state === 3 && (
+                <button className="btn btn-sm btn-warning" onClick={() => writeCf("refund")}>
+                  Claim refund
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {crowdfundingInfo.state === 3 && connectedAddress && userContribution === 0n && (
+        <div className="mt-4 p-3 rounded-xl bg-base-200 border border-base-300 text-sm opacity-60 text-center">
+          This program was cancelled. You have no contribution to refund.
+        </div>
+      )}
 
       {crowdfundingInfo.state === 0 && (
         <div className="mt-4">

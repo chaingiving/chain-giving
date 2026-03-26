@@ -10,7 +10,7 @@ const deployCGProgram: DeployFunction = async function (hre: HardhatRuntimeEnvir
     args: [
       deployer,
       "Demo Program",
-      true, // lockDistributions
+      false, // lockDistributions
     ],
     log: true,
     autoMine: true,

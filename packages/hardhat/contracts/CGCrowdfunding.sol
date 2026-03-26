@@ -105,9 +105,9 @@ contract CGCrowdfunding is Ownable {
 		emit FundsWithdrawn(to, balance);
 	}
 
-	/// @notice Cancel the crowdfunding. Only if UNFUNDED.
+	/// @notice Cancel the crowdfunding. Allowed from UNFUNDED or FUNDED states.
 	function cancel() external onlyOwner {
-		if (state != State.UNFUNDED)
+		if (state != State.UNFUNDED && state != State.FUNDED)
 			revert NotInState(State.UNFUNDED, state);
 
 		state = State.CANCELLED;

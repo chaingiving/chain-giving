@@ -54,8 +54,7 @@ const config: HardhatUserConfig = {
       },
       blockGasLimit: 30_000_000,
       mining: {
-        auto: false,
-        interval: 1000,
+        auto: true,
       },
     },
     mainnet: {

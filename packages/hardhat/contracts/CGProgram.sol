@@ -209,7 +209,8 @@ contract CGProgram is Ownable {
 
 		if (
 			address(crowdfunding) != address(0) &&
-			crowdfunding.state() == CGCrowdfunding.State.UNFUNDED
+			(crowdfunding.state() == CGCrowdfunding.State.UNFUNDED ||
+			 crowdfunding.state() == CGCrowdfunding.State.FUNDED)
 		) {
 			crowdfunding.cancel();
 		}

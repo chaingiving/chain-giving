@@ -182,7 +182,13 @@ export const CGProgramView = ({ address }: { address: Address }) => {
             isActive={isActive}
             isOwner={isOwner}
           />
-          {isOwner && isActive && <OwnerActions address={address} />}
+          {isOwner && isActive && (
+            <OwnerActions
+              address={address}
+              crowdfundingInfo={crowdfundingInfo}
+              distributions={distributionsInfo ?? []}
+            />
+          )}
         </div>
       </div>
     </div>
@@ -222,11 +228,31 @@ function ProgramSection({
         </div>
         <div>
           <p className="text-sm opacity-60">Contract Balance</p>
-          <Balance address={address} />
-        </div>
-        <div>
-          <p className="text-sm opacity-60">Distributions Locked</p>
-          <span className="font-mono">{lockDistributions ? "Yes" : "No"}</span>
+          <div className="flex items-center gap-4">
+            <Balance address={address} />
+            <div className="border-l border-base-300 pl-4">
+              <span className="text-sm opacity-60 mr-1">Distributions Locked:</span>
+              <span
+                className="tooltip tooltip-bottom"
+                data-tip="When locked, all distributions must be finalized (Ready) before the crowdfunding can accept contributions. This guarantees contributors know exactly how funds will be allocated."
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  className="w-4 h-4 stroke-current cursor-help"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </svg>
+              </span>
+              <span className="font-mono ml-1">{lockDistributions ? "Yes" : "No"}</span>
+            </div>
+          </div>
         </div>
       </div>
     </>
@@ -711,20 +737,60 @@ function EditBeneficiariesForm({
   );
 }
 
-function OwnerActions({ address }: { address: Address }) {
+function getExecuteDisabledReason(
+  crowdfundingInfo: CrowdfundingInfo | undefined,
+  distributions: DistributionInfo[],
+): string | null {
+  const hasCrowdfunding = crowdfundingInfo && !isAddressEqual(crowdfundingInfo.addr, zeroAddress);
+  if (!hasCrowdfunding) return "No crowdfunding configured";
+  if (distributions.length === 0) return "No distributions created";
+  if (crowdfundingInfo.state !== 1) return "Crowdfunding is not funded yet";
+
+  const notReadyIndex = distributions.findIndex(d => d.state !== 1);
+  if (notReadyIndex !== -1) return `Distribution #${notReadyIndex} is not ready`;
+
+  return null;
+}
+
+function OwnerActions({
+  address,
+  crowdfundingInfo,
+  distributions,
+}: {
+  address: Address;
+  crowdfundingInfo: CrowdfundingInfo | undefined;
+  distributions: DistributionInfo[];
+}) {
   const write = useCGProgramWrite(address);
+
+  const executeDisabledReason = getExecuteDisabledReason(crowdfundingInfo, distributions);
+  const canExecute = executeDisabledReason === null;
 
   return (
     <div>
       <div className="divider" />
       <h3 className="card-title">Owner Actions</h3>
       <div className="flex gap-3 mt-2">
-        <button className="btn btn-primary" onClick={() => write("execute")}>
-          Execute Program
-        </button>
-        <button className="btn btn-error" onClick={() => write("cancel")}>
-          Cancel Program
-        </button>
+        <div
+          className="tooltip tooltip-bottom"
+          data-tip={
+            canExecute
+              ? "Withdraw crowdfunded ETH to the owner and distribute tokens to all beneficiaries."
+              : executeDisabledReason
+          }
+        >
+          <button className="btn btn-primary" onClick={() => write("execute")} disabled={!canExecute}>
+            Execute Program
+          </button>
+        </div>
+        <div
+          className="tooltip tooltip-bottom"
+          data-tip="Permanently cancel the program. If the crowdfunding has not yet been funded, contributors will be able to claim refunds."
+        >
+          <button className="btn btn-error" onClick={() => write("cancel")}>
+            Cancel Program
+          </button>
+        </div>
       </div>
     </div>
   );

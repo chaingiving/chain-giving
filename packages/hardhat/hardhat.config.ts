@@ -53,6 +53,10 @@ const config: HardhatUserConfig = {
         enabled: process.env.MAINNET_FORKING_ENABLED === "true",
       },
       blockGasLimit: 30_000_000,
+      mining: {
+        auto: false,
+        interval: 1000,
+      },
     },
     mainnet: {
       url: "https://mainnet.rpc.buidlguidl.com",

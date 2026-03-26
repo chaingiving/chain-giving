@@ -175,6 +175,8 @@ export const CGProgramView = ({ address }: { address: Address }) => {
             programAddress={address}
             isActive={isActive}
             isOwner={isOwner}
+            lockDistributions={lockDistributions}
+            distributions={distributionsInfo ?? []}
           />
           <DistributionsSection
             distributions={distributionsInfo ?? []}
@@ -217,7 +219,7 @@ function ProgramSection({
         <h2 className="card-title text-3xl">{name || "CGProgram"}</h2>
         <span className={`badge ${STATE_COLORS[programState]} badge-lg`}>{programState}</span>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <p className="text-sm opacity-60">Contract Address</p>
           <AddressDisplay address={address} format="long" blockExplorerAddressLink={addressLink} />
@@ -228,31 +230,31 @@ function ProgramSection({
         </div>
         <div>
           <p className="text-sm opacity-60">Contract Balance</p>
-          <div className="flex items-center gap-4">
-            <Balance address={address} />
-            <div className="border-l border-base-300 pl-4">
-              <span className="text-sm opacity-60 mr-1">Distributions Locked:</span>
-              <span
-                className="tooltip tooltip-bottom"
-                data-tip="When locked, all distributions must be finalized (Ready) before the crowdfunding can accept contributions. This guarantees contributors know exactly how funds will be allocated."
+          <Balance address={address} />
+        </div>
+        <div>
+          <p className="text-sm flex items-center gap-1">
+            <span className="opacity-60">Distributions Locked</span>
+            <span
+              className="tooltip tooltip-bottom"
+              data-tip="When locked, all distributions must marked as Ready before the crowdfunding can accept contributions. This guarantees contributors know exactly how funds will be allocated."
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                className="w-4 h-4 stroke-current cursor-help"
               >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  className="w-4 h-4 stroke-current cursor-help"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                  />
-                </svg>
-              </span>
-              <span className="font-mono ml-1">{lockDistributions ? "Yes" : "No"}</span>
-            </div>
-          </div>
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+            </span>
+          </p>
+          <p className="font-mono">{lockDistributions ? "Yes" : "No"}</p>
         </div>
       </div>
     </>
@@ -293,11 +295,15 @@ function CrowdfundingSection({
   programAddress,
   isActive,
   isOwner,
+  lockDistributions,
+  distributions,
 }: {
   crowdfundingInfo: CrowdfundingInfo | undefined;
   programAddress: Address;
   isActive: boolean;
   isOwner: boolean;
+  lockDistributions: boolean | undefined;
+  distributions: DistributionInfo[];
 }) {
   const [contributeAmount, setContributeAmount] = useState("");
   const write = useCGProgramWrite(programAddress);
@@ -321,6 +327,9 @@ function CrowdfundingSection({
     crowdfundingInfo.fundingTarget > 0n
       ? Number((crowdfundingInfo.totalRaised * 10000n) / crowdfundingInfo.fundingTarget) / 100
       : 0;
+
+  const allDistributionsReady = distributions.length > 0 && distributions.every(d => d.state === 1);
+  const contributeLocked = lockDistributions && !allDistributionsReady;
 
   const handleContribute = async () => {
     if (!contributeAmount) return;
@@ -362,16 +371,44 @@ function CrowdfundingSection({
       </div>
 
       {crowdfundingInfo.state === 0 && (
-        <div className="mt-4 flex gap-2 items-end">
-          <div className="grow">
-            <label className="label">
-              <span className="label-text">Contribute ETH</span>
-            </label>
-            <EtherInput onValueChange={({ valueInEth }) => setContributeAmount(valueInEth)} />
+        <div className="mt-4">
+          {contributeLocked && (
+            <div role="alert" className="alert alert-warning mb-3 py-2 text-sm">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-5 w-5 shrink-0"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"
+                />
+              </svg>
+              <span>
+                Contributions are locked until all distributions are defined and marked as &quot;Ready&quot; by the
+                program owner.
+              </span>
+            </div>
+          )}
+          <div className="flex gap-2 items-end">
+            <div className="grow">
+              <label className="label">
+                <span className="label-text">Contribute ETH</span>
+              </label>
+              <EtherInput onValueChange={({ valueInEth }) => setContributeAmount(valueInEth)} />
+            </div>
+            <button
+              className="btn btn-primary"
+              onClick={handleContribute}
+              disabled={!contributeAmount || !!contributeLocked}
+            >
+              Contribute
+            </button>
           </div>
-          <button className="btn btn-primary" onClick={handleContribute} disabled={!contributeAmount}>
-            Contribute
-          </button>
         </div>
       )}
     </div>

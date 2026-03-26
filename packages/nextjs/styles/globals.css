@@ -118,6 +118,10 @@
   text-underline-offset: 2px;
 }
 
+.tooltip::before {
+  border-radius: 4px;
+}
+
 .link:hover {
   opacity: 80%;
 }

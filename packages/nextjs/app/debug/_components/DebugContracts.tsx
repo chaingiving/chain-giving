@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo } from "react";
+import { CGTokenUI, CG_TOKEN_CONTRACT_NAME } from "./CGTokenUI";
 import { ContractUI } from "./ContractUI";
 import "@scaffold-ui/debug-contracts/styles.css";
 import { useSessionStorage } from "usehooks-ts";
@@ -14,13 +15,15 @@ export function DebugContracts() {
   const contractsData = useAllContracts();
   const contractNames = useMemo(
     () =>
-      Object.keys(contractsData).sort((a, b) => {
+      (
+        [...Object.keys(contractsData), CG_TOKEN_CONTRACT_NAME] as (ContractName | typeof CG_TOKEN_CONTRACT_NAME)[]
+      ).sort((a, b) => {
         return a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" });
-      }) as ContractName[],
+      }),
     [contractsData],
   );
 
-  const [selectedContract, setSelectedContract] = useSessionStorage<ContractName>(
+  const [selectedContract, setSelectedContract] = useSessionStorage<ContractName | typeof CG_TOKEN_CONTRACT_NAME>(
     selectedContractStorageKey,
     contractNames[0],
     { initializeWithValue: false },
@@ -51,18 +54,24 @@ export function DebugContracts() {
                   onClick={() => setSelectedContract(contractName)}
                 >
                   {contractName}
-                  {(contractsData[contractName] as GenericContract)?.external && (
-                    <span className="tooltip tooltip-top tooltip-accent" data-tip="External contract">
-                      <BarsArrowUpIcon className="h-4 w-4 cursor-pointer" />
-                    </span>
-                  )}
+                  {contractName !== CG_TOKEN_CONTRACT_NAME &&
+                    (contractsData[contractName as ContractName] as GenericContract)?.external && (
+                      <span className="tooltip tooltip-top tooltip-accent" data-tip="External contract">
+                        <BarsArrowUpIcon className="h-4 w-4 cursor-pointer" />
+                      </span>
+                    )}
                 </button>
               ))}
             </div>
           )}
           {contractNames.map(
             contractName =>
-              contractName === selectedContract && <ContractUI key={contractName} contractName={contractName} />,
+              contractName === selectedContract &&
+              (contractName === CG_TOKEN_CONTRACT_NAME ? (
+                <CGTokenUI key={CG_TOKEN_CONTRACT_NAME} />
+              ) : (
+                <ContractUI key={contractName} contractName={contractName as ContractName} />
+              )),
           )}
         </>
       )}

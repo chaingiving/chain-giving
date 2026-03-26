@@ -3,7 +3,7 @@ import { DeployFunction } from "hardhat-deploy/types";
 
 const deployCGProgram: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const { deployer } = await hre.getNamedAccounts();
-  const { deploy, execute } = hre.deployments;
+  const { deploy } = hre.deployments;
 
   await deploy("CGProgram", {
     from: deployer,
@@ -15,9 +15,6 @@ const deployCGProgram: DeployFunction = async function (hre: HardhatRuntimeEnvir
     log: true,
     autoMine: true,
   });
-
-  // Define a default fungible token type (unlimited supply)
-  await execute("CGProgram", { from: deployer, log: true }, "defineTokenType", "Food Voucher", "FOOD", 0, "");
 };
 
 export default deployCGProgram;

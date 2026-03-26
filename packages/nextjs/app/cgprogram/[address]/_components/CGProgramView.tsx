@@ -111,14 +111,14 @@ function validateBeneficiaries(entries: BeneficiaryEntry[]): { addresses: Addres
       notification.error(`Row ${i + 1}: invalid address`);
       return null;
     }
-    if (!nonEmpty[i].amount || Number(nonEmpty[i].amount) <= 0) {
-      notification.error(`Row ${i + 1}: invalid amount`);
+    if (!nonEmpty[i].amount || Number(nonEmpty[i].amount) <= 0 || !Number.isInteger(Number(nonEmpty[i].amount))) {
+      notification.error(`Row ${i + 1}: amount must be a positive integer`);
       return null;
     }
   }
   return {
     addresses: nonEmpty.map(e => e.address as Address),
-    amounts: nonEmpty.map(e => parseEther(e.amount)),
+    amounts: nonEmpty.map(e => BigInt(e.amount)),
   };
 }
 
@@ -168,7 +168,13 @@ export const CGProgramView = ({ address }: { address: Address }) => {
             owner={owner}
             lockDistributions={lockDistributions}
           />
-          <TokenSection tokenAddress={tokenAddress} tokenTypes={tokenTypes ?? []} />
+          <TokenSection
+            tokenAddress={tokenAddress}
+            tokenTypes={tokenTypes ?? []}
+            programAddress={address}
+            isOwner={isOwner}
+            isActive={isActive}
+          />
         </div>
       </div>
 
@@ -269,9 +275,15 @@ function ProgramSection({
 function TokenSection({
   tokenAddress,
   tokenTypes,
+  programAddress,
+  isOwner,
+  isActive,
 }: {
   tokenAddress: Address | undefined;
   tokenTypes: TokenTypeInfo[];
+  programAddress: Address;
+  isOwner: boolean;
+  isActive: boolean;
 }) {
   const tokenLink = useBlockExplorerLink(tokenAddress);
 
@@ -312,6 +324,8 @@ function TokenSection({
           </div>
         </div>
       )}
+
+      {isOwner && isActive && <CreateTokenTypeForm programAddress={programAddress} />}
     </>
   );
 }
@@ -516,7 +530,7 @@ function DistributionsSection({
       </div>
 
       {isOwner && isActive && tokenTypes.length === 0 && (
-        <p className="text-sm opacity-60 mt-2">Define at least one token type above before creating distributions.</p>
+        <p className="text-sm opacity-60 mt-2">Create at least one token type above before creating distributions.</p>
       )}
 
       {showNewForm && (
@@ -570,8 +584,12 @@ function NewDistributionForm({
   const [isPending, setIsPending] = useState(false);
   const write = useCGProgramWrite(programAddress);
 
+  const selectedTokenType = tokenTypes.find(tt => tt.tokenId === selectedTokenId);
+  const isNft = selectedTokenType?.maxSupply === 1n;
+
   const handleCreate = async () => {
-    const validated = validateBeneficiaries(entries);
+    const finalEntries = isNft ? entries.map(e => ({ ...e, amount: "1" })) : entries;
+    const validated = validateBeneficiaries(finalEntries);
     if (!validated) return;
 
     setIsPending(true);
@@ -613,7 +631,7 @@ function NewDistributionForm({
         </select>
       </div>
 
-      <BeneficiariesTableEditor entries={entries} onChange={setEntries} />
+      <BeneficiariesTableEditor entries={entries} onChange={setEntries} hideAmount={isNft} />
       <div className="mt-3">
         <button className="btn btn-primary btn-sm" onClick={handleCreate} disabled={isPending}>
           {isPending ? <span className="loading loading-spinner loading-xs" /> : "Create Distribution"}
@@ -661,10 +679,12 @@ function DistributionItem({
           <p className="opacity-60">Address</p>
           <AddressDisplay address={dist.addr} blockExplorerAddressLink={distLink} />
         </div>
-        <div>
-          <p className="opacity-60">Total Required</p>
-          <p className="font-mono">{formatEther(dist.totalRequired)} tokens</p>
-        </div>
+        {tokenType?.maxSupply !== 1n && (
+          <div>
+            <p className="opacity-60">Total Required</p>
+            <p className="font-mono">{dist.totalRequired.toString()} tokens</p>
+          </div>
+        )}
       </div>
 
       {dist.beneficiaries.length > 0 && (
@@ -676,7 +696,7 @@ function DistributionItem({
 
       {isOwner && isActive && dist.state === 0 && (
         <div className="mt-3 flex gap-2">
-          <EditBeneficiariesForm programAddress={programAddress} distributionIndex={index} />
+          <EditBeneficiariesForm programAddress={programAddress} distributionIndex={index} tokenType={tokenType} />
           {dist.beneficiaryCount > 0n && (
             <button className="btn btn-sm btn-accent" onClick={() => write("markDistributionReady", [BigInt(index)])}>
               Mark Ready
@@ -715,7 +735,7 @@ function BeneficiaryRow({ address, amount }: { address: Address; amount: bigint 
       <td>
         <AddressDisplay address={address} blockExplorerAddressLink={link} />
       </td>
-      <td className="font-mono">{formatEther(amount)} tokens</td>
+      <td className="font-mono">{amount.toString()} tokens</td>
     </tr>
   );
 }
@@ -723,9 +743,11 @@ function BeneficiaryRow({ address, amount }: { address: Address; amount: bigint 
 function BeneficiariesTableEditor({
   entries,
   onChange,
+  hideAmount = false,
 }: {
   entries: BeneficiaryEntry[];
   onChange: (entries: BeneficiaryEntry[]) => void;
+  hideAmount?: boolean;
 }) {
   const updateEntry = (index: number, field: keyof BeneficiaryEntry, value: string) => {
     const updated = [...entries];
@@ -745,8 +767,8 @@ function BeneficiariesTableEditor({
       <table className="table table-sm">
         <thead>
           <tr>
-            <th className="w-7/12">Address</th>
-            <th className="w-4/12">Amount (tokens)</th>
+            <th className={hideAmount ? "w-11/12" : "w-7/12"}>Address</th>
+            {!hideAmount && <th className="w-4/12">Amount (tokens)</th>}
             <th className="w-1/12" />
           </tr>
         </thead>
@@ -760,17 +782,19 @@ function BeneficiariesTableEditor({
                   placeholder="0x..."
                 />
               </td>
-              <td>
-                <input
-                  type="number"
-                  className="input input-bordered input-sm w-full"
-                  value={entry.amount}
-                  onChange={e => updateEntry(i, "amount", e.target.value)}
-                  placeholder="100"
-                  min="0"
-                  step="any"
-                />
-              </td>
+              {!hideAmount && (
+                <td>
+                  <input
+                    type="number"
+                    className="input input-bordered input-sm w-full"
+                    value={entry.amount}
+                    onChange={e => updateEntry(i, "amount", e.target.value)}
+                    placeholder="1"
+                    min="1"
+                    step="1"
+                  />
+                </td>
+              )}
               <td>
                 <button
                   className="btn btn-ghost btn-xs text-error"
@@ -794,16 +818,21 @@ function BeneficiariesTableEditor({
 function EditBeneficiariesForm({
   programAddress,
   distributionIndex,
+  tokenType,
 }: {
   programAddress: Address;
   distributionIndex: number;
+  tokenType: TokenTypeInfo | undefined;
 }) {
   const [showForm, setShowForm] = useState(false);
   const [entries, setEntries] = useState<BeneficiaryEntry[]>([{ address: "", amount: "" }]);
   const write = useCGProgramWrite(programAddress);
 
+  const isNft = tokenType?.maxSupply === 1n;
+
   const handleSet = async () => {
-    const validated = validateBeneficiaries(entries);
+    const finalEntries = isNft ? entries.map(e => ({ ...e, amount: "1" })) : entries;
+    const validated = validateBeneficiaries(finalEntries);
     if (!validated) return;
 
     const success = await write("setBeneficiaries", [
@@ -827,7 +856,7 @@ function EditBeneficiariesForm({
 
   return (
     <div className="flex flex-col gap-2 w-full border border-base-300 rounded-lg p-3">
-      <BeneficiariesTableEditor entries={entries} onChange={setEntries} />
+      <BeneficiariesTableEditor entries={entries} onChange={setEntries} hideAmount={isNft} />
       <div className="flex gap-2">
         <button className="btn btn-sm btn-primary" onClick={handleSet}>
           Confirm
@@ -873,7 +902,6 @@ function OwnerActions({
     <div>
       <div className="divider" />
       <h3 className="card-title">Owner Actions</h3>
-      <DefineTokenTypeForm programAddress={address} />
       <div className="flex gap-3 mt-4">
         <div
           className="tooltip tooltip-bottom"
@@ -900,7 +928,7 @@ function OwnerActions({
   );
 }
 
-function DefineTokenTypeForm({ programAddress }: { programAddress: Address }) {
+function CreateTokenTypeForm({ programAddress }: { programAddress: Address }) {
   const [showForm, setShowForm] = useState(false);
   const [name, setName] = useState("");
   const [symbol, setSymbol] = useState("");
@@ -908,7 +936,7 @@ function DefineTokenTypeForm({ programAddress }: { programAddress: Address }) {
   const [uri, setUri] = useState("");
   const write = useCGProgramWrite(programAddress);
 
-  const handleDefine = async () => {
+  const handleCreate = async () => {
     if (!name || !symbol) {
       notification.error("Name and symbol are required");
       return;
@@ -927,8 +955,8 @@ function DefineTokenTypeForm({ programAddress }: { programAddress: Address }) {
   if (!showForm) {
     return (
       <div className="mt-2">
-        <button className="btn btn-sm btn-outline btn-secondary" onClick={() => setShowForm(true)}>
-          + Define Token Type
+        <button className="btn btn-secondary" onClick={() => setShowForm(true)}>
+          Create Token Type
         </button>
       </div>
     );
@@ -937,7 +965,7 @@ function DefineTokenTypeForm({ programAddress }: { programAddress: Address }) {
   return (
     <div className="mt-3 border border-base-300 rounded-xl p-4">
       <div className="flex items-center justify-between mb-3">
-        <span className="font-semibold">Define Token Type</span>
+        <span className="font-semibold">Create Token Type</span>
         <button className="btn btn-sm btn-ghost" onClick={() => setShowForm(false)}>
           Cancel
         </button>
@@ -952,7 +980,7 @@ function DefineTokenTypeForm({ programAddress }: { programAddress: Address }) {
             className="input input-bordered w-full"
             value={name}
             onChange={e => setName(e.target.value)}
-            placeholder="Food Voucher"
+            placeholder="Voucher"
           />
         </div>
         <div>
@@ -964,7 +992,7 @@ function DefineTokenTypeForm({ programAddress }: { programAddress: Address }) {
             className="input input-bordered w-full"
             value={symbol}
             onChange={e => setSymbol(e.target.value)}
-            placeholder="FOOD"
+            placeholder="VOUCHER"
           />
         </div>
         <div>
@@ -998,8 +1026,8 @@ function DefineTokenTypeForm({ programAddress }: { programAddress: Address }) {
           />
         </div>
       </div>
-      <button className="btn btn-secondary btn-sm mt-3" onClick={handleDefine} disabled={!name || !symbol}>
-        Define
+      <button className="btn btn-secondary btn-sm mt-3" onClick={handleCreate} disabled={!name || !symbol}>
+        Create
       </button>
     </div>
   );

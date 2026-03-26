@@ -66,6 +66,7 @@ contract CGProgram is Ownable {
 	error CrowdfundingNotFunded();
 	error DistributionNotReady(uint256 index);
 	error DistributionsLocked();
+	error ExceedsTotalSupply(uint256 tokenId, uint256 totalRequired, uint256 maxSupply);
 
 	constructor(
 		address owner_,
@@ -135,7 +136,16 @@ contract CGProgram is Ownable {
 		if (state != State.ACTIVE) revert ProgramNotActive();
 		if (lockDistributions && _crowdfundingHasContributions()) revert DistributionsLocked();
 
-		distributions[distributionIndex].setBeneficiaries(beneficiaries_, amounts_);
+		CGDistribution dist = distributions[distributionIndex];
+		dist.setBeneficiaries(beneficiaries_, amounts_);
+
+		uint256 distTokenId = dist.tokenId();
+		CGToken.TokenType memory tt = token.getTokenType(distTokenId);
+		if (tt.maxSupply > 0) {
+			uint256 aggregateRequired = _totalRequiredForToken(distTokenId);
+			if (aggregateRequired > tt.maxSupply)
+				revert ExceedsTotalSupply(distTokenId, aggregateRequired, tt.maxSupply);
+		}
 	}
 
 	/// @notice Mint ERC-1155 tokens to a distribution and mark it READY.
@@ -265,5 +275,14 @@ contract CGProgram is Ownable {
 
 	function _crowdfundingHasContributions() internal view returns (bool) {
 		return address(crowdfunding) != address(0) && crowdfunding.totalRaised() > 0;
+	}
+
+	/// @dev Sum totalRequired across all distributions targeting the same token type.
+	function _totalRequiredForToken(uint256 tokenId_) internal view returns (uint256 total) {
+		for (uint256 i = 0; i < distributions.length; i++) {
+			if (distributions[i].tokenId() == tokenId_) {
+				total += distributions[i].totalRequired();
+			}
+		}
 	}
 }

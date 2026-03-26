@@ -57,6 +57,27 @@ const deployedContracts = {
           type: "error",
         },
         {
+          inputs: [
+            {
+              internalType: "uint256",
+              name: "tokenId",
+              type: "uint256",
+            },
+            {
+              internalType: "uint256",
+              name: "totalRequired",
+              type: "uint256",
+            },
+            {
+              internalType: "uint256",
+              name: "maxSupply",
+              type: "uint256",
+            },
+          ],
+          name: "ExceedsTotalSupply",
+          type: "error",
+        },
+        {
           inputs: [],
           name: "NoCrowdfunding",
           type: "error",

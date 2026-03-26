@@ -7,7 +7,7 @@ import { getMetadata } from "~~/utils/scaffold-eth/getMetadata";
 
 export const metadata = getMetadata({
   title: "Chain.Giving",
-  description: "Built with Chain.Giving",
+  description: "Truthful Giving for Everyone",
 });
 
 const ScaffoldEthApp = ({ children }: { children: React.ReactNode }) => {

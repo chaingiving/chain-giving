@@ -30,13 +30,6 @@ const Home: NextPage = () => {
               }
             />
           </div>
-
-          <p className="text-center text-lg">
-            Get started by editing{" "}
-            <code className="italic bg-base-300 text-base font-bold max-w-full break-words break-all inline-block">
-              packages/nextjs/app/page.tsx
-            </code>
-          </p>
         </div>
 
         <div className="grow bg-base-300 w-full mt-16 px-8 py-12">

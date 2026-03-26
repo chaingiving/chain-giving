@@ -2,20 +2,25 @@
 pragma solidity ^0.8.20;
 
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {IERC1155} from "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
+import {IERC1155Receiver} from "@openzeppelin/contracts/token/ERC1155/IERC1155Receiver.sol";
+import {ERC165} from "@openzeppelin/contracts/utils/introspection/ERC165.sol";
+import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 
-/// @title CGDistribution — Token distribution to beneficiary lists
-/// @notice Holds a beneficiary list with token amounts. Transitions INACTIVE → READY → DISTRIBUTED.
-contract CGDistribution is Ownable {
-	using SafeERC20 for IERC20;
+/// @title CGDistribution — ERC-1155 token distribution to a beneficiary list
+/// @notice Holds tokens of a specific ERC-1155 type and distributes them to beneficiaries.
+///         Transitions: INACTIVE → READY → DISTRIBUTED.
+///         Implements IERC1155Receiver so it can receive tokens via safe transfers.
+contract CGDistribution is Ownable, ERC165, IERC1155Receiver {
 	enum State {
 		INACTIVE,
 		READY,
 		DISTRIBUTED
 	}
 
-	IERC20 public immutable token;
+	IERC1155 public immutable token;
+	uint256 public immutable tokenId;
+
 	address[] public beneficiaries;
 	uint256[] public amounts;
 	State public state;
@@ -31,20 +36,20 @@ contract CGDistribution is Ownable {
 	error ZeroAmount();
 	error ZeroAddress();
 
-	constructor(address owner_, IERC20 token_) Ownable(owner_) {
+	constructor(address owner_, IERC1155 token_, uint256 tokenId_) Ownable(owner_) {
 		token = token_;
+		tokenId = tokenId_;
 		state = State.INACTIVE;
 	}
 
 	/// @notice Set or replace the beneficiary list. Only when INACTIVE.
+	///         For NFT-like distributions set each amount to 1; for fungible use any amount.
 	function setBeneficiaries(
 		address[] calldata beneficiaries_,
 		uint256[] calldata amounts_
 	) external onlyOwner {
-		if (state != State.INACTIVE)
-			revert NotInState(State.INACTIVE, state);
-		if (beneficiaries_.length != amounts_.length)
-			revert ArrayLengthMismatch();
+		if (state != State.INACTIVE) revert NotInState(State.INACTIVE, state);
+		if (beneficiaries_.length != amounts_.length) revert ArrayLengthMismatch();
 		if (beneficiaries_.length == 0) revert EmptyBeneficiaries();
 
 		for (uint256 i = 0; i < beneficiaries_.length; i++) {
@@ -55,20 +60,17 @@ contract CGDistribution is Ownable {
 		beneficiaries = beneficiaries_;
 		amounts = amounts_;
 
-		uint256 total = totalRequired();
-		emit BeneficiariesSet(beneficiaries_.length, total);
+		emit BeneficiariesSet(beneficiaries_.length, totalRequired());
 	}
 
-	/// @notice Transition to READY. Requires contract holds enough tokens.
+	/// @notice Transition to READY. Requires the contract holds sufficient tokens.
 	function markReady() external onlyOwner {
-		if (state != State.INACTIVE)
-			revert NotInState(State.INACTIVE, state);
+		if (state != State.INACTIVE) revert NotInState(State.INACTIVE, state);
 		if (beneficiaries.length == 0) revert EmptyBeneficiaries();
 
 		uint256 required = totalRequired();
-		uint256 balance = token.balanceOf(address(this));
-		if (balance < required)
-			revert InsufficientTokenBalance(required, balance);
+		uint256 balance = token.balanceOf(address(this), tokenId);
+		if (balance < required) revert InsufficientTokenBalance(required, balance);
 
 		state = State.READY;
 		emit DistributionReady();
@@ -76,12 +78,11 @@ contract CGDistribution is Ownable {
 
 	/// @notice Transfer tokens to all beneficiaries. Transitions to DISTRIBUTED.
 	function distribute() external onlyOwner {
-		if (state != State.READY)
-			revert NotInState(State.READY, state);
+		if (state != State.READY) revert NotInState(State.READY, state);
 
 		uint256 total;
 		for (uint256 i = 0; i < beneficiaries.length; i++) {
-			token.safeTransfer(beneficiaries[i], amounts[i]);
+			token.safeTransferFrom(address(this), beneficiaries[i], tokenId, amounts[i], "");
 			total += amounts[i];
 		}
 
@@ -96,18 +97,48 @@ contract CGDistribution is Ownable {
 		}
 	}
 
-	/// @notice Number of beneficiaries.
 	function beneficiaryCount() external view returns (uint256) {
 		return beneficiaries.length;
 	}
 
-	/// @notice Return the full beneficiaries array.
 	function getBeneficiaries() external view returns (address[] memory) {
 		return beneficiaries;
 	}
 
-	/// @notice Return the full amounts array.
 	function getAmounts() external view returns (uint256[] memory) {
 		return amounts;
+	}
+
+	// ── IERC1155Receiver ─────────────────────────────────────────────────────
+
+	function onERC1155Received(
+		address,
+		address,
+		uint256,
+		uint256,
+		bytes calldata
+	) external pure override returns (bytes4) {
+		return this.onERC1155Received.selector;
+	}
+
+	function onERC1155BatchReceived(
+		address,
+		address,
+		uint256[] calldata,
+		uint256[] calldata,
+		bytes calldata
+	) external pure override returns (bytes4) {
+		return this.onERC1155BatchReceived.selector;
+	}
+
+	function supportsInterface(bytes4 interfaceId)
+		public
+		view
+		override(ERC165, IERC165)
+		returns (bool)
+	{
+		return
+			interfaceId == type(IERC1155Receiver).interfaceId ||
+			super.supportsInterface(interfaceId);
 	}
 }

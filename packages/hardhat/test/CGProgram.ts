@@ -6,6 +6,7 @@ import { time } from "@nomicfoundation/hardhat-network-helpers";
 
 describe("CGProgram", function () {
   let program: CGProgram;
+  let tokenId: bigint;
   let owner: HardhatEthersSigner;
   let donor1: HardhatEthersSigner;
   let donor2: HardhatEthersSigner;
@@ -20,7 +21,7 @@ describe("CGProgram", function () {
     const now = await time.latest();
     deadline = now + 7 * 24 * 60 * 60;
     const factory = await ethers.getContractFactory("CGProgram");
-    return factory.deploy(owner.address, "Aid Program", "Food Voucher", "FOOD", lock);
+    return factory.deploy(owner.address, "Aid Program", lock);
   }
 
   async function getToken(prog: CGProgram): Promise<CGToken> {
@@ -38,6 +39,9 @@ describe("CGProgram", function () {
   beforeEach(async () => {
     [owner, donor1, donor2, beneficiary1, beneficiary2, nonOwner] = await ethers.getSigners();
     program = await deployProgram(false);
+    // Define a default fungible token type (tokenId = 0)
+    await program.defineTokenType("Food Voucher", "FOOD", 0, "");
+    tokenId = 0n;
   });
 
   describe("Deployment", function () {
@@ -48,8 +52,6 @@ describe("CGProgram", function () {
 
     it("deploys a CGToken owned by the program", async () => {
       const token = await getToken(program);
-      expect(await token.name()).to.equal("Food Voucher");
-      expect(await token.symbol()).to.equal("FOOD");
       expect(await token.owner()).to.equal(await program.getAddress());
     });
 
@@ -59,7 +61,7 @@ describe("CGProgram", function () {
 
     it("emits ProgramCreated on deploy", async () => {
       const factory = await ethers.getContractFactory("CGProgram");
-      const newProgram = await factory.deploy(owner.address, "Test", "T", "T", false);
+      const newProgram = await factory.deploy(owner.address, "Test", false);
       const receipt = await newProgram.deploymentTransaction()!.wait();
       const programCreatedTopic = newProgram.interface.getEvent("ProgramCreated")!.topicHash;
       const event = receipt!.logs.find(log => log.topics[0] === programCreatedTopic);
@@ -70,6 +72,50 @@ describe("CGProgram", function () {
       expect(await program.lockDistributions()).to.equal(false);
       const locked = await deployProgram(true);
       expect(await locked.lockDistributions()).to.equal(true);
+    });
+  });
+
+  describe("defineTokenType", function () {
+    it("defines a fungible type and emits TokenTypeDefined", async () => {
+      await expect(program.defineTokenType("Water Credits", "WATR", 0, ""))
+        .to.emit(program, "TokenTypeDefined")
+        .withArgs(1n, "Water Credits", "WATR", 0n);
+    });
+
+    it("defines a capped badge type (maxSupply > 0)", async () => {
+      await program.defineTokenType("Bronze Badge", "BDGE", 100, "");
+      const token = await getToken(program);
+      const tt = await token.getTokenType(1n);
+      expect(tt.maxSupply).to.equal(100n);
+    });
+
+    it("defines a unique NFT type (maxSupply = 1)", async () => {
+      await program.defineTokenType("Certificate", "CERT", 1, "");
+      const token = await getToken(program);
+      const tt = await token.getTokenType(1n);
+      expect(tt.maxSupply).to.equal(1n);
+    });
+
+    it("supports multiple token types in one program", async () => {
+      await program.defineTokenType("Badge", "BDGE", 50, "");
+      await program.defineTokenType("Certificate", "CERT", 1, "");
+      const token = await getToken(program);
+      expect(await token.nextTokenId()).to.equal(3n); // 0=Food Voucher, 1=Badge, 2=Certificate
+    });
+
+    it("reverts if not owner", async () => {
+      await expect(program.connect(nonOwner).defineTokenType("X", "X", 0, "")).to.be.revertedWithCustomError(
+        program,
+        "OwnableUnauthorizedAccount",
+      );
+    });
+
+    it("returns correct tokenId", async () => {
+      const token = await getToken(program);
+      // First defined in beforeEach is tokenId=0, next one should be 1
+      expect(await token.nextTokenId()).to.equal(1n);
+      await program.defineTokenType("Second", "SND", 0, "");
+      expect(await token.nextTokenId()).to.equal(2n);
     });
   });
 
@@ -102,25 +148,41 @@ describe("CGProgram", function () {
   });
 
   describe("Create Distribution", function () {
-    it("creates a distribution owned by the program", async () => {
-      await program.createDistribution();
+    it("creates a distribution for the given token type", async () => {
+      await program.createDistribution(tokenId);
       const dist = await getDistribution(program, 0);
       expect(await dist.owner()).to.equal(await program.getAddress());
       expect(await dist.token()).to.equal(await program.token());
+      expect(await dist.tokenId()).to.equal(tokenId);
     });
 
-    it("can create multiple distributions", async () => {
-      await program.createDistribution();
-      await program.createDistribution();
+    it("can create distributions for different token types", async () => {
+      await program.defineTokenType("Badge", "BDGE", 50, "");
+      await program.createDistribution(0n); // Food Voucher
+      await program.createDistribution(1n); // Badge
       expect(await program.distributionCount()).to.equal(2);
+
+      const dist0 = await getDistribution(program, 0);
+      const dist1 = await getDistribution(program, 1);
+      expect(await dist0.tokenId()).to.equal(0n);
+      expect(await dist1.tokenId()).to.equal(1n);
     });
 
-    it("emits DistributionCreated", async () => {
-      await expect(program.createDistribution()).to.emit(program, "DistributionCreated");
+    it("emits DistributionCreated with tokenId", async () => {
+      await expect(program.createDistribution(tokenId))
+        .to.emit(program, "DistributionCreated")
+        .withArgs(0n, await await program.createDistribution.staticCall(tokenId), tokenId);
+    });
+
+    it("reverts for unknown tokenId", async () => {
+      await expect(program.createDistribution(99n)).to.be.revertedWithCustomError(
+        await ethers.getContractAt("CGToken", await program.token()),
+        "UnknownTokenType",
+      );
     });
 
     it("reverts if not owner", async () => {
-      await expect(program.connect(nonOwner).createDistribution()).to.be.revertedWithCustomError(
+      await expect(program.connect(nonOwner).createDistribution(tokenId)).to.be.revertedWithCustomError(
         program,
         "OwnableUnauthorizedAccount",
       );
@@ -129,7 +191,7 @@ describe("CGProgram", function () {
 
   describe("Set Beneficiaries (proxied)", function () {
     it("sets beneficiaries on a distribution", async () => {
-      await program.createDistribution();
+      await program.createDistribution(tokenId);
       await program.setBeneficiaries(0, [beneficiary1.address, beneficiary2.address], [100n, 200n]);
 
       const dist = await getDistribution(program, 0);
@@ -138,7 +200,7 @@ describe("CGProgram", function () {
     });
 
     it("reverts if not owner", async () => {
-      await program.createDistribution();
+      await program.createDistribution(tokenId);
       await expect(
         program.connect(nonOwner).setBeneficiaries(0, [beneficiary1.address], [100n]),
       ).to.be.revertedWithCustomError(program, "OwnableUnauthorizedAccount");
@@ -146,8 +208,8 @@ describe("CGProgram", function () {
   });
 
   describe("Mark Distribution Ready", function () {
-    it("mints tokens and marks distribution READY", async () => {
-      await program.createDistribution();
+    it("mints ERC-1155 tokens and marks distribution READY", async () => {
+      await program.createDistribution(tokenId);
       await program.setBeneficiaries(0, [beneficiary1.address], [500n]);
       await program.markDistributionReady(0);
 
@@ -155,14 +217,29 @@ describe("CGProgram", function () {
       expect(await dist.state()).to.equal(1); // READY
 
       const token = await getToken(program);
-      expect(await token.balanceOf(await dist.getAddress())).to.equal(500n);
+      expect(await token.balanceOf(await dist.getAddress(), tokenId)).to.equal(500n);
+    });
+
+    it("mints badge tokens (amount=1 each) and marks ready", async () => {
+      await program.defineTokenType("Badge", "BDGE", 2, "");
+      const badgeTokenId = 1n;
+
+      await program.createDistribution(badgeTokenId);
+      await program.setBeneficiaries(0, [beneficiary1.address, beneficiary2.address], [1n, 1n]);
+      await program.markDistributionReady(0);
+
+      const dist = await getDistribution(program, 0);
+      expect(await dist.state()).to.equal(1); // READY
+
+      const token = await getToken(program);
+      expect(await token.balanceOf(await dist.getAddress(), badgeTokenId)).to.equal(2n);
     });
   });
 
   describe("Contribute (via program)", function () {
     it("forwards contributions to crowdfunding", async () => {
       await program.setCrowdfunding(TARGET, deadline);
-      await program.createDistribution();
+      await program.createDistribution(tokenId);
 
       await program.connect(donor1).contribute({ value: ethers.parseEther("5") });
 
@@ -181,11 +258,10 @@ describe("CGProgram", function () {
   describe("Execute", function () {
     async function setupForExecution() {
       await program.setCrowdfunding(TARGET, deadline);
-      await program.createDistribution();
+      await program.createDistribution(tokenId);
       await program.setBeneficiaries(0, [beneficiary1.address, beneficiary2.address], [1000n, 2000n]);
       await program.markDistributionReady(0);
 
-      // Fund the crowdfunding
       await program.connect(donor1).contribute({ value: TARGET });
     }
 
@@ -198,22 +274,17 @@ describe("CGProgram", function () {
       const gasCost = receipt!.gasUsed * receipt!.gasPrice;
       const ownerBalanceAfter = await ethers.provider.getBalance(owner.address);
 
-      // Owner received funds (minus gas)
       expect(ownerBalanceAfter - ownerBalanceBefore + gasCost).to.equal(TARGET);
 
-      // Tokens distributed
       const token = await getToken(program);
-      expect(await token.balanceOf(beneficiary1.address)).to.equal(1000n);
-      expect(await token.balanceOf(beneficiary2.address)).to.equal(2000n);
+      expect(await token.balanceOf(beneficiary1.address, tokenId)).to.equal(1000n);
+      expect(await token.balanceOf(beneficiary2.address, tokenId)).to.equal(2000n);
 
-      // Program is COMPLETED
       expect(await program.state()).to.equal(2); // COMPLETED
 
-      // Crowdfunding is WITHDRAWN
       const cf = await getCrowdfunding(program);
       expect(await cf.state()).to.equal(2); // WITHDRAWN
 
-      // Distribution is DISTRIBUTED
       const dist = await getDistribution(program, 0);
       expect(await dist.state()).to.equal(2); // DISTRIBUTED
     });
@@ -223,29 +294,33 @@ describe("CGProgram", function () {
       await expect(program.execute()).to.emit(program, "ProgramExecuted");
     });
 
-    it("works with multiple distributions", async () => {
+    it("works with multiple distributions across different token types", async () => {
+      await program.defineTokenType("Badge", "BDGE", 2, "");
       await program.setCrowdfunding(TARGET, deadline);
 
-      await program.createDistribution();
+      await program.createDistribution(0n); // Food Voucher
       await program.setBeneficiaries(0, [beneficiary1.address], [500n]);
       await program.markDistributionReady(0);
 
-      await program.createDistribution();
-      await program.setBeneficiaries(1, [beneficiary2.address], [700n]);
+      await program.createDistribution(1n); // Badge
+      await program.setBeneficiaries(1, [beneficiary2.address, beneficiary2.address], [1n, 1n]);
+      // beneficiary2 appears twice — but let's just use two different beneficiaries for clarity
+      await program.setBeneficiaries(1, [beneficiary1.address, beneficiary2.address], [1n, 1n]);
       await program.markDistributionReady(1);
 
       await program.connect(donor1).contribute({ value: TARGET });
       await program.execute();
 
       const token = await getToken(program);
-      expect(await token.balanceOf(beneficiary1.address)).to.equal(500n);
-      expect(await token.balanceOf(beneficiary2.address)).to.equal(700n);
+      expect(await token.balanceOf(beneficiary1.address, 0n)).to.equal(500n);
+      expect(await token.balanceOf(beneficiary1.address, 1n)).to.equal(1n);
+      expect(await token.balanceOf(beneficiary2.address, 1n)).to.equal(1n);
       expect(await program.state()).to.equal(2); // COMPLETED
     });
 
     it("reverts if crowdfunding not FUNDED", async () => {
       await program.setCrowdfunding(TARGET, deadline);
-      await program.createDistribution();
+      await program.createDistribution(tokenId);
       await program.setBeneficiaries(0, [beneficiary1.address], [100n]);
       await program.markDistributionReady(0);
 
@@ -261,16 +336,15 @@ describe("CGProgram", function () {
 
     it("reverts if distribution not READY", async () => {
       await program.setCrowdfunding(TARGET, deadline);
-      await program.createDistribution();
+      await program.createDistribution(tokenId);
       await program.setBeneficiaries(0, [beneficiary1.address], [100n]);
-      // Don't mark ready
       await program.connect(donor1).contribute({ value: TARGET });
 
       await expect(program.execute()).to.be.revertedWithCustomError(program, "DistributionNotReady");
     });
 
     it("reverts if no crowdfunding", async () => {
-      await program.createDistribution();
+      await program.createDistribution(tokenId);
       await expect(program.execute()).to.be.revertedWithCustomError(program, "NoCrowdfunding");
     });
 
@@ -292,7 +366,7 @@ describe("CGProgram", function () {
   describe("Cancel", function () {
     it("cancels program and crowdfunding", async () => {
       await program.setCrowdfunding(TARGET, deadline);
-      await program.createDistribution();
+      await program.createDistribution(tokenId);
 
       await expect(program.cancel()).to.emit(program, "ProgramCancelled");
       expect(await program.state()).to.equal(3); // CANCELLED
@@ -303,7 +377,7 @@ describe("CGProgram", function () {
 
     it("allows donor refunds after cancel", async () => {
       await program.setCrowdfunding(TARGET, deadline);
-      await program.createDistribution();
+      await program.createDistribution(tokenId);
 
       await program.connect(donor1).contribute({ value: ethers.parseEther("3") });
       await program.cancel();
@@ -314,7 +388,6 @@ describe("CGProgram", function () {
 
     it("reverts if not ACTIVE", async () => {
       await program.setCrowdfunding(TARGET, deadline);
-      await program.createDistribution();
       await program.cancel();
 
       await expect(program.cancel()).to.be.revertedWithCustomError(program, "ProgramNotActive");
@@ -338,6 +411,7 @@ describe("CGProgram", function () {
 
     beforeEach(async () => {
       lockedProgram = await deployProgram(true);
+      await lockedProgram.defineTokenType("Food Voucher", "FOOD", 0, "");
     });
 
     it("rejects contributions when no distributions exist", async () => {
@@ -349,7 +423,7 @@ describe("CGProgram", function () {
 
     it("rejects contributions when distributions are not READY", async () => {
       await lockedProgram.setCrowdfunding(TARGET, deadline);
-      await lockedProgram.createDistribution();
+      await lockedProgram.createDistribution(0n);
       await lockedProgram.setBeneficiaries(0, [beneficiary1.address], [100n]);
 
       await expect(
@@ -359,7 +433,7 @@ describe("CGProgram", function () {
 
     it("accepts contributions when all distributions are READY", async () => {
       await lockedProgram.setCrowdfunding(TARGET, deadline);
-      await lockedProgram.createDistribution();
+      await lockedProgram.createDistribution(0n);
       await lockedProgram.setBeneficiaries(0, [beneficiary1.address], [100n]);
       await lockedProgram.markDistributionReady(0);
 
@@ -368,113 +442,113 @@ describe("CGProgram", function () {
 
     it("blocks createDistribution after contributions received", async () => {
       await lockedProgram.setCrowdfunding(TARGET, deadline);
-      await lockedProgram.createDistribution();
+      await lockedProgram.createDistribution(0n);
       await lockedProgram.setBeneficiaries(0, [beneficiary1.address], [100n]);
       await lockedProgram.markDistributionReady(0);
 
       await lockedProgram.connect(donor1).contribute({ value: ethers.parseEther("1") });
 
-      await expect(lockedProgram.createDistribution()).to.be.revertedWithCustomError(
+      await expect(lockedProgram.createDistribution(0n)).to.be.revertedWithCustomError(
         lockedProgram,
         "DistributionsLocked",
       );
-    });
-
-    it("blocks setBeneficiaries after contributions received", async () => {
-      await lockedProgram.setCrowdfunding(TARGET, deadline);
-
-      // Create two distributions and mark both ready
-      await lockedProgram.createDistribution();
-      await lockedProgram.setBeneficiaries(0, [beneficiary1.address], [100n]);
-      await lockedProgram.markDistributionReady(0);
-
-      await lockedProgram.createDistribution();
-      await lockedProgram.setBeneficiaries(1, [beneficiary2.address], [200n]);
-      await lockedProgram.markDistributionReady(1);
-
-      // Now contribute — all distributions are READY so this works
-      await lockedProgram.connect(donor1).contribute({ value: ethers.parseEther("1") });
-
-      // Creating a third distribution should be locked
-      await expect(lockedProgram.createDistribution()).to.be.revertedWithCustomError(
-        lockedProgram,
-        "DistributionsLocked",
-      );
-
-      // setBeneficiaries is also blocked (even though dist state wouldn't allow it anyway,
-      // the lock check fires first). We test via a new distribution scenario above.
     });
 
     it("allows full locked flow end-to-end", async () => {
       await lockedProgram.setCrowdfunding(TARGET, deadline);
 
-      // Set up distributions first
-      await lockedProgram.createDistribution();
+      await lockedProgram.createDistribution(0n);
       await lockedProgram.setBeneficiaries(0, [beneficiary1.address, beneficiary2.address], [1000n, 2000n]);
       await lockedProgram.markDistributionReady(0);
 
-      // Now donors can see beneficiaries are locked, contribute
       await lockedProgram.connect(donor1).contribute({ value: ethers.parseEther("6") });
       await lockedProgram.connect(donor2).contribute({ value: ethers.parseEther("4") });
 
-      // Execute
       await lockedProgram.execute();
 
       const token = await getToken(lockedProgram);
-      expect(await token.balanceOf(beneficiary1.address)).to.equal(1000n);
-      expect(await token.balanceOf(beneficiary2.address)).to.equal(2000n);
+      expect(await token.balanceOf(beneficiary1.address, 0n)).to.equal(1000n);
+      expect(await token.balanceOf(beneficiary2.address, 0n)).to.equal(2000n);
       expect(await lockedProgram.state()).to.equal(2); // COMPLETED
     });
 
     it("unlocked mode allows contributions regardless of distribution state", async () => {
-      // Using the default (unlocked) program
       await program.setCrowdfunding(TARGET, deadline);
-      await program.createDistribution();
-      // Don't mark ready — contributions should still work
+      await program.createDistribution(tokenId);
 
       await expect(program.connect(donor1).contribute({ value: ethers.parseEther("1") })).to.not.be.reverted;
     });
   });
 
-  describe("Full Integration: Default Flow", function () {
-    it("completes the full default flow from spec", async () => {
-      // 1. Program already deployed in beforeEach
+  describe("View Functions", function () {
+    it("getTokenTypes returns all defined token types", async () => {
+      await program.defineTokenType("Badge", "BDGE", 50, "ipfs://QmBadge");
 
-      // 2. Set crowdfunding
+      const types = await program.getTokenTypes();
+      expect(types.length).to.equal(2);
+
+      expect(types[0].tokenId).to.equal(0n);
+      expect(types[0].name).to.equal("Food Voucher");
+      expect(types[0].symbol).to.equal("FOOD");
+      expect(types[0].maxSupply).to.equal(0n);
+      expect(types[0].totalMinted).to.equal(0n);
+
+      expect(types[1].tokenId).to.equal(1n);
+      expect(types[1].name).to.equal("Badge");
+      expect(types[1].maxSupply).to.equal(50n);
+      expect(types[1].uri).to.equal("ipfs://QmBadge");
+    });
+
+    it("getTokenTypes updates totalMinted after minting", async () => {
+      await program.createDistribution(tokenId);
+      await program.setBeneficiaries(0, [beneficiary1.address], [500n]);
+      await program.markDistributionReady(0);
+
+      const types = await program.getTokenTypes();
+      expect(types[0].totalMinted).to.equal(500n);
+    });
+
+    it("getDistributionInfo includes tokenId", async () => {
+      await program.defineTokenType("Badge", "BDGE", 50, "");
+      await program.createDistribution(0n);
+      await program.createDistribution(1n);
+
+      const info0 = await program.getDistributionInfo(0);
+      const info1 = await program.getDistributionInfo(1);
+
+      expect(info0.tokenId).to.equal(0n);
+      expect(info1.tokenId).to.equal(1n);
+    });
+  });
+
+  describe("Full Integration: Default Flow", function () {
+    it("completes the full default flow", async () => {
       await program.setCrowdfunding(TARGET, deadline);
 
-      // 3. Create distributions
-      await program.createDistribution();
-      await program.createDistribution();
+      await program.createDistribution(tokenId);
+      await program.createDistribution(tokenId);
 
-      // 4. Set beneficiaries
       await program.setBeneficiaries(0, [beneficiary1.address], [5000n]);
       await program.setBeneficiaries(1, [beneficiary2.address], [3000n]);
 
-      // 5. Mint tokens and mark ready
       await program.markDistributionReady(0);
       await program.markDistributionReady(1);
 
-      // 6. Donors contribute
       await program.connect(donor1).contribute({ value: ethers.parseEther("7") });
       await program.connect(donor2).contribute({ value: ethers.parseEther("3") });
 
-      // 7. Execute — withdraw + distribute atomically
       const ownerBefore = await ethers.provider.getBalance(owner.address);
       const tx = await program.execute();
       const receipt = await tx.wait();
       const gasCost = receipt!.gasUsed * receipt!.gasPrice;
       const ownerAfter = await ethers.provider.getBalance(owner.address);
 
-      // Verify funds received by owner
       expect(ownerAfter - ownerBefore + gasCost).to.equal(TARGET);
 
-      // Verify token distribution
       const token = await getToken(program);
-      expect(await token.balanceOf(beneficiary1.address)).to.equal(5000n);
-      expect(await token.balanceOf(beneficiary2.address)).to.equal(3000n);
+      expect(await token.balanceOf(beneficiary1.address, tokenId)).to.equal(5000n);
+      expect(await token.balanceOf(beneficiary2.address, tokenId)).to.equal(3000n);
 
-      // Verify final states
       expect(await program.state()).to.equal(2); // COMPLETED
     });
   });

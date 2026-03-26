@@ -28,11 +28,13 @@ const STATE_COLORS: Record<string, string> = {
   Distributed: "badge-info",
 };
 
-type TokenInfo = {
-  addr: Address;
+type TokenTypeInfo = {
+  tokenId: bigint;
   name: string;
   symbol: string;
-  totalSupply: bigint;
+  maxSupply: bigint;
+  totalMinted: bigint;
+  uri: string;
 };
 
 type CrowdfundingInfo = {
@@ -45,6 +47,7 @@ type CrowdfundingInfo = {
 
 type DistributionInfo = {
   addr: Address;
+  tokenId: bigint;
   state: number;
   beneficiaryCount: bigint;
   totalRequired: bigint;
@@ -126,7 +129,8 @@ export const CGProgramView = ({ address }: { address: Address }) => {
   const { data: state } = useContractRead<number>(address, "state");
   const { data: owner } = useContractRead<Address>(address, "owner");
   const { data: lockDistributions } = useContractRead<boolean>(address, "lockDistributions");
-  const { data: tokenInfo } = useContractRead<TokenInfo>(address, "getTokenInfo");
+  const { data: tokenAddress } = useContractRead<Address>(address, "token");
+  const { data: tokenTypes } = useContractRead<TokenTypeInfo[]>(address, "getTokenTypes");
   const { data: crowdfundingInfo } = useContractRead<CrowdfundingInfo>(address, "getCrowdfundingInfo");
   const { data: distributionsInfo } = useContractRead<DistributionInfo[]>(address, "getAllDistributionsInfo");
 
@@ -164,7 +168,7 @@ export const CGProgramView = ({ address }: { address: Address }) => {
             owner={owner}
             lockDistributions={lockDistributions}
           />
-          <TokenSection tokenInfo={tokenInfo} />
+          <TokenSection tokenAddress={tokenAddress} tokenTypes={tokenTypes ?? []} />
         </div>
       </div>
 
@@ -180,6 +184,7 @@ export const CGProgramView = ({ address }: { address: Address }) => {
           />
           <DistributionsSection
             distributions={distributionsInfo ?? []}
+            tokenTypes={tokenTypes ?? []}
             programAddress={address}
             isActive={isActive}
             isOwner={isOwner}
@@ -261,31 +266,52 @@ function ProgramSection({
   );
 }
 
-function TokenSection({ tokenInfo }: { tokenInfo: TokenInfo | undefined }) {
-  const tokenLink = useBlockExplorerLink(tokenInfo?.addr);
+function TokenSection({
+  tokenAddress,
+  tokenTypes,
+}: {
+  tokenAddress: Address | undefined;
+  tokenTypes: TokenTypeInfo[];
+}) {
+  const tokenLink = useBlockExplorerLink(tokenAddress);
 
-  if (!tokenInfo) return null;
+  if (!tokenAddress || isAddressEqual(tokenAddress, zeroAddress)) return null;
 
   return (
     <>
       <div className="divider" />
-      <h3 className="card-title">Token</h3>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <p className="text-sm opacity-60">Name</p>
-          <p className="font-semibold">
-            {tokenInfo.name} ({tokenInfo.symbol})
-          </p>
-        </div>
-        <div>
-          <p className="text-sm opacity-60">Total Supply</p>
-          <p className="font-mono">{formatEther(tokenInfo.totalSupply)} tokens</p>
-        </div>
-        <div>
-          <p className="text-sm opacity-60">Token Address</p>
-          <AddressDisplay address={tokenInfo.addr} blockExplorerAddressLink={tokenLink} />
-        </div>
+      <h3 className="card-title">Token Contract (ERC-1155)</h3>
+      <div>
+        <p className="text-sm opacity-60">Token Address</p>
+        <AddressDisplay address={tokenAddress} blockExplorerAddressLink={tokenLink} />
       </div>
+
+      {tokenTypes.length === 0 ? (
+        <p className="opacity-60 text-sm mt-2">No token types defined yet.</p>
+      ) : (
+        <div className="mt-2">
+          <p className="text-sm opacity-60 mb-2">Token Types ({tokenTypes.length})</p>
+          <div className="flex flex-col gap-2">
+            {tokenTypes.map(tt => (
+              <div key={tt.tokenId.toString()} className="border border-base-300 rounded-lg p-3 text-sm">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="badge badge-outline badge-sm">#{tt.tokenId.toString()}</span>
+                  <span className="font-semibold">
+                    {tt.name} ({tt.symbol})
+                  </span>
+                  <span className="badge badge-ghost badge-sm">
+                    {tt.maxSupply === 0n ? "Unlimited" : tt.maxSupply === 1n ? "NFT (max 1)" : `Max ${tt.maxSupply}`}
+                  </span>
+                </div>
+                <div className="flex gap-4 text-xs opacity-70">
+                  <span>Minted: {tt.totalMinted.toString()}</span>
+                  {tt.uri && <span>URI: {tt.uri}</span>}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </>
   );
 }
@@ -464,11 +490,13 @@ function SetCrowdfundingForm({ programAddress }: { programAddress: Address }) {
 
 function DistributionsSection({
   distributions,
+  tokenTypes,
   programAddress,
   isActive,
   isOwner,
 }: {
   distributions: DistributionInfo[];
+  tokenTypes: TokenTypeInfo[];
   programAddress: Address;
   isActive: boolean;
   isOwner: boolean;
@@ -480,17 +508,22 @@ function DistributionsSection({
       <div className="divider" />
       <div className="flex items-center justify-between">
         <h3 className="card-title">Distributions ({distributions.length})</h3>
-        {isOwner && isActive && !showNewForm && (
+        {isOwner && isActive && !showNewForm && tokenTypes.length > 0 && (
           <button className="btn btn-sm btn-secondary" onClick={() => setShowNewForm(true)}>
             + New Distribution
           </button>
         )}
       </div>
 
+      {isOwner && isActive && tokenTypes.length === 0 && (
+        <p className="text-sm opacity-60 mt-2">Define at least one token type above before creating distributions.</p>
+      )}
+
       {showNewForm && (
         <NewDistributionForm
           programAddress={programAddress}
           nextIndex={distributions.length}
+          tokenTypes={tokenTypes}
           onDone={() => setShowNewForm(false)}
         />
       )}
@@ -501,12 +534,14 @@ function DistributionsSection({
         <div className="flex flex-col gap-4 mt-2">
           {distributions.map((dist, i) => {
             const distState = DISTRIBUTION_STATES[dist.state] ?? "Unknown";
+            const tokenType = tokenTypes.find(tt => tt.tokenId === dist.tokenId);
             return (
               <DistributionItem
                 key={i}
                 dist={dist}
                 index={i}
                 distState={distState}
+                tokenType={tokenType}
                 programAddress={programAddress}
                 isActive={isActive}
                 isOwner={isOwner}
@@ -522,13 +557,16 @@ function DistributionsSection({
 function NewDistributionForm({
   programAddress,
   nextIndex,
+  tokenTypes,
   onDone,
 }: {
   programAddress: Address;
   nextIndex: number;
+  tokenTypes: TokenTypeInfo[];
   onDone: () => void;
 }) {
   const [entries, setEntries] = useState<BeneficiaryEntry[]>([{ address: "", amount: "" }]);
+  const [selectedTokenId, setSelectedTokenId] = useState<bigint>(tokenTypes[0]?.tokenId ?? 0n);
   const [isPending, setIsPending] = useState(false);
   const write = useCGProgramWrite(programAddress);
 
@@ -538,7 +576,7 @@ function NewDistributionForm({
 
     setIsPending(true);
     try {
-      const created = await write("createDistribution");
+      const created = await write("createDistribution", [selectedTokenId]);
       if (!created) return;
       await write("setBeneficiaries", [BigInt(nextIndex), validated.addresses, validated.amounts]);
       notification.success("Distribution created with beneficiaries");
@@ -556,6 +594,25 @@ function NewDistributionForm({
           Cancel
         </button>
       </div>
+
+      <div className="mb-3">
+        <label className="label">
+          <span className="label-text">Token Type</span>
+        </label>
+        <select
+          className="select select-bordered w-full max-w-xs"
+          value={selectedTokenId.toString()}
+          onChange={e => setSelectedTokenId(BigInt(e.target.value))}
+        >
+          {tokenTypes.map(tt => (
+            <option key={tt.tokenId.toString()} value={tt.tokenId.toString()}>
+              #{tt.tokenId.toString()} — {tt.name} ({tt.symbol}){" "}
+              {tt.maxSupply === 0n ? "" : tt.maxSupply === 1n ? "· NFT" : `· Max ${tt.maxSupply}`}
+            </option>
+          ))}
+        </select>
+      </div>
+
       <BeneficiariesTableEditor entries={entries} onChange={setEntries} />
       <div className="mt-3">
         <button className="btn btn-primary btn-sm" onClick={handleCreate} disabled={isPending}>
@@ -570,6 +627,7 @@ function DistributionItem({
   dist,
   index,
   distState,
+  tokenType,
   programAddress,
   isActive,
   isOwner,
@@ -577,6 +635,7 @@ function DistributionItem({
   dist: DistributionInfo;
   index: number;
   distState: string;
+  tokenType: TokenTypeInfo | undefined;
   programAddress: Address;
   isActive: boolean;
   isOwner: boolean;
@@ -587,7 +646,14 @@ function DistributionItem({
   return (
     <div className="border border-base-300 rounded-xl p-4">
       <div className="flex items-center justify-between mb-2">
-        <span className="font-semibold">Distribution #{index}</span>
+        <div className="flex items-center gap-2">
+          <span className="font-semibold">Distribution #{index}</span>
+          {tokenType && (
+            <span className="badge badge-outline badge-sm">
+              {tokenType.name} ({tokenType.symbol})
+            </span>
+          )}
+        </div>
         <span className={`badge ${STATE_COLORS[distState]}`}>{distState}</span>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
@@ -807,7 +873,8 @@ function OwnerActions({
     <div>
       <div className="divider" />
       <h3 className="card-title">Owner Actions</h3>
-      <div className="flex gap-3 mt-2">
+      <DefineTokenTypeForm programAddress={address} />
+      <div className="flex gap-3 mt-4">
         <div
           className="tooltip tooltip-bottom"
           data-tip={
@@ -829,6 +896,111 @@ function OwnerActions({
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+function DefineTokenTypeForm({ programAddress }: { programAddress: Address }) {
+  const [showForm, setShowForm] = useState(false);
+  const [name, setName] = useState("");
+  const [symbol, setSymbol] = useState("");
+  const [maxSupply, setMaxSupply] = useState("");
+  const [uri, setUri] = useState("");
+  const write = useCGProgramWrite(programAddress);
+
+  const handleDefine = async () => {
+    if (!name || !symbol) {
+      notification.error("Name and symbol are required");
+      return;
+    }
+    const supply = maxSupply ? BigInt(maxSupply) : 0n;
+    const success = await write("defineTokenType", [name, symbol, supply, uri]);
+    if (success) {
+      setShowForm(false);
+      setName("");
+      setSymbol("");
+      setMaxSupply("");
+      setUri("");
+    }
+  };
+
+  if (!showForm) {
+    return (
+      <div className="mt-2">
+        <button className="btn btn-sm btn-outline btn-secondary" onClick={() => setShowForm(true)}>
+          + Define Token Type
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-3 border border-base-300 rounded-xl p-4">
+      <div className="flex items-center justify-between mb-3">
+        <span className="font-semibold">Define Token Type</span>
+        <button className="btn btn-sm btn-ghost" onClick={() => setShowForm(false)}>
+          Cancel
+        </button>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div>
+          <label className="label">
+            <span className="label-text">Name</span>
+          </label>
+          <input
+            type="text"
+            className="input input-bordered w-full"
+            value={name}
+            onChange={e => setName(e.target.value)}
+            placeholder="Food Voucher"
+          />
+        </div>
+        <div>
+          <label className="label">
+            <span className="label-text">Symbol</span>
+          </label>
+          <input
+            type="text"
+            className="input input-bordered w-full"
+            value={symbol}
+            onChange={e => setSymbol(e.target.value)}
+            placeholder="FOOD"
+          />
+        </div>
+        <div>
+          <label className="label">
+            <span className="label-text">
+              Max Supply{" "}
+              <span className="opacity-60 text-xs">(0 = unlimited / fungible, 1 = unique NFT, N = capped)</span>
+            </span>
+          </label>
+          <input
+            type="number"
+            className="input input-bordered w-full"
+            value={maxSupply}
+            onChange={e => setMaxSupply(e.target.value)}
+            placeholder="0"
+            min="0"
+          />
+        </div>
+        <div>
+          <label className="label">
+            <span className="label-text">
+              Metadata URI <span className="opacity-60 text-xs">(optional)</span>
+            </span>
+          </label>
+          <input
+            type="text"
+            className="input input-bordered w-full"
+            value={uri}
+            onChange={e => setUri(e.target.value)}
+            placeholder="ipfs://..."
+          />
+        </div>
+      </div>
+      <button className="btn btn-secondary btn-sm mt-3" onClick={handleDefine} disabled={!name || !symbol}>
+        Define
+      </button>
     </div>
   );
 }

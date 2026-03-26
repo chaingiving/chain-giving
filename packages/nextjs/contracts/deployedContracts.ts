@@ -22,16 +22,6 @@ const deployedContracts = {
               type: "string",
             },
             {
-              internalType: "string",
-              name: "tokenName_",
-              type: "string",
-            },
-            {
-              internalType: "string",
-              name: "tokenSymbol_",
-              type: "string",
-            },
-            {
               internalType: "bool",
               name: "lockDistributions_",
               type: "bool",
@@ -131,6 +121,12 @@ const deployedContracts = {
               name: "distribution",
               type: "address",
             },
+            {
+              indexed: false,
+              internalType: "uint256",
+              name: "tokenId",
+              type: "uint256",
+            },
           ],
           name: "DistributionCreated",
           type: "event",
@@ -192,6 +188,37 @@ const deployedContracts = {
           type: "event",
         },
         {
+          anonymous: false,
+          inputs: [
+            {
+              indexed: true,
+              internalType: "uint256",
+              name: "tokenId",
+              type: "uint256",
+            },
+            {
+              indexed: false,
+              internalType: "string",
+              name: "name",
+              type: "string",
+            },
+            {
+              indexed: false,
+              internalType: "string",
+              name: "symbol",
+              type: "string",
+            },
+            {
+              indexed: false,
+              internalType: "uint256",
+              name: "maxSupply",
+              type: "uint256",
+            },
+          ],
+          name: "TokenTypeDefined",
+          type: "event",
+        },
+        {
           inputs: [],
           name: "cancel",
           outputs: [],
@@ -206,7 +233,13 @@ const deployedContracts = {
           type: "function",
         },
         {
-          inputs: [],
+          inputs: [
+            {
+              internalType: "uint256",
+              name: "tokenId_",
+              type: "uint256",
+            },
+          ],
           name: "createDistribution",
           outputs: [
             {
@@ -229,6 +262,40 @@ const deployedContracts = {
             },
           ],
           stateMutability: "view",
+          type: "function",
+        },
+        {
+          inputs: [
+            {
+              internalType: "string",
+              name: "name_",
+              type: "string",
+            },
+            {
+              internalType: "string",
+              name: "symbol_",
+              type: "string",
+            },
+            {
+              internalType: "uint256",
+              name: "maxSupply_",
+              type: "uint256",
+            },
+            {
+              internalType: "string",
+              name: "uri_",
+              type: "string",
+            },
+          ],
+          name: "defineTokenType",
+          outputs: [
+            {
+              internalType: "uint256",
+              name: "tokenId",
+              type: "uint256",
+            },
+          ],
+          stateMutability: "nonpayable",
           type: "function",
         },
         {
@@ -280,6 +347,11 @@ const deployedContracts = {
                   internalType: "address",
                   name: "addr",
                   type: "address",
+                },
+                {
+                  internalType: "uint256",
+                  name: "tokenId",
+                  type: "uint256",
                 },
                 {
                   internalType: "enum CGDistribution.State",
@@ -373,6 +445,11 @@ const deployedContracts = {
                   type: "address",
                 },
                 {
+                  internalType: "uint256",
+                  name: "tokenId",
+                  type: "uint256",
+                },
+                {
                   internalType: "enum CGDistribution.State",
                   name: "state",
                   type: "uint8",
@@ -408,14 +485,14 @@ const deployedContracts = {
         },
         {
           inputs: [],
-          name: "getTokenInfo",
+          name: "getTokenTypes",
           outputs: [
             {
               components: [
                 {
-                  internalType: "address",
-                  name: "addr",
-                  type: "address",
+                  internalType: "uint256",
+                  name: "tokenId",
+                  type: "uint256",
                 },
                 {
                   internalType: "string",
@@ -429,13 +506,23 @@ const deployedContracts = {
                 },
                 {
                   internalType: "uint256",
-                  name: "totalSupply",
+                  name: "maxSupply",
                   type: "uint256",
                 },
+                {
+                  internalType: "uint256",
+                  name: "totalMinted",
+                  type: "uint256",
+                },
+                {
+                  internalType: "string",
+                  name: "uri",
+                  type: "string",
+                },
               ],
-              internalType: "struct CGProgram.TokenInfo",
-              name: "",
-              type: "tuple",
+              internalType: "struct CGProgram.TokenTypeInfo[]",
+              name: "infos",
+              type: "tuple[]",
             },
           ],
           stateMutability: "view",

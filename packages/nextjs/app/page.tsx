@@ -44,9 +44,7 @@ const Home: NextPage = () => {
                   blockExplorerAddressLink={getBlockExplorerAddressLink(targetNetwork, connectedAddress)}
                 />
               </div>
-            ) : (
-              <Address address={undefined} chain={targetNetwork} />
-            )}
+            ) : null}
           </div>
         </div>
 

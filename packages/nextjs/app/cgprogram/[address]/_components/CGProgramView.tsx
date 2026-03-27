@@ -746,9 +746,10 @@ function DistributionItem({
   const write = useCGProgramWrite(programAddress);
   const distLink = useBlockExplorerLink(dist.addr);
 
-  const deleteDisabledReason = crowdfundingHasContributions
-    ? "Crowdfunding has started — distributions cannot be removed"
-    : null;
+  const deleteDisabledReason =
+    crowdfundingHasContributions && dist.state !== 0
+      ? "Crowdfunding has started — distributions cannot be removed"
+      : null;
 
   const handleLockConfirm = async () => {
     const success = await write("markDistributionReady", [BigInt(index)]);

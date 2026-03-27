@@ -151,13 +151,15 @@ contract CGProgram is Ownable {
 		}
 	}
 
-	/// @notice Permanently remove a DRAFT or READY distribution. Only allowed before any contributions.
+	/// @notice Permanently remove a distribution. DRAFT can always be deleted; READY requires no contributions.
 	///         Uses swap-and-pop so the last distribution takes the deleted slot.
 	function deleteDistribution(uint256 distributionIndex) external onlyOwner {
 		if (state != State.ACTIVE) revert ProgramNotActive();
-		if (_crowdfundingHasContributions()) revert ContributionsExist();
-		if (distributions[distributionIndex].state() == CGDistribution.State.DISTRIBUTED)
+		CGDistribution.State distState = distributions[distributionIndex].state();
+		if (distState == CGDistribution.State.DISTRIBUTED)
 			revert DistributionAlreadyDistributed(distributionIndex);
+		if (distState == CGDistribution.State.READY && _crowdfundingHasContributions())
+			revert ContributionsExist();
 
 		address deleted = address(distributions[distributionIndex]);
 

@@ -8,7 +8,7 @@ const titleTemplate = "%s | Chain.Giving";
 export const getMetadata = ({
   title,
   description,
-  imageRelativePath = "/thumbnail.jpg",
+  imageRelativePath = "/chain_giving_header.png",
 }: {
   title: string;
   description: string;

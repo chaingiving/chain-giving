@@ -22,7 +22,7 @@ export const menuLinks: HeaderMenuLink[] = [
   },
   {
     label: "Program",
-    href: "/cgprogram/0x5FbDB2315678afecb367f032d93F642f64180aa3",
+    href: "/program/0x5FbDB2315678afecb367f032d93F642f64180aa3",
     icon: <GiftIcon className="h-4 w-4" />,
   },
   {

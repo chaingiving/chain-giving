@@ -1,5 +1,5 @@
 import { isAddress } from "viem";
-import { CGProgramView } from "~~/app/cgprogram/[address]/_components/CGProgramView";
+import { CGProgramView } from "~~/app/program/[address]/_components/CGProgramView";
 
 type PageProps = {
   params: Promise<{ address: string }>;

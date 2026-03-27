@@ -312,7 +312,12 @@ function TokenSection({
   return (
     <>
       <div className="divider" />
-      <h3 className="card-title">Token Contract (ERC-1155)</h3>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h3 className="card-title">Token Contract (ERC-1155)</h3>
+        <a href={`/token/${tokenAddress}`} className="btn btn-sm btn-outline">
+          View &amp; Spend Tokens
+        </a>
+      </div>
       <div>
         <p className="text-sm opacity-60">Token Address</p>
         <AddressDisplay address={tokenAddress} blockExplorerAddressLink={tokenLink} />
@@ -345,7 +350,13 @@ function TokenSection({
         </div>
       )}
 
-      {isOwner && isActive && <CreateTokenTypeForm programAddress={programAddress} />}
+      {isOwner && isActive && (
+        <>
+          <div className="divider" />
+          <h3 className="card-title">Owner Actions</h3>
+          <CreateTokenTypeForm programAddress={programAddress} />
+        </>
+      )}
     </>
   );
 }

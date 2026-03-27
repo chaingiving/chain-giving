@@ -254,7 +254,7 @@ function ProgramSection({
           <AddressDisplay address={address} format="long" blockExplorerAddressLink={addressLink} />
         </div>
         <div>
-          <p className="text-sm opacity-60">Owner</p>
+          <p className="text-sm opacity-60">Contract Owner</p>
           {owner && <AddressDisplay address={owner} blockExplorerAddressLink={ownerLink} />}
         </div>
         <div>
@@ -434,7 +434,7 @@ function CrowdfundingSection({
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
         <div>
-          <p className="text-sm opacity-60">Address</p>
+          <p className="text-sm opacity-60">Contract Address</p>
           <AddressDisplay address={crowdfundingInfo.addr} blockExplorerAddressLink={cfLink} />
         </div>
         <div>
@@ -776,7 +776,7 @@ function DistributionItem({
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
         <div>
-          <p className="opacity-60">Address</p>
+          <p className="opacity-60">Contract Address</p>
           <AddressDisplay address={dist.addr} blockExplorerAddressLink={distLink} />
         </div>
         {tokenType?.maxSupply !== 1n && (
@@ -869,7 +869,7 @@ function BeneficiariesReadTable({ beneficiaries, amounts }: { beneficiaries: Add
       <table className="table table-xs">
         <thead>
           <tr>
-            <th>Address</th>
+            <th>Account</th>
             <th>Amount</th>
           </tr>
         </thead>

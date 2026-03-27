@@ -743,6 +743,7 @@ function DistributionItem({
 }) {
   const [showLockConfirm, setShowLockConfirm] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isEditingBeneficiaries, setIsEditingBeneficiaries] = useState(false);
   const write = useCGProgramWrite(programAddress);
   const distLink = useBlockExplorerLink(dist.addr);
 
@@ -787,7 +788,7 @@ function DistributionItem({
         )}
       </div>
 
-      {dist.beneficiaries.length > 0 && (
+      {dist.beneficiaries.length > 0 && !isEditingBeneficiaries && (
         <div className="mt-3">
           <p className="text-sm opacity-60 mb-1">Beneficiaries ({dist.beneficiaryCount.toString()})</p>
           <BeneficiariesReadTable beneficiaries={dist.beneficiaries} amounts={dist.amounts} />
@@ -798,7 +799,15 @@ function DistributionItem({
         <div className="mt-3 flex gap-2 flex-wrap">
           {dist.state === 0 && (
             <>
-              <EditBeneficiariesForm programAddress={programAddress} distributionIndex={index} tokenType={tokenType} />
+              <EditBeneficiariesForm
+                programAddress={programAddress}
+                distributionIndex={index}
+                tokenType={tokenType}
+                existingBeneficiaries={dist.beneficiaries}
+                existingAmounts={dist.amounts}
+                isEditing={isEditingBeneficiaries}
+                onEditingChange={setIsEditingBeneficiaries}
+              />
               {dist.beneficiaryCount > 0n && (
                 <button className="btn btn-sm btn-accent" onClick={() => setShowLockConfirm(true)}>
                   Confirm and Lock Beneficiary List
@@ -974,16 +983,40 @@ function EditBeneficiariesForm({
   programAddress,
   distributionIndex,
   tokenType,
+  existingBeneficiaries,
+  existingAmounts,
+  isEditing,
+  onEditingChange,
 }: {
   programAddress: Address;
   distributionIndex: number;
   tokenType: TokenTypeInfo | undefined;
+  existingBeneficiaries: Address[];
+  existingAmounts: bigint[];
+  isEditing: boolean;
+  onEditingChange: (editing: boolean) => void;
 }) {
-  const [showForm, setShowForm] = useState(false);
   const [entries, setEntries] = useState<BeneficiaryEntry[]>([{ address: "", amount: "" }]);
   const write = useCGProgramWrite(programAddress);
 
   const isNft = tokenType?.maxSupply === 1n;
+
+  const openForm = () => {
+    const initial =
+      existingBeneficiaries.length > 0
+        ? existingBeneficiaries.map((addr, i) => ({
+            address: addr,
+            amount: existingAmounts[i]?.toString() ?? "1",
+          }))
+        : [{ address: "", amount: "" }];
+    setEntries(initial);
+    onEditingChange(true);
+  };
+
+  const closeForm = () => {
+    onEditingChange(false);
+    setEntries([{ address: "", amount: "" }]);
+  };
 
   const handleSet = async () => {
     const finalEntries = isNft ? entries.map(e => ({ ...e, amount: "1" })) : entries;
@@ -996,14 +1029,13 @@ function EditBeneficiariesForm({
       validated.amounts,
     ]);
     if (success) {
-      setShowForm(false);
-      setEntries([{ address: "", amount: "" }]);
+      closeForm();
     }
   };
 
-  if (!showForm) {
+  if (!isEditing) {
     return (
-      <button className="btn btn-sm btn-outline" onClick={() => setShowForm(true)}>
+      <button className="btn btn-sm btn-outline" onClick={openForm}>
         Set Beneficiaries
       </button>
     );
@@ -1016,7 +1048,7 @@ function EditBeneficiariesForm({
         <button className="btn btn-sm btn-primary" onClick={handleSet}>
           Confirm
         </button>
-        <button className="btn btn-sm btn-ghost" onClick={() => setShowForm(false)}>
+        <button className="btn btn-sm btn-ghost" onClick={closeForm}>
           Cancel
         </button>
       </div>

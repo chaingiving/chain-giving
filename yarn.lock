@@ -3653,6 +3653,8 @@ __metadata:
     "@trivago/prettier-plugin-sort-imports": ~4.3.0
     "@types/node": ~18.19.50
     "@types/react": ~19.0.7
+    "@zxing/browser": ^0.1.5
+    "@zxing/library": ^0.21.3
     abitype: 1.0.6
     autoprefixer: ~10.4.20
     bgipfs: ~0.0.12
@@ -6388,6 +6390,40 @@ __metadata:
     multiformats: ^13.3.1
     uint8arrays: ^5.1.0
   checksum: 547d30007132bbfeaf3c0af608db05f2bda595525a269077d9b19add11e513e7d0290b2cea63db1e33dbf7eb919c99d71d448f83591a27786e3627c8cbf9d10f
+  languageName: node
+  linkType: hard
+
+"@zxing/browser@npm:^0.1.5":
+  version: 0.1.5
+  resolution: "@zxing/browser@npm:0.1.5"
+  dependencies:
+    "@zxing/text-encoding": ^0.9.0
+  peerDependencies:
+    "@zxing/library": ^0.21.0
+  dependenciesMeta:
+    "@zxing/text-encoding":
+      optional: true
+  checksum: 27bfddd707e8e643624b432666a956f1e7e283e20963243f7050c781fd80daad9f54408acdf46d809c64586983f7b02a4981c1d3b0251519e0566c165f6b3924
+  languageName: node
+  linkType: hard
+
+"@zxing/library@npm:^0.21.3":
+  version: 0.21.3
+  resolution: "@zxing/library@npm:0.21.3"
+  dependencies:
+    "@zxing/text-encoding": ~0.9.0
+    ts-custom-error: ^3.2.1
+  dependenciesMeta:
+    "@zxing/text-encoding":
+      optional: true
+  checksum: 934e86129b8bb89896884e3cc6805965998ff545edbca2a0ad560d51f9614f2c852dbd437814f1f9b15bcdfca34c958815dc7b676ee6b8b1b0917b41d5effca4
+  languageName: node
+  linkType: hard
+
+"@zxing/text-encoding@npm:^0.9.0, @zxing/text-encoding@npm:~0.9.0":
+  version: 0.9.0
+  resolution: "@zxing/text-encoding@npm:0.9.0"
+  checksum: c23b12aee7639382e4949961304a1294776afaffa40f579e09ffecd0e5e68cf26ef3edd75009de46da8a536e571448755ca68b3e2ea707d53793c0edb2e2c34a
   languageName: node
   linkType: hard
 
@@ -17620,6 +17656,13 @@ __metadata:
   bin:
     write-markdown: dist/write-markdown.js
   checksum: 7c0a7582e94f1d2160e3dd379851ec4f1758bc673ccd71bae07f839f83051b6b83e0ae14325c2d04ea728e5bde7b7eacfd2ab060b8fd4b8ab29e0bbf77f6c51e
+  languageName: node
+  linkType: hard
+
+"ts-custom-error@npm:^3.2.1":
+  version: 3.3.1
+  resolution: "ts-custom-error@npm:3.3.1"
+  checksum: 50a1e825fced68d70049bd8d282379a635e43aa023a370fa8e736b12a6edba7f18a2d731fa194ac35303a8b625be56e121bdb31d8a0318250d1a8b277059fce3
   languageName: node
   linkType: hard
 

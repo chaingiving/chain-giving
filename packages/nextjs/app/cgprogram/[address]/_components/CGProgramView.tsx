@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { QrScannerModal } from "./QrScannerModal";
 import { Address as AddressDisplay, AddressInput, Balance, EtherInput } from "@scaffold-ui/components";
 import { Address, formatEther, isAddress, isAddressEqual, parseEther, zeroAddress } from "viem";
 import { hardhat } from "viem/chains";
@@ -68,6 +69,7 @@ type DistributionInfo = {
 };
 
 type BeneficiaryEntry = {
+  id: string;
   address: string;
   amount: string;
 };
@@ -660,7 +662,7 @@ function NewDistributionForm({
   tokenTypes: TokenTypeInfo[];
   onDone: () => void;
 }) {
-  const [entries, setEntries] = useState<BeneficiaryEntry[]>([{ address: "", amount: "" }]);
+  const [entries, setEntries] = useState<BeneficiaryEntry[]>([{ id: crypto.randomUUID(), address: "", amount: "" }]);
   const [selectedTokenId, setSelectedTokenId] = useState<bigint>(tokenTypes[0]?.tokenId ?? 0n);
   const [isPending, setIsPending] = useState(false);
   const write = useCGProgramWrite(programAddress);
@@ -938,6 +940,27 @@ function BeneficiaryRow({ address, amount }: { address: Address; amount: bigint 
   );
 }
 
+function QrCodeIcon() {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      className="h-4 w-4"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+    >
+      <rect x="3" y="3" width="7" height="7" />
+      <rect x="14" y="3" width="7" height="7" />
+      <rect x="3" y="14" width="7" height="7" />
+      <rect x="14" y="14" width="3" height="3" />
+      <path d="M20 14h1v1" />
+      <path d="M14 20h1v1" />
+      <path d="M17 17h4v4" />
+    </svg>
+  );
+}
+
 function BeneficiariesTableEditor({
   entries,
   onChange,
@@ -947,69 +970,88 @@ function BeneficiariesTableEditor({
   onChange: (entries: BeneficiaryEntry[]) => void;
   hideAmount?: boolean;
 }) {
+  const [scanningRow, setScanningRow] = useState<number | null>(null);
+
   const updateEntry = (index: number, field: keyof BeneficiaryEntry, value: string) => {
     const updated = [...entries];
     updated[index] = { ...updated[index], [field]: value };
     onChange(updated);
   };
 
-  const addRow = () => onChange([...entries, { address: "", amount: "" }]);
+  const addRow = () => onChange([...entries, { id: crypto.randomUUID(), address: "", amount: "" }]);
 
-  const removeRow = (index: number) => {
-    if (entries.length <= 1) return;
-    onChange(entries.filter((_, i) => i !== index));
-  };
+  const removeRow = (index: number) => onChange(entries.filter((_, i) => i !== index));
 
   return (
-    <div className="overflow-x-auto">
-      <table className="table table-sm">
-        <thead>
-          <tr>
-            <th className={hideAmount ? "w-11/12" : "w-7/12"}>Address</th>
-            {!hideAmount && <th className="w-4/12">Amount (tokens)</th>}
-            <th className="w-1/12" />
-          </tr>
-        </thead>
-        <tbody>
-          {entries.map((entry, i) => (
-            <tr key={i}>
-              <td>
-                <AddressInput
-                  value={entry.address}
-                  onChange={val => updateEntry(i, "address", val)}
-                  placeholder="0x..."
-                />
-              </td>
-              {!hideAmount && (
-                <td>
-                  <input
-                    type="number"
-                    className="input input-bordered input-sm w-full"
-                    value={entry.amount}
-                    onChange={e => updateEntry(i, "amount", e.target.value)}
-                    placeholder="1"
-                    min="1"
-                    step="1"
-                  />
-                </td>
-              )}
-              <td>
-                <button
-                  className="btn btn-ghost btn-xs text-error"
-                  onClick={() => removeRow(i)}
-                  disabled={entries.length <= 1}
-                >
-                  X
-                </button>
-              </td>
+    <>
+      {scanningRow !== null && (
+        <QrScannerModal
+          onScan={value => {
+            // Strip "ethereum:" prefix if present (EIP-681)
+            const address = value.startsWith("ethereum:") ? value.slice(9).split("@")[0].split("?")[0] : value;
+            updateEntry(scanningRow, "address", address);
+            setScanningRow(null);
+          }}
+          onClose={() => setScanningRow(null)}
+        />
+      )}
+      <div className="overflow-x-auto">
+        <table className="table table-sm">
+          <thead>
+            <tr>
+              <th className={hideAmount ? "w-11/12" : "w-7/12"}>Account</th>
+              {!hideAmount && <th className="w-4/12">Amount (tokens)</th>}
+              <th className="w-1/12" />
             </tr>
-          ))}
-        </tbody>
-      </table>
-      <button className="btn btn-ghost btn-xs mt-1" onClick={addRow}>
-        + Add row
-      </button>
-    </div>
+          </thead>
+          <tbody>
+            {entries.map((entry, i) => (
+              <tr key={entry.id}>
+                <td>
+                  <div className="flex items-center gap-1">
+                    <div className="flex-1">
+                      <AddressInput
+                        value={entry.address}
+                        onChange={val => updateEntry(i, "address", val)}
+                        placeholder="0x..."
+                      />
+                    </div>
+                    <button className="btn btn-ghost btn-xs" title="Scan QR code" onClick={() => setScanningRow(i)}>
+                      <QrCodeIcon />
+                    </button>
+                  </div>
+                </td>
+                {!hideAmount && (
+                  <td>
+                    <input
+                      type="number"
+                      className="input input-bordered input-sm w-full"
+                      value={entry.amount}
+                      onChange={e => updateEntry(i, "amount", e.target.value)}
+                      placeholder="1"
+                      min="1"
+                      step="1"
+                    />
+                  </td>
+                )}
+                <td>
+                  <button
+                    className="btn btn-ghost btn-xs text-error"
+                    onClick={() => removeRow(i)}
+                    disabled={entries.length <= 1}
+                  >
+                    X
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <button className="btn btn-ghost btn-xs mt-1" onClick={addRow}>
+          + Add row
+        </button>
+      </div>
+    </>
   );
 }
 
@@ -1030,8 +1072,12 @@ function EditBeneficiariesForm({
 }) {
   const [entries, setEntries] = useState<BeneficiaryEntry[]>(() =>
     existingBeneficiaries.length > 0
-      ? existingBeneficiaries.map((addr, i) => ({ address: addr, amount: existingAmounts[i]?.toString() ?? "1" }))
-      : [{ address: "", amount: "" }],
+      ? existingBeneficiaries.map((addr, i) => ({
+          id: crypto.randomUUID(),
+          address: addr,
+          amount: existingAmounts[i]?.toString() ?? "1",
+        }))
+      : [{ id: crypto.randomUUID(), address: "", amount: "" }],
   );
   const write = useCGProgramWrite(programAddress);
   const isNft = tokenType?.maxSupply === 1n;
@@ -1076,7 +1122,7 @@ function AddBeneficiariesForm({
   tokenType: TokenTypeInfo | undefined;
   onClose: () => void;
 }) {
-  const [entries, setEntries] = useState<BeneficiaryEntry[]>([{ address: "", amount: "" }]);
+  const [entries, setEntries] = useState<BeneficiaryEntry[]>([{ id: crypto.randomUUID(), address: "", amount: "" }]);
   const write = useCGProgramWrite(programAddress);
   const isNft = tokenType?.maxSupply === 1n;
 

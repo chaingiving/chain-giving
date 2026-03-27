@@ -25,7 +25,7 @@ const cgCrowdfundingAbi = [
 
 const PROGRAM_STATES = ["Active", "Executing", "Completed", "Cancelled"] as const;
 const CROWDFUNDING_STATES = ["Unfunded", "Funded", "Withdrawn", "Cancelled"] as const;
-const DISTRIBUTION_STATES = ["Inactive", "Ready", "Distributed"] as const;
+const DISTRIBUTION_STATES = ["Draft", "Ready", "Distributed"] as const;
 
 const STATE_COLORS: Record<string, string> = {
   Active: "badge-success",
@@ -35,7 +35,7 @@ const STATE_COLORS: Record<string, string> = {
   Unfunded: "badge-warning",
   Funded: "badge-success",
   Withdrawn: "badge-info",
-  Inactive: "badge-ghost",
+  Draft: "badge-ghost",
   Ready: "badge-success",
   Distributed: "badge-info",
 };
@@ -207,6 +207,11 @@ export const CGProgramView = ({ address }: { address: Address }) => {
             programAddress={address}
             isActive={isActive}
             isOwner={isOwner}
+            crowdfundingHasContributions={
+              crowdfundingInfo != null &&
+              !isAddressEqual(crowdfundingInfo.addr, zeroAddress) &&
+              crowdfundingInfo.totalRaised > 0n
+            }
           />
           {isOwner && isActive && (
             <OwnerActions
@@ -581,12 +586,14 @@ function DistributionsSection({
   programAddress,
   isActive,
   isOwner,
+  crowdfundingHasContributions,
 }: {
   distributions: DistributionInfo[];
   tokenTypes: TokenTypeInfo[];
   programAddress: Address;
   isActive: boolean;
   isOwner: boolean;
+  crowdfundingHasContributions: boolean;
 }) {
   const [showNewForm, setShowNewForm] = useState(false);
 
@@ -632,6 +639,7 @@ function DistributionsSection({
                 programAddress={programAddress}
                 isActive={isActive}
                 isOwner={isOwner}
+                crowdfundingHasContributions={crowdfundingHasContributions}
               />
             );
           })}
@@ -722,6 +730,7 @@ function DistributionItem({
   programAddress,
   isActive,
   isOwner,
+  crowdfundingHasContributions,
 }: {
   dist: DistributionInfo;
   index: number;
@@ -730,9 +739,26 @@ function DistributionItem({
   programAddress: Address;
   isActive: boolean;
   isOwner: boolean;
+  crowdfundingHasContributions: boolean;
 }) {
+  const [showLockConfirm, setShowLockConfirm] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const write = useCGProgramWrite(programAddress);
   const distLink = useBlockExplorerLink(dist.addr);
+
+  const deleteDisabledReason = crowdfundingHasContributions
+    ? "Crowdfunding has started — distributions cannot be removed"
+    : null;
+
+  const handleLockConfirm = async () => {
+    const success = await write("markDistributionReady", [BigInt(index)]);
+    if (success) setShowLockConfirm(false);
+  };
+
+  const handleDeleteConfirm = async () => {
+    const success = await write("deleteDistribution", [BigInt(index)]);
+    if (success) setShowDeleteConfirm(false);
+  };
 
   return (
     <div className="border border-base-300 rounded-xl p-4">
@@ -745,7 +771,7 @@ function DistributionItem({
             </span>
           )}
         </div>
-        <span className={`badge ${STATE_COLORS[distState]}`}>{distState}</span>
+        <span className={`badge ${STATE_COLORS[distState] ?? "badge-ghost"}`}>{distState}</span>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
         <div>
@@ -767,14 +793,69 @@ function DistributionItem({
         </div>
       )}
 
-      {isOwner && isActive && dist.state === 0 && (
-        <div className="mt-3 flex gap-2">
-          <EditBeneficiariesForm programAddress={programAddress} distributionIndex={index} tokenType={tokenType} />
-          {dist.beneficiaryCount > 0n && (
-            <button className="btn btn-sm btn-accent" onClick={() => write("markDistributionReady", [BigInt(index)])}>
-              Mark Ready
-            </button>
+      {isOwner && isActive && dist.state !== 2 && (
+        <div className="mt-3 flex gap-2 flex-wrap">
+          {dist.state === 0 && (
+            <>
+              <EditBeneficiariesForm programAddress={programAddress} distributionIndex={index} tokenType={tokenType} />
+              {dist.beneficiaryCount > 0n && (
+                <button className="btn btn-sm btn-accent" onClick={() => setShowLockConfirm(true)}>
+                  Confirm and Lock Beneficiary List
+                </button>
+              )}
+            </>
           )}
+          <div className="tooltip tooltip-bottom" data-tip={deleteDisabledReason ?? undefined}>
+            <button
+              className="btn btn-sm btn-error btn-outline"
+              disabled={deleteDisabledReason !== null}
+              onClick={() => setShowDeleteConfirm(true)}
+            >
+              Delete Distribution
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Lock confirmation modal */}
+      {showLockConfirm && (
+        <div className="modal modal-open">
+          <div className="modal-box">
+            <h3 className="font-bold text-lg">Lock Beneficiary List</h3>
+            <p className="py-4">
+              This will permanently lock the beneficiary list for Distribution #{index}. This action cannot be undone.
+            </p>
+            <div className="modal-action">
+              <button className="btn btn-ghost" onClick={() => setShowLockConfirm(false)}>
+                Cancel
+              </button>
+              <button className="btn btn-accent" onClick={handleLockConfirm}>
+                Confirm and Lock
+              </button>
+            </div>
+          </div>
+          <div className="modal-backdrop" onClick={() => setShowLockConfirm(false)} />
+        </div>
+      )}
+
+      {/* Delete distribution confirmation modal */}
+      {showDeleteConfirm && (
+        <div className="modal modal-open">
+          <div className="modal-box">
+            <h3 className="font-bold text-lg">Delete Distribution</h3>
+            <p className="py-4">
+              Are you sure you want to delete Distribution #{index}? It will be permanently removed from the program.
+            </p>
+            <div className="modal-action">
+              <button className="btn btn-ghost" onClick={() => setShowDeleteConfirm(false)}>
+                Go Back
+              </button>
+              <button className="btn btn-error" onClick={handleDeleteConfirm}>
+                Delete Distribution
+              </button>
+            </div>
+          </div>
+          <div className="modal-backdrop" onClick={() => setShowDeleteConfirm(false)} />
         </div>
       )}
     </div>

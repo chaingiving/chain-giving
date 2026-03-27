@@ -7,7 +7,7 @@ import { GenericContractsDeclaration } from "~~/utils/scaffold-eth/contract";
 const deployedContracts = {
   31337: {
     CGProgram: {
-      address: "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+      address: "0x5FC8d32690cc91D4c39d9d3abcBD16989F875707",
       abi: [
         {
           inputs: [
@@ -32,12 +32,28 @@ const deployedContracts = {
         },
         {
           inputs: [],
+          name: "ContributionsExist",
+          type: "error",
+        },
+        {
+          inputs: [],
           name: "CrowdfundingAlreadySet",
           type: "error",
         },
         {
           inputs: [],
           name: "CrowdfundingNotFunded",
+          type: "error",
+        },
+        {
+          inputs: [
+            {
+              internalType: "uint256",
+              name: "index",
+              type: "uint256",
+            },
+          ],
+          name: "DistributionAlreadyDistributed",
           type: "error",
         },
         {
@@ -150,6 +166,25 @@ const deployedContracts = {
             },
           ],
           name: "DistributionCreated",
+          type: "event",
+        },
+        {
+          anonymous: false,
+          inputs: [
+            {
+              indexed: false,
+              internalType: "uint256",
+              name: "index",
+              type: "uint256",
+            },
+            {
+              indexed: false,
+              internalType: "address",
+              name: "distribution",
+              type: "address",
+            },
+          ],
+          name: "DistributionDeleted",
           type: "event",
         },
         {
@@ -316,6 +351,19 @@ const deployedContracts = {
               type: "uint256",
             },
           ],
+          stateMutability: "nonpayable",
+          type: "function",
+        },
+        {
+          inputs: [
+            {
+              internalType: "uint256",
+              name: "distributionIndex",
+              type: "uint256",
+            },
+          ],
+          name: "deleteDistribution",
+          outputs: [],
           stateMutability: "nonpayable",
           type: "function",
         },
@@ -694,7 +742,7 @@ const deployedContracts = {
         renounceOwnership: "@openzeppelin/contracts/access/Ownable.sol",
         transferOwnership: "@openzeppelin/contracts/access/Ownable.sol",
       },
-      deployedOnBlock: 1,
+      deployedOnBlock: 7,
     },
   },
 } as const;

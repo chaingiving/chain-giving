@@ -56,6 +56,7 @@ contract CGProgram is Ownable {
 	event TokenTypeDefined(uint256 indexed tokenId, string name, string symbol, uint256 maxSupply);
 	event CrowdfundingSet(address crowdfunding);
 	event DistributionCreated(uint256 index, address distribution, uint256 tokenId);
+	event DistributionDeleted(uint256 index, address distribution);
 	event ProgramExecuted();
 	event ProgramCancelled();
 
@@ -67,6 +68,8 @@ contract CGProgram is Ownable {
 	error DistributionNotReady(uint256 index);
 	error DistributionsLocked();
 	error ExceedsTotalSupply(uint256 tokenId, uint256 totalRequired, uint256 maxSupply);
+	error DistributionAlreadyDistributed(uint256 index);
+	error ContributionsExist();
 
 	constructor(
 		address owner_,
@@ -146,6 +149,25 @@ contract CGProgram is Ownable {
 			if (aggregateRequired > tt.maxSupply)
 				revert ExceedsTotalSupply(distTokenId, aggregateRequired, tt.maxSupply);
 		}
+	}
+
+	/// @notice Permanently remove a DRAFT or READY distribution. Only allowed before any contributions.
+	///         Uses swap-and-pop so the last distribution takes the deleted slot.
+	function deleteDistribution(uint256 distributionIndex) external onlyOwner {
+		if (state != State.ACTIVE) revert ProgramNotActive();
+		if (_crowdfundingHasContributions()) revert ContributionsExist();
+		if (distributions[distributionIndex].state() == CGDistribution.State.DISTRIBUTED)
+			revert DistributionAlreadyDistributed(distributionIndex);
+
+		address deleted = address(distributions[distributionIndex]);
+
+		uint256 last = distributions.length - 1;
+		if (distributionIndex != last) {
+			distributions[distributionIndex] = distributions[last];
+		}
+		distributions.pop();
+
+		emit DistributionDeleted(distributionIndex, deleted);
 	}
 
 	/// @notice Mint ERC-1155 tokens to a distribution and mark it READY.
@@ -281,8 +303,9 @@ contract CGProgram is Ownable {
 	/// @dev Sum totalRequired across all distributions targeting the same token type.
 	function _totalRequiredForToken(uint256 tokenId_) internal view returns (uint256 total) {
 		for (uint256 i = 0; i < distributions.length; i++) {
-			if (distributions[i].tokenId() == tokenId_) {
-				total += distributions[i].totalRequired();
+			CGDistribution dist = distributions[i];
+			if (dist.tokenId() == tokenId_) {
+				total += dist.totalRequired();
 			}
 		}
 	}

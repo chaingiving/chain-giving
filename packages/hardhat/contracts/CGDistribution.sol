@@ -9,11 +9,11 @@ import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 
 /// @title CGDistribution — ERC-1155 token distribution to a beneficiary list
 /// @notice Holds tokens of a specific ERC-1155 type and distributes them to beneficiaries.
-///         Transitions: INACTIVE → READY → DISTRIBUTED.
+///         Transitions: DRAFT → READY → DISTRIBUTED.
 ///         Implements IERC1155Receiver so it can receive tokens via safe transfers.
 contract CGDistribution is Ownable, ERC165, IERC1155Receiver {
 	enum State {
-		INACTIVE,
+		DRAFT,
 		READY,
 		DISTRIBUTED
 	}
@@ -39,16 +39,16 @@ contract CGDistribution is Ownable, ERC165, IERC1155Receiver {
 	constructor(address owner_, IERC1155 token_, uint256 tokenId_) Ownable(owner_) {
 		token = token_;
 		tokenId = tokenId_;
-		state = State.INACTIVE;
+		state = State.DRAFT;
 	}
 
-	/// @notice Set or replace the beneficiary list. Only when INACTIVE.
+	/// @notice Set or replace the beneficiary list. Only when DRAFT.
 	///         For NFT-like distributions set each amount to 1; for fungible use any amount.
 	function setBeneficiaries(
 		address[] calldata beneficiaries_,
 		uint256[] calldata amounts_
 	) external onlyOwner {
-		if (state != State.INACTIVE) revert NotInState(State.INACTIVE, state);
+		if (state != State.DRAFT) revert NotInState(State.DRAFT, state);
 		if (beneficiaries_.length != amounts_.length) revert ArrayLengthMismatch();
 		if (beneficiaries_.length == 0) revert EmptyBeneficiaries();
 
@@ -65,7 +65,7 @@ contract CGDistribution is Ownable, ERC165, IERC1155Receiver {
 
 	/// @notice Transition to READY. Requires the contract holds sufficient tokens.
 	function markReady() external onlyOwner {
-		if (state != State.INACTIVE) revert NotInState(State.INACTIVE, state);
+		if (state != State.DRAFT) revert NotInState(State.DRAFT, state);
 		if (beneficiaries.length == 0) revert EmptyBeneficiaries();
 
 		uint256 required = totalRequired();

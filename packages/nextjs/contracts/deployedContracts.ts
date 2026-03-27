@@ -275,6 +275,29 @@ const deployedContracts = {
           type: "event",
         },
         {
+          inputs: [
+            {
+              internalType: "uint256",
+              name: "distributionIndex",
+              type: "uint256",
+            },
+            {
+              internalType: "address[]",
+              name: "beneficiaries_",
+              type: "address[]",
+            },
+            {
+              internalType: "uint256[]",
+              name: "amounts_",
+              type: "uint256[]",
+            },
+          ],
+          name: "addBeneficiaries",
+          outputs: [],
+          stateMutability: "nonpayable",
+          type: "function",
+        },
+        {
           inputs: [],
           name: "cancel",
           outputs: [],
@@ -647,6 +670,24 @@ const deployedContracts = {
             },
           ],
           stateMutability: "view",
+          type: "function",
+        },
+        {
+          inputs: [
+            {
+              internalType: "uint256",
+              name: "distributionIndex",
+              type: "uint256",
+            },
+            {
+              internalType: "address[]",
+              name: "toRemove_",
+              type: "address[]",
+            },
+          ],
+          name: "removeBeneficiaries",
+          outputs: [],
+          stateMutability: "nonpayable",
           type: "function",
         },
         {

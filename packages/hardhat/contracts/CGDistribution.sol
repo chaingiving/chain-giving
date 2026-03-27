@@ -63,6 +63,48 @@ contract CGDistribution is Ownable, ERC165, IERC1155Receiver {
 		emit BeneficiariesSet(beneficiaries_.length, totalRequired());
 	}
 
+	/// @notice Append new beneficiaries to the existing list. Only when DRAFT.
+	function addBeneficiaries(
+		address[] calldata newBeneficiaries_,
+		uint256[] calldata newAmounts_
+	) external onlyOwner {
+		if (state != State.DRAFT) revert NotInState(State.DRAFT, state);
+		if (newBeneficiaries_.length != newAmounts_.length) revert ArrayLengthMismatch();
+		if (newBeneficiaries_.length == 0) revert EmptyBeneficiaries();
+
+		for (uint256 i = 0; i < newBeneficiaries_.length; i++) {
+			if (newBeneficiaries_[i] == address(0)) revert ZeroAddress();
+			if (newAmounts_[i] == 0) revert ZeroAmount();
+			beneficiaries.push(newBeneficiaries_[i]);
+			amounts.push(newAmounts_[i]);
+		}
+
+		emit BeneficiariesSet(beneficiaries.length, totalRequired());
+	}
+
+	/// @notice Remove beneficiaries by address. Silently skips addresses not in the list. Only when DRAFT.
+	/// @dev O(n*m) where n = current list length and m = toRemove_ length. Acceptable for typical
+	///      charity distribution sizes; avoid very large arrays to stay within block gas limits.
+	function removeBeneficiaries(address[] calldata toRemove_) external onlyOwner {
+		if (state != State.DRAFT) revert NotInState(State.DRAFT, state);
+		if (toRemove_.length == 0) revert EmptyBeneficiaries();
+
+		for (uint256 r = 0; r < toRemove_.length; r++) {
+			for (uint256 i = 0; i < beneficiaries.length; i++) {
+				if (beneficiaries[i] == toRemove_[r]) {
+					uint256 last = beneficiaries.length - 1;
+					beneficiaries[i] = beneficiaries[last];
+					amounts[i] = amounts[last];
+					beneficiaries.pop();
+					amounts.pop();
+					break;
+				}
+			}
+		}
+
+		emit BeneficiariesSet(beneficiaries.length, beneficiaries.length > 0 ? totalRequired() : 0);
+	}
+
 	/// @notice Transition to READY. Requires the contract holds sufficient tokens.
 	function markReady() external onlyOwner {
 		if (state != State.DRAFT) revert NotInState(State.DRAFT, state);

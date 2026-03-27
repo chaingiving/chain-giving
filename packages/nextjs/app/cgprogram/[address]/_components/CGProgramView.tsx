@@ -743,7 +743,7 @@ function DistributionItem({
 }) {
   const [showLockConfirm, setShowLockConfirm] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [isEditingBeneficiaries, setIsEditingBeneficiaries] = useState(false);
+  const [editMode, setEditMode] = useState<"none" | "set" | "add" | "remove">("none");
   const write = useCGProgramWrite(programAddress);
   const distLink = useBlockExplorerLink(dist.addr);
 
@@ -773,7 +773,20 @@ function DistributionItem({
             </span>
           )}
         </div>
-        <span className={`badge ${STATE_COLORS[distState] ?? "badge-ghost"}`}>{distState}</span>
+        <div className="flex items-center gap-2">
+          <span className={`badge ${STATE_COLORS[distState] ?? "badge-ghost"}`}>{distState}</span>
+          {isOwner && isActive && dist.state !== 2 && (
+            <div className="tooltip tooltip-left" data-tip={deleteDisabledReason ?? "Delete distribution"}>
+              <button
+                className="btn btn-ghost btn-xs text-error"
+                disabled={deleteDisabledReason !== null}
+                onClick={() => setShowDeleteConfirm(true)}
+              >
+                ✕
+              </button>
+            </div>
+          )}
+        </div>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
         <div>
@@ -788,7 +801,7 @@ function DistributionItem({
         )}
       </div>
 
-      {dist.beneficiaries.length > 0 && !isEditingBeneficiaries && (
+      {dist.beneficiaries.length > 0 && editMode !== "set" && editMode !== "remove" && (
         <div className="mt-3">
           <p className="text-sm opacity-60 mb-1">Beneficiaries ({dist.beneficiaryCount.toString()})</p>
           <BeneficiariesReadTable beneficiaries={dist.beneficiaries} amounts={dist.amounts} />
@@ -796,34 +809,55 @@ function DistributionItem({
       )}
 
       {isOwner && isActive && dist.state !== 2 && (
-        <div className="mt-3 flex gap-2 flex-wrap">
-          {dist.state === 0 && (
-            <>
-              <EditBeneficiariesForm
-                programAddress={programAddress}
-                distributionIndex={index}
-                tokenType={tokenType}
-                existingBeneficiaries={dist.beneficiaries}
-                existingAmounts={dist.amounts}
-                isEditing={isEditingBeneficiaries}
-                onEditingChange={setIsEditingBeneficiaries}
-              />
-              {dist.beneficiaryCount > 0n && (
-                <button className="btn btn-sm btn-accent" onClick={() => setShowLockConfirm(true)}>
-                  Confirm and Lock Beneficiary List
-                </button>
+        <div className="mt-3">
+          {editMode === "none" ? (
+            <div className="flex gap-2 flex-wrap">
+              {dist.state === 0 && (
+                <>
+                  <button className="btn btn-sm btn-outline" onClick={() => setEditMode("add")}>
+                    + Add
+                  </button>
+                  {dist.beneficiaryCount > 0n && (
+                    <>
+                      <button className="btn btn-sm btn-outline btn-error" onClick={() => setEditMode("remove")}>
+                        - Remove
+                      </button>
+                      <button className="btn btn-sm btn-outline" onClick={() => setEditMode("set")}>
+                        Replace All
+                      </button>
+                      <button className="btn btn-sm btn-accent" onClick={() => setShowLockConfirm(true)}>
+                        Confirm and Lock Beneficiary List
+                      </button>
+                    </>
+                  )}
+                </>
               )}
-            </>
-          )}
-          <div className="tooltip tooltip-bottom" data-tip={deleteDisabledReason ?? undefined}>
-            <button
-              className="btn btn-sm btn-error btn-outline"
-              disabled={deleteDisabledReason !== null}
-              onClick={() => setShowDeleteConfirm(true)}
-            >
-              Delete Distribution
-            </button>
-          </div>
+            </div>
+          ) : editMode === "set" ? (
+            <EditBeneficiariesForm
+              programAddress={programAddress}
+              distributionIndex={index}
+              tokenType={tokenType}
+              existingBeneficiaries={dist.beneficiaries}
+              existingAmounts={dist.amounts}
+              onClose={() => setEditMode("none")}
+            />
+          ) : editMode === "add" ? (
+            <AddBeneficiariesForm
+              programAddress={programAddress}
+              distributionIndex={index}
+              tokenType={tokenType}
+              onClose={() => setEditMode("none")}
+            />
+          ) : editMode === "remove" ? (
+            <RemoveBeneficiariesPanel
+              programAddress={programAddress}
+              distributionIndex={index}
+              beneficiaries={dist.beneficiaries}
+              amounts={dist.amounts}
+              onClose={() => setEditMode("none")}
+            />
+          ) : null}
         </div>
       )}
 
@@ -884,7 +918,7 @@ function BeneficiariesReadTable({ beneficiaries, amounts }: { beneficiaries: Add
         </thead>
         <tbody>
           {beneficiaries.map((b, j) => (
-            <BeneficiaryRow key={j} address={b} amount={amounts[j]} />
+            <BeneficiaryRow key={b} address={b} amount={amounts[j]} />
           ))}
         </tbody>
       </table>
@@ -985,38 +1019,22 @@ function EditBeneficiariesForm({
   tokenType,
   existingBeneficiaries,
   existingAmounts,
-  isEditing,
-  onEditingChange,
+  onClose,
 }: {
   programAddress: Address;
   distributionIndex: number;
   tokenType: TokenTypeInfo | undefined;
   existingBeneficiaries: Address[];
   existingAmounts: bigint[];
-  isEditing: boolean;
-  onEditingChange: (editing: boolean) => void;
+  onClose: () => void;
 }) {
-  const [entries, setEntries] = useState<BeneficiaryEntry[]>([{ address: "", amount: "" }]);
+  const [entries, setEntries] = useState<BeneficiaryEntry[]>(() =>
+    existingBeneficiaries.length > 0
+      ? existingBeneficiaries.map((addr, i) => ({ address: addr, amount: existingAmounts[i]?.toString() ?? "1" }))
+      : [{ address: "", amount: "" }],
+  );
   const write = useCGProgramWrite(programAddress);
-
   const isNft = tokenType?.maxSupply === 1n;
-
-  const openForm = () => {
-    const initial =
-      existingBeneficiaries.length > 0
-        ? existingBeneficiaries.map((addr, i) => ({
-            address: addr,
-            amount: existingAmounts[i]?.toString() ?? "1",
-          }))
-        : [{ address: "", amount: "" }];
-    setEntries(initial);
-    onEditingChange(true);
-  };
-
-  const closeForm = () => {
-    onEditingChange(false);
-    setEntries([{ address: "", amount: "" }]);
-  };
 
   const handleSet = async () => {
     const finalEntries = isNft ? entries.map(e => ({ ...e, amount: "1" })) : entries;
@@ -1028,31 +1046,166 @@ function EditBeneficiariesForm({
       validated.addresses,
       validated.amounts,
     ]);
-    if (success) {
-      closeForm();
-    }
+    if (success) onClose();
   };
-
-  if (!isEditing) {
-    return (
-      <button className="btn btn-sm btn-outline" onClick={openForm}>
-        Set Beneficiaries
-      </button>
-    );
-  }
 
   return (
     <div className="flex flex-col gap-2 w-full border border-base-300 rounded-lg p-3">
+      <p className="text-sm font-medium opacity-70">Replace entire beneficiary list</p>
       <BeneficiariesTableEditor entries={entries} onChange={setEntries} hideAmount={isNft} />
       <div className="flex gap-2">
         <button className="btn btn-sm btn-primary" onClick={handleSet}>
           Confirm
         </button>
-        <button className="btn btn-sm btn-ghost" onClick={closeForm}>
+        <button className="btn btn-sm btn-ghost" onClick={onClose}>
           Cancel
         </button>
       </div>
     </div>
+  );
+}
+
+function AddBeneficiariesForm({
+  programAddress,
+  distributionIndex,
+  tokenType,
+  onClose,
+}: {
+  programAddress: Address;
+  distributionIndex: number;
+  tokenType: TokenTypeInfo | undefined;
+  onClose: () => void;
+}) {
+  const [entries, setEntries] = useState<BeneficiaryEntry[]>([{ address: "", amount: "" }]);
+  const write = useCGProgramWrite(programAddress);
+  const isNft = tokenType?.maxSupply === 1n;
+
+  const handleAdd = async () => {
+    const finalEntries = isNft ? entries.map(e => ({ ...e, amount: "1" })) : entries;
+    const validated = validateBeneficiaries(finalEntries);
+    if (!validated) return;
+
+    const success = await write("addBeneficiaries", [
+      BigInt(distributionIndex),
+      validated.addresses,
+      validated.amounts,
+    ]);
+    if (success) onClose();
+  };
+
+  return (
+    <div className="flex flex-col gap-2 w-full border border-base-300 rounded-lg p-3">
+      <p className="text-sm font-medium">Add Beneficiaries</p>
+      <BeneficiariesTableEditor entries={entries} onChange={setEntries} hideAmount={isNft} />
+      <div className="flex gap-2">
+        <button className="btn btn-sm btn-primary" onClick={handleAdd}>
+          Confirm
+        </button>
+        <button className="btn btn-sm btn-ghost" onClick={onClose}>
+          Cancel
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function RemoveBeneficiariesPanel({
+  programAddress,
+  distributionIndex,
+  beneficiaries,
+  amounts,
+  onClose,
+}: {
+  programAddress: Address;
+  distributionIndex: number;
+  beneficiaries: Address[];
+  amounts: bigint[];
+  onClose: () => void;
+}) {
+  const [selected, setSelected] = useState<Set<Address>>(new Set());
+  const write = useCGProgramWrite(programAddress);
+
+  const toggle = (addr: Address) => {
+    const next = new Set(selected);
+    if (next.has(addr)) next.delete(addr);
+    else next.add(addr);
+    setSelected(next);
+  };
+
+  const toggleAll = (checked: boolean) => setSelected(checked ? new Set(beneficiaries) : new Set());
+
+  const handleRemove = async () => {
+    if (selected.size === 0) return;
+    const success = await write("removeBeneficiaries", [BigInt(distributionIndex), [...selected]]);
+    if (success) onClose();
+  };
+
+  return (
+    <div className="flex flex-col gap-2 w-full border border-error/30 rounded-lg p-3">
+      <p className="text-sm font-medium">Select beneficiaries to remove</p>
+      <div className="overflow-x-auto">
+        <table className="table table-xs">
+          <thead>
+            <tr>
+              <th className="w-8">
+                <input
+                  type="checkbox"
+                  className="checkbox checkbox-xs"
+                  checked={selected.size === beneficiaries.length && beneficiaries.length > 0}
+                  onChange={e => toggleAll(e.target.checked)}
+                />
+              </th>
+              <th>Account</th>
+              <th>Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            {beneficiaries.map((b, j) => (
+              <RemovableRow
+                key={b}
+                address={b}
+                amount={amounts[j]}
+                checked={selected.has(b)}
+                onToggle={() => toggle(b)}
+              />
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div className="flex gap-2 items-center">
+        <button className="btn btn-sm btn-error" onClick={handleRemove} disabled={selected.size === 0}>
+          Remove{selected.size > 0 ? ` (${selected.size})` : ""}
+        </button>
+        <button className="btn btn-sm btn-ghost" onClick={onClose}>
+          Cancel
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function RemovableRow({
+  address,
+  amount,
+  checked,
+  onToggle,
+}: {
+  address: Address;
+  amount: bigint;
+  checked: boolean;
+  onToggle: () => void;
+}) {
+  const link = useBlockExplorerLink(address);
+  return (
+    <tr>
+      <td>
+        <input type="checkbox" className="checkbox checkbox-xs" checked={checked} onChange={onToggle} />
+      </td>
+      <td>
+        <AddressDisplay address={address} blockExplorerAddressLink={link} />
+      </td>
+      <td className="font-mono">{amount.toString()} tokens</td>
+    </tr>
   );
 }
 

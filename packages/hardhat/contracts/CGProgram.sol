@@ -141,14 +141,32 @@ contract CGProgram is Ownable {
 
 		CGDistribution dist = distributions[distributionIndex];
 		dist.setBeneficiaries(beneficiaries_, amounts_);
+		_validateSupplyCap(dist.tokenId());
+	}
 
-		uint256 distTokenId = dist.tokenId();
-		CGToken.TokenType memory tt = token.getTokenType(distTokenId);
-		if (tt.maxSupply > 0) {
-			uint256 aggregateRequired = _totalRequiredForToken(distTokenId);
-			if (aggregateRequired > tt.maxSupply)
-				revert ExceedsTotalSupply(distTokenId, aggregateRequired, tt.maxSupply);
-		}
+	/// @notice Proxy call to append beneficiaries to a distribution.
+	function addBeneficiaries(
+		uint256 distributionIndex,
+		address[] calldata beneficiaries_,
+		uint256[] calldata amounts_
+	) external onlyOwner {
+		if (state != State.ACTIVE) revert ProgramNotActive();
+		if (lockDistributions && _crowdfundingHasContributions()) revert DistributionsLocked();
+
+		CGDistribution dist = distributions[distributionIndex];
+		dist.addBeneficiaries(beneficiaries_, amounts_);
+		_validateSupplyCap(dist.tokenId());
+	}
+
+	/// @notice Proxy call to remove beneficiaries from a distribution.
+	function removeBeneficiaries(
+		uint256 distributionIndex,
+		address[] calldata toRemove_
+	) external onlyOwner {
+		if (state != State.ACTIVE) revert ProgramNotActive();
+		if (lockDistributions && _crowdfundingHasContributions()) revert DistributionsLocked();
+
+		distributions[distributionIndex].removeBeneficiaries(toRemove_);
 	}
 
 	/// @notice Permanently remove a distribution. DRAFT can always be deleted; READY requires no contributions.
@@ -295,6 +313,16 @@ contract CGProgram is Ownable {
 		infos = new DistributionInfo[](distributions.length);
 		for (uint256 i = 0; i < distributions.length; i++) {
 			infos[i] = getDistributionInfo(i);
+		}
+	}
+
+	/// @dev Reverts if aggregate token requirements across all distributions exceed maxSupply.
+	function _validateSupplyCap(uint256 distTokenId_) internal view {
+		CGToken.TokenType memory tt = token.getTokenType(distTokenId_);
+		if (tt.maxSupply > 0) {
+			uint256 aggregateRequired = _totalRequiredForToken(distTokenId_);
+			if (aggregateRequired > tt.maxSupply)
+				revert ExceedsTotalSupply(distTokenId_, aggregateRequired, tt.maxSupply);
 		}
 	}
 

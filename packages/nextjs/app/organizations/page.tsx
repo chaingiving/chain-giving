@@ -40,7 +40,9 @@ const OrgCard = ({ address }: { address: Address }) => {
           <span>Owner:</span>
           <AddressDisplay address={owner} size="sm" />
         </div>
-        <div className="text-sm opacity-70">{programCount?.toString() ?? "0"} program(s)</div>
+        <div className="text-sm opacity-70">
+          {programCount?.toString() ?? "0"} {programCount === 1n ? "program" : "programs"}
+        </div>
       </div>
     </Link>
   );

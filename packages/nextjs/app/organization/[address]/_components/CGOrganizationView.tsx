@@ -79,7 +79,9 @@ export const CGOrganizationView = ({ address }: { address: Address }) => {
           <span>Owner:</span>
           <AddressDisplay address={owner} size="sm" />
         </div>
-        <p className="text-sm opacity-60 mt-1">{programCount?.toString() ?? "0"} program(s)</p>
+        <p className="text-sm opacity-60 mt-1">
+          {programCount?.toString() ?? "0"} {programCount === 1n ? "program" : "programs"}
+        </p>
       </div>
 
       {isOwner && (

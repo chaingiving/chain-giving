@@ -6,7 +6,7 @@ import { GenericContractsDeclaration } from "~~/utils/scaffold-eth/contract";
 
 const deployedContracts = {
   31337: {
-    CGProgram: {
+    CGComponentFactory: {
       address: "0x5FbDB2315678afecb367f032d93F642f64180aa3",
       abi: [
         {
@@ -17,91 +17,92 @@ const deployedContracts = {
               type: "address",
             },
             {
-              internalType: "string",
-              name: "name_",
-              type: "string",
+              internalType: "uint256",
+              name: "target_",
+              type: "uint256",
             },
             {
-              internalType: "bool",
-              name: "lockDistributions_",
-              type: "bool",
+              internalType: "uint256",
+              name: "deadline_",
+              type: "uint256",
+            },
+          ],
+          name: "createCrowdfunding",
+          outputs: [
+            {
+              internalType: "address",
+              name: "",
+              type: "address",
+            },
+          ],
+          stateMutability: "nonpayable",
+          type: "function",
+        },
+        {
+          inputs: [
+            {
+              internalType: "address",
+              name: "owner_",
+              type: "address",
+            },
+            {
+              internalType: "contract IERC1155",
+              name: "token_",
+              type: "address",
+            },
+            {
+              internalType: "uint256",
+              name: "tokenId_",
+              type: "uint256",
+            },
+          ],
+          name: "createDistribution",
+          outputs: [
+            {
+              internalType: "address",
+              name: "",
+              type: "address",
+            },
+          ],
+          stateMutability: "nonpayable",
+          type: "function",
+        },
+        {
+          inputs: [
+            {
+              internalType: "address",
+              name: "owner_",
+              type: "address",
+            },
+          ],
+          name: "createToken",
+          outputs: [
+            {
+              internalType: "address",
+              name: "",
+              type: "address",
+            },
+          ],
+          stateMutability: "nonpayable",
+          type: "function",
+        },
+      ],
+      inheritedFunctions: {},
+      deployedOnBlock: 1,
+    },
+    CGProgramFactory: {
+      address: "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512",
+      abi: [
+        {
+          inputs: [
+            {
+              internalType: "contract CGComponentFactory",
+              name: "componentFactory_",
+              type: "address",
             },
           ],
           stateMutability: "nonpayable",
           type: "constructor",
-        },
-        {
-          inputs: [],
-          name: "ContributionsExist",
-          type: "error",
-        },
-        {
-          inputs: [],
-          name: "CrowdfundingAlreadySet",
-          type: "error",
-        },
-        {
-          inputs: [],
-          name: "CrowdfundingNotFunded",
-          type: "error",
-        },
-        {
-          inputs: [
-            {
-              internalType: "uint256",
-              name: "index",
-              type: "uint256",
-            },
-          ],
-          name: "DistributionAlreadyDistributed",
-          type: "error",
-        },
-        {
-          inputs: [
-            {
-              internalType: "uint256",
-              name: "index",
-              type: "uint256",
-            },
-          ],
-          name: "DistributionNotReady",
-          type: "error",
-        },
-        {
-          inputs: [],
-          name: "DistributionsLocked",
-          type: "error",
-        },
-        {
-          inputs: [
-            {
-              internalType: "uint256",
-              name: "tokenId",
-              type: "uint256",
-            },
-            {
-              internalType: "uint256",
-              name: "totalRequired",
-              type: "uint256",
-            },
-            {
-              internalType: "uint256",
-              name: "maxSupply",
-              type: "uint256",
-            },
-          ],
-          name: "ExceedsTotalSupply",
-          type: "error",
-        },
-        {
-          inputs: [],
-          name: "NoCrowdfunding",
-          type: "error",
-        },
-        {
-          inputs: [],
-          name: "NoDistributions",
-          type: "error",
         },
         {
           inputs: [
@@ -127,64 +128,26 @@ const deployedContracts = {
         },
         {
           inputs: [],
-          name: "ProgramNotActive",
+          name: "Unauthorized",
           type: "error",
         },
         {
           anonymous: false,
           inputs: [
             {
-              indexed: false,
+              indexed: true,
               internalType: "address",
-              name: "crowdfunding",
-              type: "address",
-            },
-          ],
-          name: "CrowdfundingSet",
-          type: "event",
-        },
-        {
-          anonymous: false,
-          inputs: [
-            {
-              indexed: false,
-              internalType: "uint256",
-              name: "index",
-              type: "uint256",
-            },
-            {
-              indexed: false,
-              internalType: "address",
-              name: "distribution",
+              name: "caller",
               type: "address",
             },
             {
               indexed: false,
-              internalType: "uint256",
-              name: "tokenId",
-              type: "uint256",
+              internalType: "bool",
+              name: "authorized",
+              type: "bool",
             },
           ],
-          name: "DistributionCreated",
-          type: "event",
-        },
-        {
-          anonymous: false,
-          inputs: [
-            {
-              indexed: false,
-              internalType: "uint256",
-              name: "index",
-              type: "uint256",
-            },
-            {
-              indexed: false,
-              internalType: "address",
-              name: "distribution",
-              type: "address",
-            },
-          ],
-          name: "DistributionDeleted",
+          name: "CallerAuthorized",
           type: "event",
         },
         {
@@ -208,134 +171,72 @@ const deployedContracts = {
         },
         {
           anonymous: false,
-          inputs: [],
-          name: "ProgramCancelled",
-          type: "event",
-        },
-        {
-          anonymous: false,
           inputs: [
             {
-              indexed: false,
-              internalType: "string",
-              name: "name",
-              type: "string",
+              indexed: true,
+              internalType: "address",
+              name: "program",
+              type: "address",
             },
             {
-              indexed: false,
+              indexed: true,
               internalType: "address",
-              name: "token",
+              name: "owner",
               type: "address",
             },
             {
               indexed: false,
-              internalType: "bool",
-              name: "lockDistributions",
-              type: "bool",
-            },
-          ],
-          name: "ProgramCreated",
-          type: "event",
-        },
-        {
-          anonymous: false,
-          inputs: [],
-          name: "ProgramExecuted",
-          type: "event",
-        },
-        {
-          anonymous: false,
-          inputs: [
-            {
-              indexed: true,
-              internalType: "uint256",
-              name: "tokenId",
-              type: "uint256",
-            },
-            {
-              indexed: false,
               internalType: "string",
               name: "name",
               type: "string",
             },
-            {
-              indexed: false,
-              internalType: "string",
-              name: "symbol",
-              type: "string",
-            },
-            {
-              indexed: false,
-              internalType: "uint256",
-              name: "maxSupply",
-              type: "uint256",
-            },
           ],
-          name: "TokenTypeDefined",
+          name: "ProgramDeployed",
           type: "event",
         },
         {
           inputs: [
             {
-              internalType: "uint256",
-              name: "distributionIndex",
-              type: "uint256",
+              internalType: "address",
+              name: "caller_",
+              type: "address",
             },
             {
-              internalType: "address[]",
-              name: "beneficiaries_",
-              type: "address[]",
-            },
-            {
-              internalType: "uint256[]",
-              name: "amounts_",
-              type: "uint256[]",
+              internalType: "bool",
+              name: "authorized_",
+              type: "bool",
             },
           ],
-          name: "addBeneficiaries",
+          name: "authorizeCaller",
           outputs: [],
           stateMutability: "nonpayable",
-          type: "function",
-        },
-        {
-          inputs: [],
-          name: "cancel",
-          outputs: [],
-          stateMutability: "nonpayable",
-          type: "function",
-        },
-        {
-          inputs: [],
-          name: "contribute",
-          outputs: [],
-          stateMutability: "payable",
           type: "function",
         },
         {
           inputs: [
-            {
-              internalType: "uint256",
-              name: "tokenId_",
-              type: "uint256",
-            },
-          ],
-          name: "createDistribution",
-          outputs: [
             {
               internalType: "address",
               name: "",
               type: "address",
             },
           ],
-          stateMutability: "nonpayable",
+          name: "authorizedCallers",
+          outputs: [
+            {
+              internalType: "bool",
+              name: "",
+              type: "bool",
+            },
+          ],
+          stateMutability: "view",
           type: "function",
         },
         {
           inputs: [],
-          name: "crowdfunding",
+          name: "componentFactory",
           outputs: [
             {
-              internalType: "contract CGCrowdfunding",
+              internalType: "contract CGComponentFactory",
               name: "",
               type: "address",
             },
@@ -345,318 +246,31 @@ const deployedContracts = {
         },
         {
           inputs: [
+            {
+              internalType: "address",
+              name: "owner_",
+              type: "address",
+            },
             {
               internalType: "string",
               name: "name_",
               type: "string",
             },
             {
-              internalType: "string",
-              name: "symbol_",
-              type: "string",
-            },
-            {
-              internalType: "uint256",
-              name: "maxSupply_",
-              type: "uint256",
-            },
-            {
-              internalType: "string",
-              name: "uri_",
-              type: "string",
+              internalType: "bool",
+              name: "lockDistributions_",
+              type: "bool",
             },
           ],
-          name: "defineTokenType",
+          name: "createProgram",
           outputs: [
             {
-              internalType: "uint256",
-              name: "tokenId",
-              type: "uint256",
-            },
-          ],
-          stateMutability: "nonpayable",
-          type: "function",
-        },
-        {
-          inputs: [
-            {
-              internalType: "uint256",
-              name: "distributionIndex",
-              type: "uint256",
-            },
-          ],
-          name: "deleteDistribution",
-          outputs: [],
-          stateMutability: "nonpayable",
-          type: "function",
-        },
-        {
-          inputs: [],
-          name: "distributionCount",
-          outputs: [
-            {
-              internalType: "uint256",
-              name: "",
-              type: "uint256",
-            },
-          ],
-          stateMutability: "view",
-          type: "function",
-        },
-        {
-          inputs: [
-            {
-              internalType: "uint256",
-              name: "",
-              type: "uint256",
-            },
-          ],
-          name: "distributions",
-          outputs: [
-            {
-              internalType: "contract CGDistribution",
+              internalType: "address",
               name: "",
               type: "address",
             },
           ],
-          stateMutability: "view",
-          type: "function",
-        },
-        {
-          inputs: [],
-          name: "execute",
-          outputs: [],
           stateMutability: "nonpayable",
-          type: "function",
-        },
-        {
-          inputs: [],
-          name: "getAllDistributionsInfo",
-          outputs: [
-            {
-              components: [
-                {
-                  internalType: "address",
-                  name: "addr",
-                  type: "address",
-                },
-                {
-                  internalType: "uint256",
-                  name: "tokenId",
-                  type: "uint256",
-                },
-                {
-                  internalType: "enum CGDistribution.State",
-                  name: "state",
-                  type: "uint8",
-                },
-                {
-                  internalType: "uint256",
-                  name: "beneficiaryCount",
-                  type: "uint256",
-                },
-                {
-                  internalType: "uint256",
-                  name: "totalRequired",
-                  type: "uint256",
-                },
-                {
-                  internalType: "address[]",
-                  name: "beneficiaries",
-                  type: "address[]",
-                },
-                {
-                  internalType: "uint256[]",
-                  name: "amounts",
-                  type: "uint256[]",
-                },
-              ],
-              internalType: "struct CGProgram.DistributionInfo[]",
-              name: "infos",
-              type: "tuple[]",
-            },
-          ],
-          stateMutability: "view",
-          type: "function",
-        },
-        {
-          inputs: [],
-          name: "getCrowdfundingInfo",
-          outputs: [
-            {
-              components: [
-                {
-                  internalType: "address",
-                  name: "addr",
-                  type: "address",
-                },
-                {
-                  internalType: "uint256",
-                  name: "fundingTarget",
-                  type: "uint256",
-                },
-                {
-                  internalType: "uint256",
-                  name: "deadline",
-                  type: "uint256",
-                },
-                {
-                  internalType: "enum CGCrowdfunding.State",
-                  name: "state",
-                  type: "uint8",
-                },
-                {
-                  internalType: "uint256",
-                  name: "totalRaised",
-                  type: "uint256",
-                },
-              ],
-              internalType: "struct CGProgram.CrowdfundingInfo",
-              name: "info",
-              type: "tuple",
-            },
-          ],
-          stateMutability: "view",
-          type: "function",
-        },
-        {
-          inputs: [
-            {
-              internalType: "uint256",
-              name: "index",
-              type: "uint256",
-            },
-          ],
-          name: "getDistributionInfo",
-          outputs: [
-            {
-              components: [
-                {
-                  internalType: "address",
-                  name: "addr",
-                  type: "address",
-                },
-                {
-                  internalType: "uint256",
-                  name: "tokenId",
-                  type: "uint256",
-                },
-                {
-                  internalType: "enum CGDistribution.State",
-                  name: "state",
-                  type: "uint8",
-                },
-                {
-                  internalType: "uint256",
-                  name: "beneficiaryCount",
-                  type: "uint256",
-                },
-                {
-                  internalType: "uint256",
-                  name: "totalRequired",
-                  type: "uint256",
-                },
-                {
-                  internalType: "address[]",
-                  name: "beneficiaries",
-                  type: "address[]",
-                },
-                {
-                  internalType: "uint256[]",
-                  name: "amounts",
-                  type: "uint256[]",
-                },
-              ],
-              internalType: "struct CGProgram.DistributionInfo",
-              name: "",
-              type: "tuple",
-            },
-          ],
-          stateMutability: "view",
-          type: "function",
-        },
-        {
-          inputs: [],
-          name: "getTokenTypes",
-          outputs: [
-            {
-              components: [
-                {
-                  internalType: "uint256",
-                  name: "tokenId",
-                  type: "uint256",
-                },
-                {
-                  internalType: "string",
-                  name: "name",
-                  type: "string",
-                },
-                {
-                  internalType: "string",
-                  name: "symbol",
-                  type: "string",
-                },
-                {
-                  internalType: "uint256",
-                  name: "maxSupply",
-                  type: "uint256",
-                },
-                {
-                  internalType: "uint256",
-                  name: "totalMinted",
-                  type: "uint256",
-                },
-                {
-                  internalType: "string",
-                  name: "uri",
-                  type: "string",
-                },
-              ],
-              internalType: "struct CGProgram.TokenTypeInfo[]",
-              name: "infos",
-              type: "tuple[]",
-            },
-          ],
-          stateMutability: "view",
-          type: "function",
-        },
-        {
-          inputs: [],
-          name: "lockDistributions",
-          outputs: [
-            {
-              internalType: "bool",
-              name: "",
-              type: "bool",
-            },
-          ],
-          stateMutability: "view",
-          type: "function",
-        },
-        {
-          inputs: [
-            {
-              internalType: "uint256",
-              name: "distributionIndex",
-              type: "uint256",
-            },
-          ],
-          name: "markDistributionReady",
-          outputs: [],
-          stateMutability: "nonpayable",
-          type: "function",
-        },
-        {
-          inputs: [],
-          name: "name",
-          outputs: [
-            {
-              internalType: "string",
-              name: "",
-              type: "string",
-            },
-          ],
-          stateMutability: "view",
           type: "function",
         },
         {
@@ -673,95 +287,10 @@ const deployedContracts = {
           type: "function",
         },
         {
-          inputs: [
-            {
-              internalType: "uint256",
-              name: "distributionIndex",
-              type: "uint256",
-            },
-            {
-              internalType: "address[]",
-              name: "toRemove_",
-              type: "address[]",
-            },
-          ],
-          name: "removeBeneficiaries",
-          outputs: [],
-          stateMutability: "nonpayable",
-          type: "function",
-        },
-        {
           inputs: [],
           name: "renounceOwnership",
           outputs: [],
           stateMutability: "nonpayable",
-          type: "function",
-        },
-        {
-          inputs: [
-            {
-              internalType: "uint256",
-              name: "distributionIndex",
-              type: "uint256",
-            },
-            {
-              internalType: "address[]",
-              name: "beneficiaries_",
-              type: "address[]",
-            },
-            {
-              internalType: "uint256[]",
-              name: "amounts_",
-              type: "uint256[]",
-            },
-          ],
-          name: "setBeneficiaries",
-          outputs: [],
-          stateMutability: "nonpayable",
-          type: "function",
-        },
-        {
-          inputs: [
-            {
-              internalType: "uint256",
-              name: "target_",
-              type: "uint256",
-            },
-            {
-              internalType: "uint256",
-              name: "deadline_",
-              type: "uint256",
-            },
-          ],
-          name: "setCrowdfunding",
-          outputs: [],
-          stateMutability: "nonpayable",
-          type: "function",
-        },
-        {
-          inputs: [],
-          name: "state",
-          outputs: [
-            {
-              internalType: "enum CGProgram.State",
-              name: "",
-              type: "uint8",
-            },
-          ],
-          stateMutability: "view",
-          type: "function",
-        },
-        {
-          inputs: [],
-          name: "token",
-          outputs: [
-            {
-              internalType: "contract CGToken",
-              name: "",
-              type: "address",
-            },
-          ],
-          stateMutability: "view",
           type: "function",
         },
         {
@@ -783,7 +312,240 @@ const deployedContracts = {
         renounceOwnership: "@openzeppelin/contracts/access/Ownable.sol",
         transferOwnership: "@openzeppelin/contracts/access/Ownable.sol",
       },
-      deployedOnBlock: 1,
+      deployedOnBlock: 3,
+    },
+    CGRegistry: {
+      address: "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0",
+      abi: [
+        {
+          inputs: [
+            {
+              internalType: "contract CGProgramFactory",
+              name: "programFactory_",
+              type: "address",
+            },
+          ],
+          stateMutability: "nonpayable",
+          type: "constructor",
+        },
+        {
+          inputs: [],
+          name: "EmptyName",
+          type: "error",
+        },
+        {
+          inputs: [
+            {
+              internalType: "address",
+              name: "owner",
+              type: "address",
+            },
+          ],
+          name: "OwnableInvalidOwner",
+          type: "error",
+        },
+        {
+          inputs: [
+            {
+              internalType: "address",
+              name: "account",
+              type: "address",
+            },
+          ],
+          name: "OwnableUnauthorizedAccount",
+          type: "error",
+        },
+        {
+          anonymous: false,
+          inputs: [
+            {
+              indexed: true,
+              internalType: "address",
+              name: "organization",
+              type: "address",
+            },
+            {
+              indexed: true,
+              internalType: "address",
+              name: "owner",
+              type: "address",
+            },
+            {
+              indexed: false,
+              internalType: "string",
+              name: "name",
+              type: "string",
+            },
+          ],
+          name: "OrganizationCreated",
+          type: "event",
+        },
+        {
+          anonymous: false,
+          inputs: [
+            {
+              indexed: true,
+              internalType: "address",
+              name: "previousOwner",
+              type: "address",
+            },
+            {
+              indexed: true,
+              internalType: "address",
+              name: "newOwner",
+              type: "address",
+            },
+          ],
+          name: "OwnershipTransferred",
+          type: "event",
+        },
+        {
+          inputs: [
+            {
+              internalType: "string",
+              name: "name_",
+              type: "string",
+            },
+          ],
+          name: "createOrganization",
+          outputs: [
+            {
+              internalType: "address",
+              name: "",
+              type: "address",
+            },
+          ],
+          stateMutability: "nonpayable",
+          type: "function",
+        },
+        {
+          inputs: [
+            {
+              internalType: "uint256",
+              name: "offset",
+              type: "uint256",
+            },
+            {
+              internalType: "uint256",
+              name: "limit",
+              type: "uint256",
+            },
+          ],
+          name: "getOrganizations",
+          outputs: [
+            {
+              internalType: "address[]",
+              name: "",
+              type: "address[]",
+            },
+          ],
+          stateMutability: "view",
+          type: "function",
+        },
+        {
+          inputs: [
+            {
+              internalType: "address",
+              name: "",
+              type: "address",
+            },
+          ],
+          name: "isOrganization",
+          outputs: [
+            {
+              internalType: "bool",
+              name: "",
+              type: "bool",
+            },
+          ],
+          stateMutability: "view",
+          type: "function",
+        },
+        {
+          inputs: [],
+          name: "organizationCount",
+          outputs: [
+            {
+              internalType: "uint256",
+              name: "",
+              type: "uint256",
+            },
+          ],
+          stateMutability: "view",
+          type: "function",
+        },
+        {
+          inputs: [
+            {
+              internalType: "uint256",
+              name: "",
+              type: "uint256",
+            },
+          ],
+          name: "organizations",
+          outputs: [
+            {
+              internalType: "address",
+              name: "",
+              type: "address",
+            },
+          ],
+          stateMutability: "view",
+          type: "function",
+        },
+        {
+          inputs: [],
+          name: "owner",
+          outputs: [
+            {
+              internalType: "address",
+              name: "",
+              type: "address",
+            },
+          ],
+          stateMutability: "view",
+          type: "function",
+        },
+        {
+          inputs: [],
+          name: "programFactory",
+          outputs: [
+            {
+              internalType: "contract CGProgramFactory",
+              name: "",
+              type: "address",
+            },
+          ],
+          stateMutability: "view",
+          type: "function",
+        },
+        {
+          inputs: [],
+          name: "renounceOwnership",
+          outputs: [],
+          stateMutability: "nonpayable",
+          type: "function",
+        },
+        {
+          inputs: [
+            {
+              internalType: "address",
+              name: "newOwner",
+              type: "address",
+            },
+          ],
+          name: "transferOwnership",
+          outputs: [],
+          stateMutability: "nonpayable",
+          type: "function",
+        },
+      ],
+      inheritedFunctions: {
+        owner: "@openzeppelin/contracts/access/Ownable.sol",
+        renounceOwnership: "@openzeppelin/contracts/access/Ownable.sol",
+        transferOwnership: "@openzeppelin/contracts/access/Ownable.sol",
+      },
+      deployedOnBlock: 5,
     },
   },
 } as const;

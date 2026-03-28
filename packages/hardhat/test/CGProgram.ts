@@ -20,8 +20,13 @@ describe("CGProgram", function () {
   async function deployProgram(lock = false): Promise<CGProgram> {
     const now = await time.latest();
     deadline = now + 7 * 24 * 60 * 60;
+
+    // Deploy the unified component factory
+    const componentFactoryF = await ethers.getContractFactory("CGComponentFactory");
+    const componentFactory = await componentFactoryF.deploy();
+
     const factory = await ethers.getContractFactory("CGProgram");
-    return factory.deploy(owner.address, "Aid Program", lock);
+    return factory.deploy(owner.address, "Aid Program", lock, await componentFactory.getAddress());
   }
 
   async function getToken(prog: CGProgram): Promise<CGToken> {
@@ -60,8 +65,11 @@ describe("CGProgram", function () {
     });
 
     it("emits ProgramCreated on deploy", async () => {
+      const componentFactoryF = await ethers.getContractFactory("CGComponentFactory");
+      const componentFactory = await componentFactoryF.deploy();
+
       const factory = await ethers.getContractFactory("CGProgram");
-      const newProgram = await factory.deploy(owner.address, "Test", false);
+      const newProgram = await factory.deploy(owner.address, "Test", false, await componentFactory.getAddress());
       const receipt = await newProgram.deploymentTransaction()!.wait();
       const programCreatedTopic = newProgram.interface.getEvent("ProgramCreated")!.topicHash;
       const event = receipt!.logs.find(log => log.topics[0] === programCreatedTopic);

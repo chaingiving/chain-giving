@@ -6,11 +6,9 @@ import { Address as AddressDisplay, AddressInput, Balance, EtherInput } from "@s
 import { Address, formatEther, isAddress, isAddressEqual, parseEther, zeroAddress } from "viem";
 import { hardhat } from "viem/chains";
 import { useAccount, useReadContract, useWriteContract } from "wagmi";
-import deployedContracts from "~~/contracts/deployedContracts";
+import { cgProgramAbi } from "~~/contracts/cgProgramAbi";
 import { useTargetNetwork, useTransactor } from "~~/hooks/scaffold-eth";
 import { getParsedError, notification } from "~~/utils/scaffold-eth";
-
-const cgProgramAbi = deployedContracts[31337].CGProgram.abi;
 
 const cgCrowdfundingAbi = [
   {

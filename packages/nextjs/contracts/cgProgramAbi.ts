@@ -1,0 +1,285 @@
+export const cgProgramAbi = [
+  // ── Errors ──────────────────────────────────────────────────────────────
+  { inputs: [], name: "ContributionsExist", type: "error" },
+  { inputs: [], name: "CrowdfundingAlreadySet", type: "error" },
+  { inputs: [], name: "CrowdfundingNotFunded", type: "error" },
+  { inputs: [{ name: "index", type: "uint256" }], name: "DistributionAlreadyDistributed", type: "error" },
+  { inputs: [{ name: "index", type: "uint256" }], name: "DistributionNotReady", type: "error" },
+  { inputs: [], name: "DistributionsLocked", type: "error" },
+  {
+    inputs: [
+      { name: "tokenId", type: "uint256" },
+      { name: "totalRequired", type: "uint256" },
+      { name: "maxSupply", type: "uint256" },
+    ],
+    name: "ExceedsTotalSupply",
+    type: "error",
+  },
+  { inputs: [], name: "NoCrowdfunding", type: "error" },
+  { inputs: [], name: "NoDistributions", type: "error" },
+  { inputs: [{ name: "owner", type: "address" }], name: "OwnableInvalidOwner", type: "error" },
+  { inputs: [{ name: "account", type: "address" }], name: "OwnableUnauthorizedAccount", type: "error" },
+  { inputs: [], name: "ProgramNotActive", type: "error" },
+
+  // ── Events ──────────────────────────────────────────────────────────────
+  {
+    anonymous: false,
+    inputs: [{ indexed: false, name: "crowdfunding", type: "address" }],
+    name: "CrowdfundingSet",
+    type: "event",
+  },
+  {
+    anonymous: false,
+    inputs: [
+      { indexed: false, name: "index", type: "uint256" },
+      { indexed: false, name: "distribution", type: "address" },
+      { indexed: false, name: "tokenId", type: "uint256" },
+    ],
+    name: "DistributionCreated",
+    type: "event",
+  },
+  {
+    anonymous: false,
+    inputs: [
+      { indexed: false, name: "index", type: "uint256" },
+      { indexed: false, name: "distribution", type: "address" },
+    ],
+    name: "DistributionDeleted",
+    type: "event",
+  },
+  {
+    anonymous: false,
+    inputs: [
+      { indexed: true, name: "previousOwner", type: "address" },
+      { indexed: true, name: "newOwner", type: "address" },
+    ],
+    name: "OwnershipTransferred",
+    type: "event",
+  },
+  { anonymous: false, inputs: [], name: "ProgramCancelled", type: "event" },
+  {
+    anonymous: false,
+    inputs: [
+      { indexed: false, name: "name", type: "string" },
+      { indexed: false, name: "token", type: "address" },
+      { indexed: false, name: "lockDistributions", type: "bool" },
+    ],
+    name: "ProgramCreated",
+    type: "event",
+  },
+  { anonymous: false, inputs: [], name: "ProgramExecuted", type: "event" },
+  {
+    anonymous: false,
+    inputs: [
+      { indexed: true, name: "tokenId", type: "uint256" },
+      { indexed: false, name: "name", type: "string" },
+      { indexed: false, name: "symbol", type: "string" },
+      { indexed: false, name: "maxSupply", type: "uint256" },
+    ],
+    name: "TokenTypeDefined",
+    type: "event",
+  },
+
+  // ── Write functions ─────────────────────────────────────────────────────
+  {
+    inputs: [
+      { name: "distributionIndex", type: "uint256" },
+      { name: "beneficiaries_", type: "address[]" },
+      { name: "amounts_", type: "uint256[]" },
+    ],
+    name: "addBeneficiaries",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  { inputs: [], name: "cancel", outputs: [], stateMutability: "nonpayable", type: "function" },
+  { inputs: [], name: "contribute", outputs: [], stateMutability: "payable", type: "function" },
+  {
+    inputs: [{ name: "tokenId_", type: "uint256" }],
+    name: "createDistribution",
+    outputs: [{ name: "", type: "address" }],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [
+      { name: "name_", type: "string" },
+      { name: "symbol_", type: "string" },
+      { name: "maxSupply_", type: "uint256" },
+      { name: "uri_", type: "string" },
+    ],
+    name: "defineTokenType",
+    outputs: [{ name: "tokenId", type: "uint256" }],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [{ name: "distributionIndex", type: "uint256" }],
+    name: "deleteDistribution",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  { inputs: [], name: "execute", outputs: [], stateMutability: "nonpayable", type: "function" },
+  {
+    inputs: [{ name: "distributionIndex", type: "uint256" }],
+    name: "markDistributionReady",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [
+      { name: "distributionIndex", type: "uint256" },
+      { name: "toRemove_", type: "address[]" },
+    ],
+    name: "removeBeneficiaries",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  { inputs: [], name: "renounceOwnership", outputs: [], stateMutability: "nonpayable", type: "function" },
+  {
+    inputs: [
+      { name: "distributionIndex", type: "uint256" },
+      { name: "beneficiaries_", type: "address[]" },
+      { name: "amounts_", type: "uint256[]" },
+    ],
+    name: "setBeneficiaries",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [
+      { name: "target_", type: "uint256" },
+      { name: "deadline_", type: "uint256" },
+    ],
+    name: "setCrowdfunding",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [{ name: "newOwner", type: "address" }],
+    name: "transferOwnership",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+
+  // ── View functions ──────────────────────────────────────────────────────
+  {
+    inputs: [],
+    name: "crowdfunding",
+    outputs: [{ name: "", type: "address" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [],
+    name: "distributionCount",
+    outputs: [{ name: "", type: "uint256" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [{ name: "", type: "uint256" }],
+    name: "distributions",
+    outputs: [{ name: "", type: "address" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [],
+    name: "getAllDistributionsInfo",
+    outputs: [
+      {
+        components: [
+          { name: "addr", type: "address" },
+          { name: "tokenId", type: "uint256" },
+          { name: "state", type: "uint8" },
+          { name: "beneficiaryCount", type: "uint256" },
+          { name: "totalRequired", type: "uint256" },
+          { name: "beneficiaries", type: "address[]" },
+          { name: "amounts", type: "uint256[]" },
+        ],
+        name: "infos",
+        type: "tuple[]",
+      },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [],
+    name: "getCrowdfundingInfo",
+    outputs: [
+      {
+        components: [
+          { name: "addr", type: "address" },
+          { name: "fundingTarget", type: "uint256" },
+          { name: "deadline", type: "uint256" },
+          { name: "state", type: "uint8" },
+          { name: "totalRaised", type: "uint256" },
+        ],
+        name: "info",
+        type: "tuple",
+      },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [{ name: "index", type: "uint256" }],
+    name: "getDistributionInfo",
+    outputs: [
+      {
+        components: [
+          { name: "addr", type: "address" },
+          { name: "tokenId", type: "uint256" },
+          { name: "state", type: "uint8" },
+          { name: "beneficiaryCount", type: "uint256" },
+          { name: "totalRequired", type: "uint256" },
+          { name: "beneficiaries", type: "address[]" },
+          { name: "amounts", type: "uint256[]" },
+        ],
+        name: "",
+        type: "tuple",
+      },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [],
+    name: "getTokenTypes",
+    outputs: [
+      {
+        components: [
+          { name: "tokenId", type: "uint256" },
+          { name: "name", type: "string" },
+          { name: "symbol", type: "string" },
+          { name: "maxSupply", type: "uint256" },
+          { name: "totalMinted", type: "uint256" },
+          { name: "uri", type: "string" },
+        ],
+        name: "infos",
+        type: "tuple[]",
+      },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [],
+    name: "lockDistributions",
+    outputs: [{ name: "", type: "bool" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  { inputs: [], name: "name", outputs: [{ name: "", type: "string" }], stateMutability: "view", type: "function" },
+  { inputs: [], name: "owner", outputs: [{ name: "", type: "address" }], stateMutability: "view", type: "function" },
+  { inputs: [], name: "state", outputs: [{ name: "", type: "uint8" }], stateMutability: "view", type: "function" },
+  { inputs: [], name: "token", outputs: [{ name: "", type: "address" }], stateMutability: "view", type: "function" },
+] as const;

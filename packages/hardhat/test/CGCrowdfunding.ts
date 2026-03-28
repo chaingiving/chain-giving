@@ -184,9 +184,10 @@ describe("CGCrowdfunding", function () {
       expect(await crowdfunding.state()).to.equal(3); // CANCELLED
     });
 
-    it("reverts if FUNDED", async () => {
+    it("allows cancel when FUNDED", async () => {
       await crowdfunding.connect(donor1).contribute({ value: TARGET });
-      await expect(crowdfunding.cancel()).to.be.revertedWithCustomError(crowdfunding, "NotInState");
+      await expect(crowdfunding.cancel()).to.emit(crowdfunding, "CrowdfundingCancelled");
+      expect(await crowdfunding.state()).to.equal(3); // CANCELLED
     });
 
     it("reverts if not owner", async () => {

@@ -52,7 +52,10 @@ const config: HardhatUserConfig = {
         url: `https://eth-mainnet.alchemyapi.io/v2/${providerApiKey}`,
         enabled: process.env.MAINNET_FORKING_ENABLED === "true",
       },
-      blockGasLimit: 30_000_000,
+      // Must match EIP-7825 per-transaction gas cap (2^24) introduced in Hardhat 2.28+.
+      // Without this, the hardhat-ethers signer picks up the default blockGasLimit (60M)
+      // as the tx gas limit, which exceeds the 16M cap and causes all deployments to fail.
+      blockGasLimit: 16_777_216,
       mining: {
         auto: true,
       },

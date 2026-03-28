@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "postinstall": "patch-package",
     "build": "next build",
     "check-types": "tsc --noEmit --incremental",
     "dev": "next dev",
@@ -53,6 +54,7 @@
     "eslint-config-next": "~15.2.3",
     "eslint-config-prettier": "~10.1.1",
     "eslint-plugin-prettier": "~5.2.4",
+    "patch-package": "^8.0.1",
     "postcss": "~8.4.45",
     "prettier": "~3.5.3",
     "tailwindcss": "4.1.3",

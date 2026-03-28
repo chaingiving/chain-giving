@@ -6,10 +6,13 @@ import {IERC1155} from "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 import {CGToken} from "./CGToken.sol";
 import {CGCrowdfunding} from "./CGCrowdfunding.sol";
 import {CGDistribution} from "./CGDistribution.sol";
+import {CGComponentFactory} from "./CGComponentFactory.sol";
 
 /// @title CGProgram — Orchestrates crowdfunding and ERC-1155 token distributions
 /// @notice Top-level contract tying one crowdfunding to one-or-more distributions.
 ///         Each distribution uses a specific token type from the shared CGToken contract.
+///         Child contracts are deployed via external factories to keep bytecode under the
+///         24 KB Spurious Dragon limit.
 contract CGProgram is Ownable {
 	enum State {
 		ACTIVE,
@@ -47,6 +50,7 @@ contract CGProgram is Ownable {
 
 	string public name;
 	bool public immutable lockDistributions;
+	CGComponentFactory public immutable componentFactory;
 	CGToken public token;
 	CGCrowdfunding public crowdfunding;
 	CGDistribution[] public distributions;
@@ -74,11 +78,14 @@ contract CGProgram is Ownable {
 	constructor(
 		address owner_,
 		string memory name_,
-		bool lockDistributions_
+		bool lockDistributions_,
+		CGComponentFactory componentFactory_
 	) Ownable(owner_) {
 		name = name_;
 		lockDistributions = lockDistributions_;
-		token = new CGToken(address(this));
+		componentFactory = componentFactory_;
+
+		token = CGToken(componentFactory_.createToken(address(this)));
 		state = State.ACTIVE;
 
 		emit ProgramCreated(name_, address(token), lockDistributions_);
@@ -105,7 +112,7 @@ contract CGProgram is Ownable {
 		if (state != State.ACTIVE) revert ProgramNotActive();
 		if (address(crowdfunding) != address(0)) revert CrowdfundingAlreadySet();
 
-		crowdfunding = new CGCrowdfunding(address(this), target_, deadline_);
+		crowdfunding = CGCrowdfunding(componentFactory.createCrowdfunding(address(this), target_, deadline_));
 		emit CrowdfundingSet(address(crowdfunding));
 	}
 
@@ -118,10 +125,8 @@ contract CGProgram is Ownable {
 		// Validate the token type exists
 		token.getTokenType(tokenId_);
 
-		CGDistribution dist = new CGDistribution(
-			address(this),
-			IERC1155(address(token)),
-			tokenId_
+		CGDistribution dist = CGDistribution(
+			componentFactory.createDistribution(address(this), IERC1155(address(token)), tokenId_)
 		);
 		distributions.push(dist);
 
@@ -231,6 +236,8 @@ contract CGProgram is Ownable {
 				revert DistributionNotReady(i);
 		}
 
+		// Act as a reentrancy guard: external calls below (withdraw, distribute)
+		// will revert if they re-enter any function guarded by `ProgramNotActive`.
 		state = State.EXECUTING;
 
 		crowdfunding.withdraw(owner());

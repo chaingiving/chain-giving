@@ -51,8 +51,19 @@ async function expectRevert(fn: () => Promise<unknown>, label: string): Promise<
 }
 
 async function deployProgram(owner: Signer, name: string, lockDistributions: boolean): Promise<CGProgram> {
+  // Deploy the unified component factory
+  const componentFactoryF = await ethers.getContractFactory("CGComponentFactory", owner);
+  const componentFactory = await componentFactoryF.deploy(TX_OVERRIDES);
+  await componentFactory.waitForDeployment();
+
   const factory = await ethers.getContractFactory("CGProgram", owner);
-  const program = await factory.deploy(await owner.getAddress(), name, lockDistributions, TX_OVERRIDES);
+  const program = await factory.deploy(
+    await owner.getAddress(),
+    name,
+    lockDistributions,
+    await componentFactory.getAddress(),
+    TX_OVERRIDES,
+  );
   await program.waitForDeployment();
   return program as unknown as CGProgram;
 }

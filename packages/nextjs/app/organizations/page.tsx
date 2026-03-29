@@ -12,6 +12,8 @@ import { useScaffoldReadContract, useScaffoldWriteContract } from "~~/hooks/scaf
 const PAGE_SIZE = 10;
 
 const OrgCard = ({ address }: { address: Address }) => {
+  const { address: connectedAddress } = useAccount();
+
   const { data: name } = useReadContract({
     address,
     abi: cgOrganizationAbi,
@@ -33,6 +35,8 @@ const OrgCard = ({ address }: { address: Address }) => {
     query: { refetchInterval: 30000 },
   });
 
+  const isOwner = connectedAddress && owner ? isAddressEqual(connectedAddress, owner) : false;
+
   return (
     <Link href={`/organization/${address}`} className="card bg-base-100 shadow-md hover:shadow-lg transition-shadow">
       <div className="card-body p-4">
@@ -40,6 +44,7 @@ const OrgCard = ({ address }: { address: Address }) => {
         <div className="flex items-center gap-2 text-sm opacity-70">
           <span>Owner:</span>
           <AddressDisplay address={owner} size="sm" />
+          {isOwner && <span className="badge badge-info badge-sm">You</span>}
         </div>
         <div className="text-sm opacity-70">
           {programCount?.toString() ?? "0"} {programCount === 1n ? "program" : "programs"}

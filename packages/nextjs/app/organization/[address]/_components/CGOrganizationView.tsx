@@ -78,6 +78,7 @@ export const CGOrganizationView = ({ address }: { address: Address }) => {
         <div className="flex items-center gap-2 mt-1 text-sm opacity-70">
           <span>Owner:</span>
           <AddressDisplay address={owner} size="sm" />
+          {isOwner && <span className="badge badge-info badge-sm">You</span>}
         </div>
         <p className="text-sm opacity-60 mt-1">
           {programCount?.toString() ?? "0"} {programCount === 1n ? "program" : "programs"}

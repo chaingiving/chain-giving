@@ -179,6 +179,7 @@ export const CGProgramView = ({ address }: { address: Address }) => {
             programState={programState}
             owner={owner}
             lockDistributions={lockDistributions}
+            isOwner={isOwner}
           />
           <TokenSection
             tokenAddress={tokenAddress}
@@ -232,12 +233,14 @@ function ProgramSection({
   programState,
   owner,
   lockDistributions,
+  isOwner,
 }: {
   address: Address;
   name: string | undefined;
   programState: string;
   owner: Address | undefined;
   lockDistributions: boolean | undefined;
+  isOwner: boolean;
 }) {
   const addressLink = useBlockExplorerLink(address);
   const ownerLink = useBlockExplorerLink(owner);
@@ -255,7 +258,10 @@ function ProgramSection({
         </div>
         <div>
           <p className="text-sm opacity-60">Contract Owner</p>
-          {owner && <AddressDisplay address={owner} blockExplorerAddressLink={ownerLink} />}
+          <div className="flex items-center gap-2">
+            {owner && <AddressDisplay address={owner} blockExplorerAddressLink={ownerLink} />}
+            {isOwner && <span className="badge badge-info badge-sm">You</span>}
+          </div>
         </div>
         <div>
           <p className="text-sm opacity-60">Contract Balance</p>

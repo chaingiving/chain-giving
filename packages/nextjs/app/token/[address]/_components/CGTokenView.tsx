@@ -343,6 +343,7 @@ export const CGTokenView = ({ address }: { address: Address }) => {
 
   const addressLink = useBlockExplorerLink(address);
   const ownerLink = useBlockExplorerLink(ownerAddress as Address | undefined);
+  const isOwner = connectedAddress && ownerAddress ? isAddressEqual(connectedAddress, ownerAddress as Address) : false;
 
   if (isLoading) {
     return (
@@ -382,6 +383,7 @@ export const CGTokenView = ({ address }: { address: Address }) => {
                 <p className="text-sm opacity-60">Owner (Program Contract)</p>
                 <div className="flex items-center gap-2">
                   <AddressDisplay address={ownerAddress as Address} blockExplorerAddressLink={ownerLink} />
+                  {isOwner && <span className="badge badge-info badge-sm">You</span>}
                   <a href={`/program/${ownerAddress}`} className="btn btn-xs btn-outline">
                     View Program
                   </a>

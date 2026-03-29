@@ -6,83 +6,9 @@ import { Address, isAddress, isAddressEqual } from "viem";
 import { hardhat } from "viem/chains";
 import { useAccount, useReadContract, useWriteContract } from "wagmi";
 import { AddressInputWithQr } from "~~/components/AddressInputWithQr";
+import { cgTokenAbi } from "~~/contracts/cgTokenAbi";
 import { useTargetNetwork, useTransactor } from "~~/hooks/scaffold-eth";
 import { getParsedError, notification } from "~~/utils/scaffold-eth";
-
-const cgTokenAbi = [
-  {
-    name: "nextTokenId",
-    type: "function",
-    stateMutability: "view",
-    inputs: [],
-    outputs: [{ type: "uint256" }],
-  },
-  {
-    name: "owner",
-    type: "function",
-    stateMutability: "view",
-    inputs: [],
-    outputs: [{ name: "", type: "address" }],
-  },
-  {
-    name: "uri",
-    type: "function",
-    stateMutability: "view",
-    inputs: [{ name: "tokenId", type: "uint256" }],
-    outputs: [{ type: "string" }],
-  },
-  {
-    name: "getTokenType",
-    type: "function",
-    stateMutability: "view",
-    inputs: [{ name: "tokenId", type: "uint256" }],
-    outputs: [
-      {
-        type: "tuple",
-        components: [
-          { name: "name", type: "string" },
-          { name: "symbol", type: "string" },
-          { name: "maxSupply", type: "uint256" },
-          { name: "totalMinted", type: "uint256" },
-        ],
-      },
-    ],
-  },
-  {
-    name: "balanceOf",
-    type: "function",
-    stateMutability: "view",
-    inputs: [
-      { name: "account", type: "address" },
-      { name: "id", type: "uint256" },
-    ],
-    outputs: [{ type: "uint256" }],
-  },
-  {
-    name: "safeTransferFrom",
-    type: "function",
-    stateMutability: "nonpayable",
-    inputs: [
-      { name: "from", type: "address" },
-      { name: "to", type: "address" },
-      { name: "id", type: "uint256" },
-      { name: "value", type: "uint256" },
-      { name: "data", type: "bytes" },
-    ],
-    outputs: [],
-  },
-  {
-    name: "burn",
-    type: "function",
-    stateMutability: "nonpayable",
-    inputs: [
-      { name: "account", type: "address" },
-      { name: "id", type: "uint256" },
-      { name: "value", type: "uint256" },
-    ],
-    outputs: [],
-  },
-] as const;
 
 function useBlockExplorerLink(address: Address | undefined) {
   const { targetNetwork } = useTargetNetwork();
@@ -117,6 +43,8 @@ type TokenType = {
   symbol: string;
   maxSupply: bigint;
   totalMinted: bigint;
+  transferable: boolean;
+  burnable: boolean;
 };
 
 function TokenTypeCard({
@@ -208,7 +136,7 @@ function TokenTypeCard({
   if (!tt) return null;
 
   const supplyLabel =
-    tt.maxSupply === 0n ? "Unlimited" : tt.maxSupply === 1n ? "NFT (max 1)" : `Max ${tt.maxSupply.toString()}`;
+    tt.maxSupply === 0n ? "Fungible" : tt.maxSupply === 1n ? "NFT (max 1)" : `Max ${tt.maxSupply.toString()}`;
 
   return (
     <div className="border border-base-300 rounded-lg p-4 flex flex-col gap-3">
@@ -231,24 +159,28 @@ function TokenTypeCard({
 
       {connectedAddress && userBalance !== undefined && userBalance > 0n && (
         <div className="flex flex-wrap gap-2">
-          <button
-            className="btn btn-sm btn-outline"
-            onClick={() => {
-              setShowTransfer(v => !v);
-              setShowBurn(false);
-            }}
-          >
-            Transfer
-          </button>
-          <button
-            className="btn btn-sm btn-outline btn-error"
-            onClick={() => {
-              setShowBurn(v => !v);
-              setShowTransfer(false);
-            }}
-          >
-            Burn
-          </button>
+          {tt.transferable && (
+            <button
+              className="btn btn-sm btn-outline"
+              onClick={() => {
+                setShowTransfer(v => !v);
+                setShowBurn(false);
+              }}
+            >
+              Transfer
+            </button>
+          )}
+          {tt.burnable && (
+            <button
+              className="btn btn-sm btn-outline btn-error"
+              onClick={() => {
+                setShowBurn(v => !v);
+                setShowTransfer(false);
+              }}
+            >
+              Burn
+            </button>
+          )}
         </div>
       )}
 

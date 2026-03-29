@@ -28,6 +28,8 @@ contract CGProgram is Ownable {
 		uint256 maxSupply;
 		uint256 totalMinted;
 		string uri;
+		bool transferable;
+		bool burnable;
 	}
 
 	struct CrowdfundingInfo {
@@ -57,7 +59,7 @@ contract CGProgram is Ownable {
 	State public state;
 
 	event ProgramCreated(string name, address token, bool lockDistributions);
-	event TokenTypeDefined(uint256 indexed tokenId, string name, string symbol, uint256 maxSupply);
+	event TokenTypeDefined(uint256 indexed tokenId, string name, string symbol, uint256 maxSupply, bool transferable, bool burnable);
 	event CrowdfundingSet(address crowdfunding);
 	event DistributionCreated(uint256 index, address distribution, uint256 tokenId);
 	event DistributionDeleted(uint256 index, address distribution);
@@ -92,19 +94,23 @@ contract CGProgram is Ownable {
 	}
 
 	/// @notice Define a new ERC-1155 token type on the program's token contract.
-	/// @param name_      Display name (e.g. "Food Voucher")
-	/// @param symbol_    Short symbol (e.g. "FOOD")
-	/// @param maxSupply_ 0 = unlimited (fungible), 1 = unique NFT, N = capped (badges/tickets)
-	/// @param uri_       Optional per-type metadata URI
+	/// @param name_         Display name (e.g. "Food Voucher")
+	/// @param symbol_       Short symbol (e.g. "FOOD")
+	/// @param maxSupply_    0 = unlimited (fungible), 1 = unique NFT, N = capped (badges/tickets)
+	/// @param uri_          Optional per-type metadata URI
+	/// @param transferable_ Whether holders can transfer tokens
+	/// @param burnable_     Whether holders can burn tokens
 	function defineTokenType(
 		string calldata name_,
 		string calldata symbol_,
 		uint256 maxSupply_,
-		string calldata uri_
+		string calldata uri_,
+		bool transferable_,
+		bool burnable_
 	) external onlyOwner returns (uint256 tokenId) {
 		if (state != State.ACTIVE) revert ProgramNotActive();
-		tokenId = token.defineTokenType(name_, symbol_, maxSupply_, uri_);
-		emit TokenTypeDefined(tokenId, name_, symbol_, maxSupply_);
+		tokenId = token.defineTokenType(name_, symbol_, maxSupply_, uri_, transferable_, burnable_);
+		emit TokenTypeDefined(tokenId, name_, symbol_, maxSupply_, transferable_, burnable_);
 	}
 
 	/// @notice Deploy and attach a CGCrowdfunding.
@@ -129,6 +135,9 @@ contract CGProgram is Ownable {
 			componentFactory.createDistribution(address(this), IERC1155(address(token)), tokenId_)
 		);
 		distributions.push(dist);
+
+		// Allow the distribution contract to transfer soulbound tokens on behalf of the program.
+		token.setAuthorizedTransferrer(address(dist), true);
 
 		uint256 index = distributions.length - 1;
 		emit DistributionCreated(index, address(dist), tokenId_);
@@ -185,6 +194,9 @@ contract CGProgram is Ownable {
 			revert ContributionsExist();
 
 		address deleted = address(distributions[distributionIndex]);
+
+		// Revoke the distribution's ability to bypass soulbound restrictions
+		token.setAuthorizedTransferrer(deleted, false);
 
 		uint256 last = distributions.length - 1;
 		if (distributionIndex != last) {
@@ -283,7 +295,9 @@ contract CGProgram is Ownable {
 				symbol: tt.symbol,
 				maxSupply: tt.maxSupply,
 				totalMinted: tt.totalMinted,
-				uri: token.uri(i)
+				uri: token.uri(i),
+				transferable: tt.transferable,
+				burnable: tt.burnable
 			});
 		}
 	}

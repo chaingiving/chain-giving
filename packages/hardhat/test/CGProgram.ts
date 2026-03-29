@@ -45,7 +45,7 @@ describe("CGProgram", function () {
     [owner, donor1, donor2, beneficiary1, beneficiary2, nonOwner] = await ethers.getSigners();
     program = await deployProgram(false);
     // Define a default fungible token type (tokenId = 0)
-    await program.defineTokenType("Food Voucher", "FOOD", 0, "");
+    await program.defineTokenType("Food Voucher", "FOOD", 0, "", true, true);
     tokenId = 0n;
   });
 
@@ -85,45 +85,52 @@ describe("CGProgram", function () {
 
   describe("defineTokenType", function () {
     it("defines a fungible type and emits TokenTypeDefined", async () => {
-      await expect(program.defineTokenType("Water Credits", "WATR", 0, ""))
+      await expect(program.defineTokenType("Water Credits", "WATR", 0, "", true, true))
         .to.emit(program, "TokenTypeDefined")
-        .withArgs(1n, "Water Credits", "WATR", 0n);
+        .withArgs(1n, "Water Credits", "WATR", 0n, true, true);
     });
 
     it("defines a capped badge type (maxSupply > 0)", async () => {
-      await program.defineTokenType("Bronze Badge", "BDGE", 100, "");
+      await program.defineTokenType("Bronze Badge", "BDGE", 100, "", true, true);
       const token = await getToken(program);
       const tt = await token.getTokenType(1n);
       expect(tt.maxSupply).to.equal(100n);
     });
 
     it("defines a unique NFT type (maxSupply = 1)", async () => {
-      await program.defineTokenType("Certificate", "CERT", 1, "");
+      await program.defineTokenType("Certificate", "CERT", 1, "", true, true);
       const token = await getToken(program);
       const tt = await token.getTokenType(1n);
       expect(tt.maxSupply).to.equal(1n);
     });
 
     it("supports multiple token types in one program", async () => {
-      await program.defineTokenType("Badge", "BDGE", 50, "");
-      await program.defineTokenType("Certificate", "CERT", 1, "");
+      await program.defineTokenType("Badge", "BDGE", 50, "", true, true);
+      await program.defineTokenType("Certificate", "CERT", 1, "", true, true);
       const token = await getToken(program);
       expect(await token.nextTokenId()).to.equal(3n); // 0=Food Voucher, 1=Badge, 2=Certificate
     });
 
     it("reverts if not owner", async () => {
-      await expect(program.connect(nonOwner).defineTokenType("X", "X", 0, "")).to.be.revertedWithCustomError(
-        program,
-        "OwnableUnauthorizedAccount",
-      );
+      await expect(
+        program.connect(nonOwner).defineTokenType("X", "X", 0, "", true, true),
+      ).to.be.revertedWithCustomError(program, "OwnableUnauthorizedAccount");
     });
 
     it("returns correct tokenId", async () => {
       const token = await getToken(program);
       // First defined in beforeEach is tokenId=0, next one should be 1
       expect(await token.nextTokenId()).to.equal(1n);
-      await program.defineTokenType("Second", "SND", 0, "");
+      await program.defineTokenType("Second", "SND", 0, "", true, true);
       expect(await token.nextTokenId()).to.equal(2n);
+    });
+
+    it("stores transferable and burnable flags", async () => {
+      await program.defineTokenType("Soulbound", "SOUL", 0, "", false, false);
+      const token = await getToken(program);
+      const tt = await token.getTokenType(1n);
+      expect(tt.transferable).to.equal(false);
+      expect(tt.burnable).to.equal(false);
     });
   });
 
@@ -165,7 +172,7 @@ describe("CGProgram", function () {
     });
 
     it("can create distributions for different token types", async () => {
-      await program.defineTokenType("Badge", "BDGE", 50, "");
+      await program.defineTokenType("Badge", "BDGE", 50, "", true, true);
       await program.createDistribution(0n); // Food Voucher
       await program.createDistribution(1n); // Badge
       expect(await program.distributionCount()).to.equal(2);
@@ -229,7 +236,7 @@ describe("CGProgram", function () {
     });
 
     it("mints badge tokens (amount=1 each) and marks ready", async () => {
-      await program.defineTokenType("Badge", "BDGE", 2, "");
+      await program.defineTokenType("Badge", "BDGE", 2, "", true, true);
       const badgeTokenId = 1n;
 
       await program.createDistribution(badgeTokenId);
@@ -303,7 +310,7 @@ describe("CGProgram", function () {
     });
 
     it("works with multiple distributions across different token types", async () => {
-      await program.defineTokenType("Badge", "BDGE", 2, "");
+      await program.defineTokenType("Badge", "BDGE", 2, "", true, true);
       await program.setCrowdfunding(TARGET, deadline);
 
       await program.createDistribution(0n); // Food Voucher
@@ -369,6 +376,32 @@ describe("CGProgram", function () {
       await program.execute();
       await expect(program.execute()).to.be.revertedWithCustomError(program, "ProgramNotActive");
     });
+
+    it("distributes non-transferable (soulbound) tokens to beneficiaries", async () => {
+      // Define a soulbound token type (transferable=false)
+      await program.defineTokenType("Soulbound Badge", "SOUL", 0, "", false, true);
+      const soulboundTokenId = 1n;
+
+      await program.setCrowdfunding(TARGET, deadline);
+      await program.createDistribution(soulboundTokenId);
+      await program.setBeneficiaries(0, [beneficiary1.address, beneficiary2.address], [10n, 20n]);
+      await program.markDistributionReady(0);
+
+      await program.connect(donor1).contribute({ value: TARGET });
+      await program.execute();
+
+      const token = await getToken(program);
+      expect(await token.balanceOf(beneficiary1.address, soulboundTokenId)).to.equal(10n);
+      expect(await token.balanceOf(beneficiary2.address, soulboundTokenId)).to.equal(20n);
+      expect(await program.state()).to.equal(2); // COMPLETED
+
+      // Verify tokens are truly soulbound — beneficiaries can't transfer them
+      await expect(
+        token
+          .connect(beneficiary1)
+          .safeTransferFrom(beneficiary1.address, beneficiary2.address, soulboundTokenId, 1n, "0x"),
+      ).to.be.revertedWithCustomError(token, "TransferDisabled");
+    });
   });
 
   describe("Cancel", function () {
@@ -419,7 +452,7 @@ describe("CGProgram", function () {
 
     beforeEach(async () => {
       lockedProgram = await deployProgram(true);
-      await lockedProgram.defineTokenType("Food Voucher", "FOOD", 0, "");
+      await lockedProgram.defineTokenType("Food Voucher", "FOOD", 0, "", true, true);
     });
 
     it("rejects contributions when no distributions exist", async () => {
@@ -490,7 +523,7 @@ describe("CGProgram", function () {
 
   describe("View Functions", function () {
     it("getTokenTypes returns all defined token types", async () => {
-      await program.defineTokenType("Badge", "BDGE", 50, "ipfs://QmBadge");
+      await program.defineTokenType("Badge", "BDGE", 50, "ipfs://QmBadge", true, true);
 
       const types = await program.getTokenTypes();
       expect(types.length).to.equal(2);
@@ -517,7 +550,7 @@ describe("CGProgram", function () {
     });
 
     it("getDistributionInfo includes tokenId", async () => {
-      await program.defineTokenType("Badge", "BDGE", 50, "");
+      await program.defineTokenType("Badge", "BDGE", 50, "", true, true);
       await program.createDistribution(0n);
       await program.createDistribution(1n);
 

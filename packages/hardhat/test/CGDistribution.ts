@@ -19,7 +19,7 @@ describe("CGDistribution", function () {
 
     const tokenFactory = await ethers.getContractFactory("CGToken");
     token = await tokenFactory.deploy(owner.address);
-    await token.defineTokenType("Aid Token", "AID", 0, ""); // tokenId = 0, unlimited supply
+    await token.defineTokenType("Aid Token", "AID", 0, "", true, true); // tokenId = 0, unlimited supply
 
     const distFactory = await ethers.getContractFactory("CGDistribution");
     distribution = await distFactory.deploy(owner.address, await token.getAddress(), TOKEN_ID);
@@ -54,7 +54,7 @@ describe("CGDistribution", function () {
 
     it("supports badge-like distribution (amount=1 per beneficiary)", async () => {
       // NFT/badge style: each beneficiary gets exactly 1
-      await token.defineTokenType("Badge", "BDGE", 3, ""); // maxSupply=3 for 3 badges
+      await token.defineTokenType("Badge", "BDGE", 3, "", true, true); // maxSupply=3 for 3 badges
       const badgeDistFactory = await ethers.getContractFactory("CGDistribution");
       const badgeDist = await badgeDistFactory.deploy(owner.address, await token.getAddress(), 1n);
 
@@ -166,7 +166,7 @@ describe("CGDistribution", function () {
     });
 
     it("distributes badge tokens (amount=1 each) to all beneficiaries", async () => {
-      await token.defineTokenType("Badge", "BDGE", 3, "");
+      await token.defineTokenType("Badge", "BDGE", 3, "", true, true);
       const badgeDistFactory = await ethers.getContractFactory("CGDistribution");
       const badgeDist = await badgeDistFactory.deploy(owner.address, await token.getAddress(), 1n);
 

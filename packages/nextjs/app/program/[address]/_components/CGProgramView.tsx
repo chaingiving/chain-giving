@@ -46,6 +46,8 @@ type TokenTypeInfo = {
   maxSupply: bigint;
   totalMinted: bigint;
   uri: string;
+  transferable: boolean;
+  burnable: boolean;
 };
 
 type CrowdfundingInfo = {
@@ -341,12 +343,20 @@ function TokenSection({
                     {tt.name} ({tt.symbol})
                   </span>
                   <span className="badge badge-ghost badge-sm">
-                    {tt.maxSupply === 0n ? "Unlimited" : tt.maxSupply === 1n ? "NFT (max 1)" : `Max ${tt.maxSupply}`}
+                    {tt.maxSupply === 0n ? "Fungible" : tt.maxSupply === 1n ? "NFT (max 1)" : `Max ${tt.maxSupply}`}
                   </span>
                 </div>
                 <div className="flex gap-4 text-xs opacity-70">
                   <span>Minted: {tt.totalMinted.toString()}</span>
                   {tt.uri && <span>URI: {tt.uri}</span>}
+                </div>
+                <div className="flex gap-2 mt-1">
+                  <span className={`badge badge-xs ${tt.transferable ? "badge-success" : "badge-error"}`}>
+                    {tt.transferable ? "Transferable" : "Non-transferable"}
+                  </span>
+                  <span className={`badge badge-xs ${tt.burnable ? "badge-success" : "badge-error"}`}>
+                    {tt.burnable ? "Burnable" : "Non-burnable"}
+                  </span>
                 </div>
               </div>
             ))}
@@ -1405,6 +1415,8 @@ function CreateTokenTypeForm({ programAddress }: { programAddress: Address }) {
   const [symbol, setSymbol] = useState("");
   const [maxSupply, setMaxSupply] = useState("");
   const [uri, setUri] = useState("");
+  const [transferable, setTransferable] = useState(true);
+  const [burnable, setBurnable] = useState(true);
   const write = useCGProgramWrite(programAddress);
 
   const handleCreate = async () => {
@@ -1413,13 +1425,15 @@ function CreateTokenTypeForm({ programAddress }: { programAddress: Address }) {
       return;
     }
     const supply = maxSupply ? BigInt(maxSupply) : 0n;
-    const success = await write("defineTokenType", [name, symbol, supply, uri]);
+    const success = await write("defineTokenType", [name, symbol, supply, uri, transferable, burnable]);
     if (success) {
       setShowForm(false);
       setName("");
       setSymbol("");
       setMaxSupply("");
       setUri("");
+      setTransferable(true);
+      setBurnable(true);
     }
   };
 
@@ -1495,6 +1509,35 @@ function CreateTokenTypeForm({ programAddress }: { programAddress: Address }) {
             onChange={e => setUri(e.target.value)}
             placeholder="ipfs://..."
           />
+        </div>
+        <div className="flex flex-col gap-2">
+          <label className="label">
+            <span className="label-text">Token Permissions</span>
+          </label>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              className="toggle toggle-sm toggle-primary"
+              checked={transferable}
+              onChange={e => setTransferable(e.target.checked)}
+            />
+            <span className="label-text">
+              Transferable
+              <span className="opacity-60 text-xs ml-1">(holders can transfer to others)</span>
+            </span>
+          </label>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              className="toggle toggle-sm toggle-primary"
+              checked={burnable}
+              onChange={e => setBurnable(e.target.checked)}
+            />
+            <span className="label-text">
+              Burnable
+              <span className="opacity-60 text-xs ml-1">(holders can burn/redeem tokens)</span>
+            </span>
+          </label>
         </div>
       </div>
       <button className="btn btn-secondary btn-sm mt-3" onClick={handleCreate} disabled={!name || !symbol}>

@@ -7,7 +7,7 @@ import { GenericContractsDeclaration } from "~~/utils/scaffold-eth/contract";
 const deployedContracts = {
   31337: {
     CGComponentFactory: {
-      address: "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+      address: "0x4A425525a8823301C5d8b660517e9402e32BA44F",
       abi: [
         {
           inputs: [
@@ -88,10 +88,10 @@ const deployedContracts = {
         },
       ],
       inheritedFunctions: {},
-      deployedOnBlock: 1,
+      deployedOnBlock: 1850,
     },
     CGProgramFactory: {
-      address: "0x3Aa5ebB10DC797CAC828524e59A333d0A371443c",
+      address: "0xfEa7870D12CdE9D742f0200b087Aa2F3266c320B",
       abi: [
         {
           inputs: [
@@ -312,10 +312,10 @@ const deployedContracts = {
         renounceOwnership: "@openzeppelin/contracts/access/Ownable.sol",
         transferOwnership: "@openzeppelin/contracts/access/Ownable.sol",
       },
-      deployedOnBlock: 24,
+      deployedOnBlock: 1852,
     },
     CGRegistry: {
-      address: "0xc6e7DF5E7b4f2A278906862b61205850344D4e7d",
+      address: "0x2D2c64cC0d2f194FAD74bbE453edAA181d8FBd1f",
       abi: [
         {
           inputs: [
@@ -555,7 +555,7 @@ const deployedContracts = {
         renounceOwnership: "@openzeppelin/contracts/access/Ownable.sol",
         transferOwnership: "@openzeppelin/contracts/access/Ownable.sol",
       },
-      deployedOnBlock: 26,
+      deployedOnBlock: 1854,
     },
   },
 } as const;

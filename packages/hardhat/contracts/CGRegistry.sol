@@ -15,16 +15,18 @@ contract CGRegistry is Ownable {
 	event OrganizationCreated(address indexed organization, address indexed owner, string name);
 
 	error EmptyName();
+	error ZeroAddress();
 
 	constructor(CGProgramFactory programFactory_) Ownable(msg.sender) {
 		programFactory = programFactory_;
 	}
 
-	/// @notice Deploy a new CGOrganization owned by msg.sender. Only callable by registry owner.
-	function createOrganization(string calldata name_) external onlyOwner returns (address) {
+	/// @notice Deploy a new CGOrganization with the given owner. Only callable by registry owner.
+	function createOrganization(string calldata name_, address owner_) external onlyOwner returns (address) {
 		if (bytes(name_).length == 0) revert EmptyName();
+		if (owner_ == address(0)) revert ZeroAddress();
 
-		CGOrganization org = new CGOrganization(msg.sender, name_, programFactory);
+		CGOrganization org = new CGOrganization(owner_, name_, programFactory);
 		address addr = address(org);
 		organizations.push(addr);
 		isOrganization[addr] = true;
@@ -32,7 +34,7 @@ contract CGRegistry is Ownable {
 		// Authorize the new organization to use the factory
 		programFactory.authorizeCaller(addr, true);
 
-		emit OrganizationCreated(addr, msg.sender, name_);
+		emit OrganizationCreated(addr, owner_, name_);
 		return addr;
 	}
 

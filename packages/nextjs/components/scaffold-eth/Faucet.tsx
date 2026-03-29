@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Address, AddressInput, Balance, EtherInput } from "@scaffold-ui/components";
+import { Address, Balance, EtherInput } from "@scaffold-ui/components";
 import { Address as AddressType, createWalletClient, http, parseEther } from "viem";
 import { hardhat } from "viem/chains";
 import { useAccount } from "wagmi";
 import { BanknotesIcon } from "@heroicons/react/24/outline";
+import { AddressInputWithQr } from "~~/components/AddressInputWithQr";
 import { useTargetNetwork, useTransactor } from "~~/hooks/scaffold-eth";
 import { notification } from "~~/utils/scaffold-eth";
 
@@ -113,7 +114,7 @@ export const Faucet = () => {
               </div>
             </div>
             <div className="flex flex-col space-y-3">
-              <AddressInput
+              <AddressInputWithQr
                 placeholder="Destination Address"
                 value={inputAddress ?? ""}
                 onChange={value => setInputAddress(value as AddressType)}

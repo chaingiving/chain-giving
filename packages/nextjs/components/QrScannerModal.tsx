@@ -13,18 +13,25 @@ export function QrScannerModal({ onScan, onClose }: QrScannerModalProps) {
   const controlsRef = useRef<IScannerControls | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const onScanRef = useRef(onScan);
+  const onCloseRef = useRef(onClose);
+  onScanRef.current = onScan;
+  onCloseRef.current = onClose;
+
   useEffect(() => {
+    if (!videoRef.current) return;
+
     const reader = new BrowserQRCodeReader();
     let cancelled = false;
 
     reader
-      .decodeFromConstraints({ video: { facingMode: "environment" } }, videoRef.current!, (result, err, controls) => {
+      .decodeFromConstraints({ video: { facingMode: "environment" } }, videoRef.current, (result, _err, controls) => {
         controlsRef.current = controls;
         if (cancelled) return;
         if (result) {
           controls.stop();
-          onScan(result.getText());
-          onClose();
+          onScanRef.current(result.getText());
+          onCloseRef.current();
         }
       })
       .catch(e => {
@@ -35,7 +42,7 @@ export function QrScannerModal({ onScan, onClose }: QrScannerModalProps) {
       cancelled = true;
       controlsRef.current?.stop();
     };
-  }, [onScan, onClose]);
+  }, []);
 
   return (
     <div className="modal modal-open">

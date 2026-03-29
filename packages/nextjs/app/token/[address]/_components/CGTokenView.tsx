@@ -1,34 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { Address as AddressDisplay, AddressInput } from "@scaffold-ui/components";
+import { Address as AddressDisplay } from "@scaffold-ui/components";
 import { Address, isAddress, isAddressEqual } from "viem";
 import { hardhat } from "viem/chains";
 import { useAccount, useReadContract, useWriteContract } from "wagmi";
-import { QrScannerModal } from "~~/app/program/[address]/_components/QrScannerModal";
+import { AddressInputWithQr } from "~~/components/AddressInputWithQr";
 import { useTargetNetwork, useTransactor } from "~~/hooks/scaffold-eth";
 import { getParsedError, notification } from "~~/utils/scaffold-eth";
-
-function QrCodeIcon() {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      className="h-4 w-4"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-    >
-      <rect x="3" y="3" width="7" height="7" />
-      <rect x="14" y="3" width="7" height="7" />
-      <rect x="3" y="14" width="7" height="7" />
-      <rect x="14" y="14" width="3" height="3" />
-      <path d="M20 14h1v1" />
-      <path d="M14 20h1v1" />
-      <path d="M17 17h4v4" />
-    </svg>
-  );
-}
 
 const cgTokenAbi = [
   {
@@ -154,7 +133,6 @@ function TokenTypeCard({
   const [burnAmount, setBurnAmount] = useState("");
   const [showTransfer, setShowTransfer] = useState(false);
   const [showBurn, setShowBurn] = useState(false);
-  const [showQrScanner, setShowQrScanner] = useState(false);
   const write = useCGTokenWrite(tokenAddress);
 
   const { data: tokenType, isLoading: typeLoading } = useReadContract({
@@ -274,28 +252,10 @@ function TokenTypeCard({
         </div>
       )}
 
-      {showQrScanner && (
-        <QrScannerModal
-          onScan={value => {
-            const address = value.startsWith("ethereum:") ? value.slice(9).split("@")[0].split("?")[0] : value;
-            setTransferTo(address);
-            setShowQrScanner(false);
-          }}
-          onClose={() => setShowQrScanner(false)}
-        />
-      )}
-
       {showTransfer && (
         <div className="flex flex-col gap-2 p-3 bg-base-200 rounded-lg">
           <p className="text-sm font-medium">Transfer tokens</p>
-          <div className="flex gap-1 items-center">
-            <div className="flex-1">
-              <AddressInput value={transferTo} onChange={setTransferTo} placeholder="Recipient address" />
-            </div>
-            <button className="btn btn-ghost btn-sm" title="Scan QR code" onClick={() => setShowQrScanner(true)}>
-              <QrCodeIcon />
-            </button>
-          </div>
+          <AddressInputWithQr value={transferTo} onChange={setTransferTo} placeholder="Recipient address" />
           <div className="flex gap-2 items-center">
             <div className="flex flex-1 input input-bordered input-sm items-center pr-1 gap-1">
               <input

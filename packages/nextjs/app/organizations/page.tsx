@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Address as AddressDisplay } from "@scaffold-ui/components";
 import { Address, isAddressEqual } from "viem";
 import { useAccount, useReadContract } from "wagmi";
+import { AddressInputWithQr } from "~~/components/AddressInputWithQr";
 import { cgOrganizationAbi } from "~~/contracts/cgOrganizationAbi";
 import { useScaffoldReadContract, useScaffoldWriteContract } from "~~/hooks/scaffold-eth";
 
@@ -51,6 +52,7 @@ const OrgCard = ({ address }: { address: Address }) => {
 const OrganizationsPage = () => {
   const { address: connectedAddress } = useAccount();
   const [newOrgName, setNewOrgName] = useState("");
+  const [newOrgOwner, setNewOrgOwner] = useState("");
   const [page, setPage] = useState(0);
 
   const { data: orgCount } = useScaffoldReadContract({
@@ -78,10 +80,11 @@ const OrganizationsPage = () => {
   const totalPages = Math.max(1, Math.ceil(totalOrgs / PAGE_SIZE));
 
   const handleCreateOrg = async () => {
-    if (!newOrgName.trim()) return;
+    if (!newOrgName.trim() || !newOrgOwner) return;
     try {
-      await writeRegistry({ functionName: "createOrganization", args: [newOrgName.trim()] });
+      await writeRegistry({ functionName: "createOrganization", args: [newOrgName.trim(), newOrgOwner] });
       setNewOrgName("");
+      setNewOrgOwner("");
     } catch (e) {
       console.error("Failed to create organization:", e);
     }
@@ -92,20 +95,30 @@ const OrganizationsPage = () => {
       <h1 className="text-3xl font-bold mb-6">Organizations</h1>
 
       {isRegistryOwner && (
-        <div className="card bg-base-200 mb-8">
-          <div className="card-body p-4">
-            <h2 className="card-title text-lg">Create Organization</h2>
-            <div className="flex gap-2">
+        <div className="card bg-base-200 shadow-md border border-base-300 mb-8">
+          <div className="card-body p-6">
+            <h2 className="card-title text-lg">Create New Organization</h2>
+            <div className="flex flex-col gap-3">
               <input
                 type="text"
-                placeholder="Organization name"
-                className="input input-bordered flex-1"
+                placeholder="Organization Name"
+                className="input input-bordered"
                 value={newOrgName}
                 onChange={e => setNewOrgName(e.target.value)}
                 onKeyDown={e => e.key === "Enter" && handleCreateOrg()}
               />
-              <button className="btn btn-primary" onClick={handleCreateOrg} disabled={isPending || !newOrgName.trim()}>
-                {isPending ? <span className="loading loading-spinner loading-sm" /> : "Create"}
+              <div>
+                <label className="label">
+                  <span className="label-text text-sm">Owner Address</span>
+                </label>
+                <AddressInputWithQr value={newOrgOwner} onChange={setNewOrgOwner} placeholder="Owner address" />
+              </div>
+              <button
+                className="btn btn-primary btn-sm w-fit"
+                onClick={handleCreateOrg}
+                disabled={isPending || !newOrgName.trim() || !newOrgOwner}
+              >
+                {isPending ? <span className="loading loading-spinner loading-sm" /> : "Create Organization"}
               </button>
             </div>
           </div>

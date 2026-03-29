@@ -21,14 +21,14 @@ export const menuLinks: HeaderMenuLink[] = [
     href: "/",
   },
   {
-    label: "Programs",
-    href: "/programs",
-    icon: <GiftIcon className="h-4 w-4" />,
-  },
-  {
     label: "Organizations",
     href: "/organizations",
     icon: <BuildingOfficeIcon className="h-4 w-4" />,
+  },
+  {
+    label: "Programs",
+    href: "/programs",
+    icon: <GiftIcon className="h-4 w-4" />,
   },
   {
     label: "Debug Contracts",

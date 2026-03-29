@@ -503,20 +503,7 @@ function CrowdfundingSection({
         <div className="mt-4">
           {contributeLocked && (
             <div role="alert" className="alert alert-warning mb-3 py-2 text-sm">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-5 w-5 shrink-0"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"
-                />
-              </svg>
+              <WarningIcon />
               <span>
                 Contributions are locked until all distributions are defined and marked as &quot;Ready&quot; by the
                 program owner.
@@ -970,6 +957,25 @@ function QrCodeIcon() {
   );
 }
 
+function WarningIcon() {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      className="h-5 w-5 shrink-0"
+      fill="none"
+      viewBox="0 0 24 24"
+      stroke="currentColor"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="2"
+        d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"
+      />
+    </svg>
+  );
+}
+
 function BeneficiariesTableEditor({
   entries,
   onChange,
@@ -1288,10 +1294,35 @@ function OwnerActions({
   crowdfundingInfo: CrowdfundingInfo | undefined;
   distributions: DistributionInfo[];
 }) {
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [showTransferConfirm, setShowTransferConfirm] = useState(false);
+  const [newOwner, setNewOwner] = useState("");
+  const [isPending, setIsPending] = useState(false);
   const write = useCGProgramWrite(address);
 
   const executeDisabledReason = getExecuteDisabledReason(crowdfundingInfo, distributions);
   const canExecute = executeDisabledReason === null;
+
+  const handleCancelConfirm = async () => {
+    setIsPending(true);
+    const success = await write("cancel");
+    setIsPending(false);
+    if (success) setShowCancelConfirm(false);
+  };
+
+  const handleTransferConfirm = async () => {
+    if (!isAddress(newOwner)) {
+      notification.error("Invalid address");
+      return;
+    }
+    setIsPending(true);
+    const success = await write("transferOwnership", [newOwner]);
+    setIsPending(false);
+    if (success) {
+      setShowTransferConfirm(false);
+      setNewOwner("");
+    }
+  };
 
   return (
     <div>
@@ -1312,13 +1343,90 @@ function OwnerActions({
         </div>
         <div
           className="tooltip tooltip-bottom"
-          data-tip="Permanently cancel the program. If the crowdfunding has not yet been funded, contributors will be able to claim refunds."
+          data-tip="Permanently cancel the program. Contributors will be able to claim refunds."
         >
-          <button className="btn btn-error" onClick={() => write("cancel")}>
+          <button className="btn btn-error" onClick={() => setShowCancelConfirm(true)}>
             Cancel Program
           </button>
         </div>
+        <div className="tooltip tooltip-bottom" data-tip="Transfer ownership of this program to another address.">
+          <button className="btn btn-warning" onClick={() => setShowTransferConfirm(true)}>
+            Transfer Ownership
+          </button>
+        </div>
       </div>
+
+      {/* Cancel program confirmation modal */}
+      {showCancelConfirm && (
+        <div className="modal modal-open">
+          <div className="modal-box">
+            <h3 className="font-bold text-lg">Cancel Program</h3>
+            <p className="py-4">
+              This will permanently cancel the program. Contributors will be able to claim refunds. This action cannot
+              be undone.
+            </p>
+            <div className="modal-action">
+              <button className="btn btn-ghost" onClick={() => setShowCancelConfirm(false)} disabled={isPending}>
+                Go Back
+              </button>
+              <button className="btn btn-error" onClick={handleCancelConfirm} disabled={isPending}>
+                {isPending && <span className="loading loading-spinner loading-sm" />}
+                Confirm Cancellation
+              </button>
+            </div>
+          </div>
+          <div className="modal-backdrop" onClick={() => !isPending && setShowCancelConfirm(false)} />
+        </div>
+      )}
+
+      {/* Transfer ownership confirmation modal */}
+      {showTransferConfirm && (
+        <div className="modal modal-open">
+          <div className="modal-box">
+            <h3 className="font-bold text-lg">Transfer Ownership</h3>
+            <div role="alert" className="alert alert-warning my-4 py-2 text-sm">
+              <WarningIcon />
+              <span>
+                You will permanently lose control of this program. Make sure the new owner address is correct.
+              </span>
+            </div>
+            <div>
+              <label className="label">
+                <span className="label-text">New Owner Address</span>
+              </label>
+              <AddressInput value={newOwner} onChange={setNewOwner} placeholder="0x..." />
+            </div>
+            <div className="modal-action">
+              <button
+                className="btn btn-ghost"
+                onClick={() => {
+                  setShowTransferConfirm(false);
+                  setNewOwner("");
+                }}
+                disabled={isPending}
+              >
+                Cancel
+              </button>
+              <button
+                className="btn btn-warning"
+                onClick={handleTransferConfirm}
+                disabled={!isAddress(newOwner) || isPending}
+              >
+                {isPending && <span className="loading loading-spinner loading-sm" />}
+                Transfer Ownership
+              </button>
+            </div>
+          </div>
+          <div
+            className="modal-backdrop"
+            onClick={() => {
+              if (isPending) return;
+              setShowTransferConfirm(false);
+              setNewOwner("");
+            }}
+          />
+        </div>
+      )}
     </div>
   );
 }

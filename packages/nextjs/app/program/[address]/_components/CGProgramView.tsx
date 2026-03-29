@@ -183,18 +183,11 @@ export const CGProgramView = ({ address }: { address: Address }) => {
             lockDistributions={lockDistributions}
             isOwner={isOwner}
           />
-          <TokenSection
-            tokenAddress={tokenAddress}
-            tokenTypes={tokenTypes ?? []}
-            programAddress={address}
-            isOwner={isOwner}
-            isActive={isActive}
-          />
         </div>
       </div>
 
       <div className="card bg-base-100 shadow-xl">
-        <div className="card-body flex flex-col gap-6">
+        <div className="card-body">
           <CrowdfundingSection
             crowdfundingInfo={crowdfundingInfo}
             programAddress={address}
@@ -203,6 +196,18 @@ export const CGProgramView = ({ address }: { address: Address }) => {
             lockDistributions={lockDistributions}
             distributions={distributionsInfo ?? []}
             connectedAddress={connectedAddress}
+          />
+        </div>
+      </div>
+
+      <div className="card bg-base-100 shadow-xl">
+        <div className="card-body flex flex-col gap-6">
+          <TokenSection
+            tokenAddress={tokenAddress}
+            tokenTypes={tokenTypes ?? []}
+            programAddress={address}
+            isOwner={isOwner}
+            isActive={isActive}
           />
           <DistributionsSection
             distributions={distributionsInfo ?? []}
@@ -255,11 +260,11 @@ function ProgramSection({
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <p className="text-sm opacity-60">Contract Address</p>
+          <p className="text-sm opacity-60">Program Address</p>
           <AddressDisplay address={address} format="long" blockExplorerAddressLink={addressLink} />
         </div>
         <div>
-          <p className="text-sm opacity-60">Contract Owner</p>
+          <p className="text-sm opacity-60">Program Owner</p>
           <div className="flex items-center gap-2">
             {owner && <AddressDisplay address={owner} blockExplorerAddressLink={ownerLink} />}
             {isOwner && <span className="badge badge-info badge-sm">You</span>}
@@ -312,12 +317,12 @@ function TokenSection({
   isActive: boolean;
 }) {
   const tokenLink = useBlockExplorerLink(tokenAddress);
+  const [showCreateForm, setShowCreateForm] = useState(false);
 
   if (!tokenAddress || isAddressEqual(tokenAddress, zeroAddress)) return null;
 
   return (
     <>
-      <div className="divider" />
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 className="card-title">Token Contract (ERC-1155)</h3>
         <a href={`/token/${tokenAddress}`} className="btn btn-sm btn-outline">
@@ -329,47 +334,49 @@ function TokenSection({
         <AddressDisplay address={tokenAddress} blockExplorerAddressLink={tokenLink} />
       </div>
 
-      {tokenTypes.length === 0 ? (
-        <p className="opacity-60 text-sm mt-2">No token types defined yet.</p>
-      ) : (
-        <div className="mt-2">
-          <p className="text-sm opacity-60 mb-2">Token Types ({tokenTypes.length})</p>
-          <div className="flex flex-col gap-2">
-            {tokenTypes.map(tt => (
-              <div key={tt.tokenId.toString()} className="border border-base-300 rounded-lg p-3 text-sm">
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="badge badge-outline badge-sm">#{tt.tokenId.toString()}</span>
-                  <span className="font-semibold">
-                    {tt.name} ({tt.symbol})
-                  </span>
-                  <span className="badge badge-ghost badge-sm">
-                    {tt.maxSupply === 0n ? "Fungible" : tt.maxSupply === 1n ? "NFT (max 1)" : `Max ${tt.maxSupply}`}
-                  </span>
-                </div>
-                <div className="flex gap-4 text-xs opacity-70">
-                  <span>Minted: {tt.totalMinted.toString()}</span>
-                  {tt.uri && <span>URI: {tt.uri}</span>}
-                </div>
-                <div className="flex gap-2 mt-1">
-                  <span className={`badge badge-xs ${tt.transferable ? "badge-success" : "badge-error"}`}>
-                    {tt.transferable ? "Transferable" : "Non-transferable"}
-                  </span>
-                  <span className={`badge badge-xs ${tt.burnable ? "badge-success" : "badge-error"}`}>
-                    {tt.burnable ? "Burnable" : "Non-burnable"}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+      <div className="flex items-center justify-between mt-2">
+        <p className="text-sm opacity-60">Token Types ({tokenTypes.length})</p>
+        {isOwner && isActive && !showCreateForm && (
+          <button className="btn btn-sm btn-secondary" onClick={() => setShowCreateForm(true)}>
+            + Create Token Type
+          </button>
+        )}
+      </div>
+
+      {showCreateForm && (
+        <CreateTokenTypeForm programAddress={programAddress} onDone={() => setShowCreateForm(false)} />
       )}
 
-      {isOwner && isActive && (
-        <>
-          <div className="divider" />
-          <h3 className="card-title">Owner Actions</h3>
-          <CreateTokenTypeForm programAddress={programAddress} />
-        </>
+      {tokenTypes.length === 0 && !showCreateForm ? (
+        <p className="opacity-60 text-sm">No token types defined yet.</p>
+      ) : (
+        <div className="flex flex-col gap-2">
+          {tokenTypes.map(tt => (
+            <div key={tt.tokenId.toString()} className="border border-base-300 rounded-lg p-3 text-sm">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="badge badge-outline badge-sm">#{tt.tokenId.toString()}</span>
+                <span className="font-semibold">
+                  {tt.name} ({tt.symbol})
+                </span>
+                <span className="badge badge-ghost badge-sm">
+                  {tt.maxSupply === 0n ? "Fungible" : tt.maxSupply === 1n ? "NFT (max 1)" : `Max ${tt.maxSupply}`}
+                </span>
+              </div>
+              <div className="flex gap-4 text-xs opacity-70">
+                <span>Minted: {tt.totalMinted.toString()}</span>
+                {tt.uri && <span>URI: {tt.uri}</span>}
+              </div>
+              <div className="flex gap-2 mt-1">
+                <span className={`badge badge-xs ${tt.transferable ? "badge-success" : "badge-error"}`}>
+                  {tt.transferable ? "Transferable" : "Non-transferable"}
+                </span>
+                <span className={`badge badge-xs ${tt.burnable ? "badge-success" : "badge-error"}`}>
+                  {tt.burnable ? "Burnable" : "Non-burnable"}
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
       )}
     </>
   );
@@ -613,7 +620,6 @@ function DistributionsSection({
 
   return (
     <div>
-      <div className="divider" />
       <div className="flex items-center justify-between">
         <h3 className="card-title">Distributions ({distributions.length})</h3>
         {isOwner && isActive && !showNewForm && tokenTypes.length > 0 && (
@@ -1409,8 +1415,7 @@ function OwnerActions({
   );
 }
 
-function CreateTokenTypeForm({ programAddress }: { programAddress: Address }) {
-  const [showForm, setShowForm] = useState(false);
+function CreateTokenTypeForm({ programAddress, onDone }: { programAddress: Address; onDone: () => void }) {
   const [name, setName] = useState("");
   const [symbol, setSymbol] = useState("");
   const [maxSupply, setMaxSupply] = useState("");
@@ -1427,7 +1432,7 @@ function CreateTokenTypeForm({ programAddress }: { programAddress: Address }) {
     const supply = maxSupply ? BigInt(maxSupply) : 0n;
     const success = await write("defineTokenType", [name, symbol, supply, uri, transferable, burnable]);
     if (success) {
-      setShowForm(false);
+      onDone();
       setName("");
       setSymbol("");
       setMaxSupply("");
@@ -1437,21 +1442,11 @@ function CreateTokenTypeForm({ programAddress }: { programAddress: Address }) {
     }
   };
 
-  if (!showForm) {
-    return (
-      <div className="mt-2">
-        <button className="btn btn-secondary" onClick={() => setShowForm(true)}>
-          Create Token Type
-        </button>
-      </div>
-    );
-  }
-
   return (
-    <div className="mt-3 border border-base-300 rounded-xl p-4">
+    <div className="border border-base-300 rounded-xl p-4">
       <div className="flex items-center justify-between mb-3">
         <span className="font-semibold">Create Token Type</span>
-        <button className="btn btn-sm btn-ghost" onClick={() => setShowForm(false)}>
+        <button className="btn btn-sm btn-ghost" onClick={onDone}>
           Cancel
         </button>
       </div>

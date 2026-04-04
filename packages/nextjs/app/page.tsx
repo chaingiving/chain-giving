@@ -6,7 +6,7 @@ import { Address } from "@scaffold-ui/components";
 import type { NextPage } from "next";
 import { QRCodeSVG } from "qrcode.react";
 import { useAccount } from "wagmi";
-import { BugAntIcon, MagnifyingGlassIcon } from "@heroicons/react/24/outline";
+import { BugAntIcon, MagnifyingGlassIcon, WalletIcon } from "@heroicons/react/24/outline";
 import { useTargetNetwork } from "~~/hooks/scaffold-eth";
 import { getBlockExplorerAddressLink } from "~~/utils/scaffold-eth";
 
@@ -43,6 +43,10 @@ const Home: NextPage = () => {
                   chain={targetNetwork}
                   blockExplorerAddressLink={getBlockExplorerAddressLink(targetNetwork, connectedAddress)}
                 />
+                <Link href={`/wallet/${connectedAddress}`} className="btn btn-sm btn-outline gap-2">
+                  <WalletIcon className="h-4 w-4" />
+                  View Wallet
+                </Link>
               </div>
             ) : null}
           </div>

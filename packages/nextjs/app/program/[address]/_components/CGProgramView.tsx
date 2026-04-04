@@ -3,11 +3,10 @@
 import { useState } from "react";
 import { Address as AddressDisplay, Balance, EtherInput } from "@scaffold-ui/components";
 import { Address, formatEther, isAddress, isAddressEqual, parseEther, zeroAddress } from "viem";
-import { hardhat } from "viem/chains";
 import { useAccount, useReadContract, useWriteContract } from "wagmi";
 import { AddressInputWithQr } from "~~/components/AddressInputWithQr";
 import { cgProgramAbi } from "~~/contracts/cgProgramAbi";
-import { useTargetNetwork, useTransactor } from "~~/hooks/scaffold-eth";
+import { useBlockExplorerLink, useTransactor } from "~~/hooks/scaffold-eth";
 import { getParsedError, notification } from "~~/utils/scaffold-eth";
 
 const cgCrowdfundingAbi = [
@@ -106,12 +105,6 @@ function useCGProgramWrite(programAddress: Address) {
       return false;
     }
   };
-}
-
-function useBlockExplorerLink(address: Address | undefined) {
-  const { targetNetwork } = useTargetNetwork();
-  if (!address || targetNetwork.id !== hardhat.id) return undefined;
-  return `/blockexplorer/address/${address}`;
 }
 
 function validateBeneficiaries(entries: BeneficiaryEntry[]): { addresses: Address[]; amounts: bigint[] } | null {

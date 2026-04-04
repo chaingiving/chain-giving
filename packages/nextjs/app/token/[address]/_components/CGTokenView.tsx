@@ -3,40 +3,12 @@
 import { useState } from "react";
 import { Address as AddressDisplay } from "@scaffold-ui/components";
 import { Address, isAddress, isAddressEqual } from "viem";
-import { hardhat } from "viem/chains";
-import { useAccount, useReadContract, useWriteContract } from "wagmi";
+import { useAccount, useReadContract } from "wagmi";
 import { AddressInputWithQr } from "~~/components/AddressInputWithQr";
 import { cgTokenAbi } from "~~/contracts/cgTokenAbi";
-import { useTargetNetwork, useTransactor } from "~~/hooks/scaffold-eth";
-import { getParsedError, notification } from "~~/utils/scaffold-eth";
-
-function useBlockExplorerLink(address: Address | undefined) {
-  const { targetNetwork } = useTargetNetwork();
-  if (!address || targetNetwork.id !== hardhat.id) return undefined;
-  return `/blockexplorer/address/${address}`;
-}
-
-function useCGTokenWrite(tokenAddress: Address) {
-  const { writeContractAsync } = useWriteContract();
-  const writeTx = useTransactor();
-
-  return async (functionName: string, args: readonly unknown[]) => {
-    try {
-      await writeTx(() =>
-        writeContractAsync({
-          address: tokenAddress,
-          abi: cgTokenAbi,
-          functionName: functionName as any,
-          args: args as any,
-        } as any),
-      );
-      return true;
-    } catch (e) {
-      notification.error(getParsedError(e));
-      return false;
-    }
-  };
-}
+import { useBlockExplorerLink } from "~~/hooks/scaffold-eth";
+import { useCGTokenWrite } from "~~/hooks/useCGTokenWrite";
+import { notification } from "~~/utils/scaffold-eth";
 
 type TokenType = {
   name: string;

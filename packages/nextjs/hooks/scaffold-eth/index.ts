@@ -1,3 +1,4 @@
+export * from "./useBlockExplorerLink";
 export * from "./useContractLogs";
 export * from "./useCopyToClipboard";
 export * from "./useDeployedContractInfo";

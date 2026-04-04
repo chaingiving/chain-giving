@@ -1,83 +1,202 @@
-# 🏗 Scaffold-ETH 2
+# Chain.Giving
 
-<h4 align="center">
-  <a href="https://docs.scaffoldeth.io">Documentation</a> |
-  <a href="https://scaffoldeth.io">Website</a>
-</h4>
+**On-chain fundraising and transparent token distribution for non-profit organizations.**
 
-🧪 An open-source, up-to-date toolkit for building decentralized applications (dapps) on the Ethereum blockchain. It's designed to make it easier for developers to create and deploy smart contracts and build user interfaces that interact with those contracts.
+> 📄 **[Read the Whitepaper (handcrafted, not vibe-coded)](docs/Chain.Giving%20Whitepaper%20v0.2.md)**
 
-> [!NOTE]
-> 🤖 Scaffold-ETH 2 is AI-ready! It has everything agents need to build on Ethereum. Check `.agents/`, `.claude/`, `.opencode` or `.cursor/` for more info.
+Chain.Giving enables non-profit organizations to run transparent crowdfunding campaigns on Ethereum. Donors contribute ETH, and upon reaching funding goals, beneficiaries automatically receive ERC-1155 tokens — redeemable vouchers, proof-of-participation badges, or any on-chain asset — that represent how donated funds will be deployed.
 
-⚙️ Built using NextJS, RainbowKit, Hardhat, Wagmi, Viem, and Typescript.
+Built on [Scaffold-ETH 2](https://scaffoldeth.io) with Hardhat, Next.js, RainbowKit, Wagmi, Viem, and TypeScript.
 
-- ✅ **Contract Hot Reload**: Your frontend auto-adapts to your smart contract as you edit it.
-- 🪝 **[Custom hooks](https://docs.scaffoldeth.io/hooks/)**: Collection of React hooks wrapper around [wagmi](https://wagmi.sh/) to simplify interactions with smart contracts with typescript autocompletion.
-- 🧱 [**Components**](https://docs.scaffoldeth.io/components/): Collection of common web3 components to quickly build your frontend.
-- 🔥 **Burner Wallet & Local Faucet**: Quickly test your application with a burner wallet and local faucet.
-- 🔐 **Integration with Wallet Providers**: Connect to different wallet providers and interact with the Ethereum network.
+---
 
-![Debug Contracts tab](https://github.com/scaffold-eth/scaffold-eth-2/assets/55535804/b237af0c-5027-4849-a5c1-2e31495cccb1)
+## How It Works
+
+The system is organized in three layers:
+
+**Organization → Program → Distribution**
+
+1. **Organizations** (`CGOrganization`) are created by the registry owner and represent a non-profit or charity. Each organization can run multiple programs.
+2. **Programs** (`CGProgram`) are the core unit: each ties a crowdfunding campaign to one or more token distributions.
+3. **Token Distributions** (`CGDistribution`) define which beneficiary wallets receive which ERC-1155 tokens once the program is executed.
+
+### Program Lifecycle
+
+```
+ACTIVE → (crowdfunding funded + distributions ready) → execute() → COMPLETED
+                                                     ↘ cancel()  → CANCELLED
+```
+
+- While `ACTIVE`, the owner defines token types, sets a crowdfunding target/deadline, lists beneficiaries, and marks distributions ready (tokens are pre-minted to the distribution contract).
+- Contributors send ETH via `contribute()`.
+- Once funded, `execute()` withdraws ETH to the owner and triggers all distributions atomically.
+- If the program is cancelled, contributors can reclaim their ETH.
+
+### Token Types (`CGToken` — ERC-1155)
+
+Each program deploys its own `CGToken` contract. Token types are flexible:
+
+| `maxSupply` | Behavior |
+|---|---|
+| `0` | Unlimited fungible token |
+| `1` | Unique NFT |
+| `N` | Capped supply (badge, ticket, voucher) |
+
+Each type independently configures:
+- **Transferable** — holders can freely transfer; or **soulbound** (only the program/distribution can move them)
+- **Burnable** — holders can burn; or burn-disabled
+
+---
+
+## Smart Contracts
+
+| Contract | Description |
+|---|---|
+| `CGRegistry` | Directory of all organizations; only the registry owner can create orgs |
+| `CGOrganization` | Groups programs under one owner |
+| `CGProgramFactory` | Factory for deploying `CGProgram` instances |
+| `CGComponentFactory` | Factory for deploying `CGToken`, `CGCrowdfunding`, `CGDistribution` |
+| `CGProgram` | Orchestrates crowdfunding + distributions for one campaign |
+| `CGToken` | ERC-1155 multi-token contract (one per program) |
+| `CGCrowdfunding` | Holds ETH contributions; tracks funding target and deadline |
+| `CGDistribution` | Holds pre-minted tokens and distributes to beneficiaries on execution |
+
+Source: `packages/hardhat/contracts/`
+
+---
+
+## Frontend Pages
+
+| Route | Description |
+|---|---|
+| `/` | Home — connected wallet QR code and account info |
+| `/organizations` | Browse all registered organizations |
+| `/organization/[address]` | Organization detail and its programs |
+| `/programs` | Browse all programs |
+| `/program/[address]` | Program detail: token types, crowdfunding, distributions |
+| `/token/[address]` | Token contract detail |
+| `/wallet/[address]` | View tokens held by a wallet across all programs |
+| `/debug` | SE-2 contract debugger |
+| `/blockexplorer` | Local block explorer |
+
+---
 
 ## Requirements
 
-Before you begin, you need to install the following tools:
-
-- [Node (>= v20.18.3)](https://nodejs.org/en/download/)
-- Yarn ([v1](https://classic.yarnpkg.com/en/docs/install/) or [v2+](https://yarnpkg.com/getting-started/install))
+- [Node.js >= v20.18.3](https://nodejs.org/en/download/)
+- [Yarn v1](https://classic.yarnpkg.com/en/docs/install/) or [v2+](https://yarnpkg.com/getting-started/install)
 - [Git](https://git-scm.com/downloads)
 
-## Quickstart
+---
 
-To get started with Scaffold-ETH 2, follow the steps below:
+## Development Quickstart
 
-1. Install dependencies if it was skipped in CLI:
+**1. Install dependencies**
 
-```
-cd my-dapp-example
+```bash
 yarn install
 ```
 
-2. Run a local network in the first terminal:
+**2. Start a local Hardhat node**
 
-```
+```bash
 yarn chain
 ```
 
-This command starts a local Ethereum network using Hardhat. The network runs on your local machine and can be used for testing and development. You can customize the network configuration in `packages/hardhat/hardhat.config.ts`.
+**3. Deploy contracts**
 
-3. On a second terminal, deploy the test contract:
-
-```
+```bash
 yarn deploy
 ```
 
-This command deploys a test smart contract to the local network. The contract is located in `packages/hardhat/contracts` and can be modified to suit your needs. The `yarn deploy` command uses the deploy script located in `packages/hardhat/deploy` to deploy the contract to the network. You can also customize the deploy script.
+**4. Start the frontend**
 
-4. On a third terminal, start your NextJS app:
-
-```
+```bash
 yarn start
 ```
 
-Visit your app on: `http://localhost:3000`. You can interact with your smart contract using the `Debug Contracts` page. You can tweak the app config in `packages/nextjs/scaffold.config.ts`.
+Visit `http://localhost:3000`.
 
-Run smart contract test with `yarn hardhat:test`
+---
 
-- Edit your smart contracts in `packages/hardhat/contracts`
-- Edit your frontend homepage at `packages/nextjs/app/page.tsx`. For guidance on [routing](https://nextjs.org/docs/app/building-your-application/routing/defining-routes) and configuring [pages/layouts](https://nextjs.org/docs/app/building-your-application/routing/pages-and-layouts) checkout the Next.js documentation.
-- Edit your deployment scripts in `packages/hardhat/deploy`
+## Common Commands
 
+```bash
+# Development
+yarn chain          # Start local Hardhat node
+yarn deploy         # Deploy contracts to local network
+yarn start          # Start Next.js frontend
 
-## Documentation
+# Deploy a specific contract
+yarn deploy --tags CGRegistry
 
-Visit our [docs](https://docs.scaffoldeth.io) to learn how to start building with Scaffold-ETH 2.
+# Code quality
+yarn lint           # Lint both packages
+yarn format         # Format both packages
 
-To know more about its features, check out our [website](https://scaffoldeth.io).
+# Testing
+yarn hardhat:test   # Run Hardhat contract tests
 
-## Contributing to Scaffold-ETH 2
+# Build
+yarn next:build     # Build the Next.js frontend
+yarn compile        # Compile Solidity contracts
 
-We welcome contributions to Scaffold-ETH 2!
+# Deploy to a live network
+yarn deploy --network sepolia
+yarn deploy --network mainnet
 
-Please see [CONTRIBUTING.MD](https://github.com/scaffold-eth/scaffold-eth-2/blob/main/CONTRIBUTING.md) for more information and guidelines for contributing to Scaffold-ETH 2.
+# Frontend deployment
+yarn vercel:yolo --prod
+```
+
+---
+
+## Project Structure
+
+```
+packages/
+  hardhat/
+    contracts/        # Solidity smart contracts
+    deploy/           # Hardhat-deploy scripts
+    test/             # Contract tests
+    hardhat.config.ts
+  nextjs/
+    app/              # Next.js App Router pages
+    components/       # Shared UI components
+    hooks/            # SE-2 contract interaction hooks
+    contracts/        # Auto-generated ABIs (deployedContracts.ts)
+    scaffold.config.ts
+docs/
+  Chain.Giving Whitepaper v0.2.md
+  tech-specs/
+```
+
+---
+
+## Configuration
+
+- **Target network**: `packages/nextjs/scaffold.config.ts`
+- **Hardhat networks**: `packages/hardhat/hardhat.config.ts`
+- **Frontend env / API keys**: `packages/nextjs/scaffold.config.ts`
+
+---
+
+## Contract Interaction (Frontend)
+
+The frontend uses Scaffold-ETH 2 hooks for all contract interactions:
+
+```typescript
+// Read
+const { data } = useScaffoldReadContract({
+  contractName: "CGRegistry",
+  functionName: "organizationCount",
+});
+
+// Write
+const { writeContractAsync } = useScaffoldWriteContract({
+  contractName: "CGProgram",
+});
+await writeContractAsync({ functionName: "execute" });
+```
+
+Use `useScaffoldReadContract`, `useScaffoldWriteContract`, and `useScaffoldEventHistory` from `~~/hooks/scaffold-eth`.

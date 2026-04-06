@@ -36,6 +36,7 @@ function WalletTokenRow({
   tokenId,
   programName,
   programAddress,
+  orgAddress,
   isOwnWallet,
 }: {
   walletAddress: Address;
@@ -43,6 +44,7 @@ function WalletTokenRow({
   tokenId: bigint;
   programName: string;
   programAddress: Address;
+  orgAddress: Address;
   isOwnWallet: boolean;
 }) {
   const [showTransfer, setShowTransfer] = useState(false);
@@ -50,7 +52,7 @@ function WalletTokenRow({
   const [transferTo, setTransferTo] = useState("");
   const [transferAmount, setTransferAmount] = useState("");
   const [burnAmount, setBurnAmount] = useState("");
-  const write = useCGTokenWrite(tokenAddress);
+  const write = useCGTokenWrite(tokenAddress, orgAddress);
 
   const { data: tokenType } = useReadContract({
     address: tokenAddress,
@@ -239,10 +241,12 @@ function WalletTokenRow({
 function ProgramTokens({
   walletAddress,
   programAddress,
+  orgAddress,
   isOwnWallet,
 }: {
   walletAddress: Address;
   programAddress: Address;
+  orgAddress: Address;
   isOwnWallet: boolean;
 }) {
   const { data: programName } = useReadContract({
@@ -280,6 +284,7 @@ function ProgramTokens({
           tokenId={tt.tokenId}
           programName={(programName as string) ?? "Unknown"}
           programAddress={programAddress}
+          orgAddress={orgAddress}
           isOwnWallet={isOwnWallet}
         />
       ))}
@@ -311,7 +316,13 @@ function OrgTokens({
   return (
     <>
       {programAddresses.map(addr => (
-        <ProgramTokens key={addr} walletAddress={walletAddress} programAddress={addr} isOwnWallet={isOwnWallet} />
+        <ProgramTokens
+          key={addr}
+          walletAddress={walletAddress}
+          programAddress={addr}
+          orgAddress={orgAddress}
+          isOwnWallet={isOwnWallet}
+        />
       ))}
     </>
   );
@@ -367,7 +378,7 @@ export const WalletView = ({ address }: { address: Address }) => {
             <p className="opacity-60 text-sm">No programs exist yet. No tokens to display.</p>
           ) : (
             <div className="flex flex-col gap-3">
-              {orgAddresses.map(orgAddr => (
+              {orgAddresses.map((orgAddr: string) => (
                 <OrgTokens key={orgAddr} walletAddress={address} orgAddress={orgAddr} isOwnWallet={isOwnWallet} />
               ))}
               <p className="opacity-50 text-sm italic mt-2">

@@ -8,6 +8,7 @@ import { AddressInputWithQr } from "~~/components/AddressInputWithQr";
 import { cgTokenAbi } from "~~/contracts/cgTokenAbi";
 import { useBlockExplorerLink } from "~~/hooks/scaffold-eth";
 import { useCGTokenWrite } from "~~/hooks/useCGTokenWrite";
+import { useProgramOrganization } from "~~/hooks/useProgramOrganization";
 import { notification } from "~~/utils/scaffold-eth";
 
 type TokenType = {
@@ -23,17 +24,19 @@ function TokenTypeCard({
   tokenAddress,
   tokenId,
   connectedAddress,
+  orgAddress,
 }: {
   tokenAddress: Address;
   tokenId: bigint;
   connectedAddress: Address | undefined;
+  orgAddress: Address | undefined;
 }) {
   const [transferTo, setTransferTo] = useState("");
   const [transferAmount, setTransferAmount] = useState("");
   const [burnAmount, setBurnAmount] = useState("");
   const [showTransfer, setShowTransfer] = useState(false);
   const [showBurn, setShowBurn] = useState(false);
-  const write = useCGTokenWrite(tokenAddress);
+  const write = useCGTokenWrite(tokenAddress, orgAddress);
 
   const { data: tokenType, isLoading: typeLoading } = useReadContract({
     address: tokenAddress,
@@ -249,6 +252,10 @@ export const CGTokenView = ({ address }: { address: Address }) => {
   const ownerLink = useBlockExplorerLink(ownerAddress as Address | undefined);
   const isOwner = connectedAddress && ownerAddress ? isAddressEqual(connectedAddress, ownerAddress as Address) : false;
 
+  // Token owner is the CGProgram; resolve the parent org for gas sponsorship
+  const programAddress = ownerAddress as Address | undefined;
+  const { orgAddress } = useProgramOrganization(programAddress);
+
   if (isLoading) {
     return (
       <div className="flex justify-center items-center min-h-[60vh]">
@@ -316,6 +323,7 @@ export const CGTokenView = ({ address }: { address: Address }) => {
                   tokenAddress={address}
                   tokenId={tokenId}
                   connectedAddress={connectedAddress}
+                  orgAddress={orgAddress}
                 />
               ))}
             </div>

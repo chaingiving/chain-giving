@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import {ERC1155} from "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
-import {ERC1155Burnable} from "@openzeppelin/contracts/token/ERC1155/extensions/ERC1155Burnable.sol";
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import { ERC1155 } from "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
+import { ERC1155Burnable } from "@openzeppelin/contracts/token/ERC1155/extensions/ERC1155Burnable.sol";
+import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 
 /// @title CGToken — ERC-1155 multi-token for a Chain.Giving program
 /// @notice One deployment per program. Supports multiple token types in a single contract.
@@ -12,143 +12,134 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 ///         controls type definition and minting. Each type can independently enable/disable
 ///         user transfers and burns.
 contract CGToken is ERC1155Burnable, Ownable {
-	struct TokenType {
-		string name;
-		string symbol;
-		uint256 maxSupply;  // 0 = unlimited; 1 = unique NFT; N = capped semi-fungible
-		uint256 totalMinted;
-		bool transferable;  // true = holders can transfer; false = soulbound (owner can always transfer)
-		bool burnable;      // true = holders can burn; false = burn disabled (owner can always burn)
-	}
+    struct TokenType {
+        string name;
+        string symbol;
+        uint256 maxSupply; // 0 = unlimited; 1 = unique NFT; N = capped semi-fungible
+        uint256 totalMinted;
+        bool transferable; // true = holders can transfer; false = soulbound (owner can always transfer)
+        bool burnable; // true = holders can burn; false = burn disabled (owner can always burn)
+    }
 
-	mapping(uint256 => TokenType) public tokenTypes;
-	mapping(uint256 => string) private _uris;
-	mapping(address => bool) public authorizedTransferrers;
-	uint256 public nextTokenId;
+    mapping(uint256 => TokenType) public tokenTypes;
+    mapping(uint256 => string) private _uris;
+    mapping(address => bool) public authorizedTransferrers;
+    uint256 public nextTokenId;
 
-	event TokenTypeDefined(
-		uint256 indexed tokenId,
-		string name,
-		string symbol,
-		uint256 maxSupply,
-		bool transferable,
-		bool burnable
-	);
-	event AuthorizedTransferrerSet(address indexed account, bool authorized);
+    event TokenTypeDefined(
+        uint256 indexed tokenId,
+        string name,
+        string symbol,
+        uint256 maxSupply,
+        bool transferable,
+        bool burnable
+    );
+    event AuthorizedTransferrerSet(address indexed account, bool authorized);
 
-	error UnknownTokenType(uint256 tokenId);
-	error ExceedsMaxSupply(uint256 tokenId, uint256 requested, uint256 remaining);
-	error TransferDisabled(uint256 tokenId);
-	error BurnDisabled(uint256 tokenId);
+    error UnknownTokenType(uint256 tokenId);
+    error ExceedsMaxSupply(uint256 tokenId, uint256 requested, uint256 remaining);
+    error TransferDisabled(uint256 tokenId);
+    error BurnDisabled(uint256 tokenId);
 
-	constructor(address owner_) ERC1155("") Ownable(owner_) {}
+    constructor(address owner_) ERC1155("") Ownable(owner_) {}
 
-	/// @notice Grant or revoke an address's ability to bypass soulbound restrictions.
-	///         Used to allow CGDistribution contracts to transfer non-transferable tokens.
-	function setAuthorizedTransferrer(address account, bool authorized) external onlyOwner {
-		authorizedTransferrers[account] = authorized;
-		emit AuthorizedTransferrerSet(account, authorized);
-	}
+    /// @notice Grant or revoke an address's ability to bypass soulbound restrictions.
+    ///         Used to allow CGDistribution contracts to transfer non-transferable tokens.
+    function setAuthorizedTransferrer(address account, bool authorized) external onlyOwner {
+        authorizedTransferrers[account] = authorized;
+        emit AuthorizedTransferrerSet(account, authorized);
+    }
 
-	/// @notice Define a new token type. Returns the auto-assigned tokenId (starts at 0).
-	/// @param name_         Display name (e.g. "Food Voucher")
-	/// @param symbol_       Short symbol (e.g. "FOOD")
-	/// @param maxSupply_    Hard cap on total minted. 0 = unlimited (fungible), 1 = unique NFT,
-	///                      N = capped supply (badges, tickets, etc.)
-	/// @param uri_          Optional per-type metadata URI; falls back to contract-level URI if empty
-	/// @param transferable_ Whether holders can transfer tokens (owner/program can always transfer)
-	/// @param burnable_     Whether holders can burn tokens (owner/program can always burn)
-	function defineTokenType(
-		string calldata name_,
-		string calldata symbol_,
-		uint256 maxSupply_,
-		string calldata uri_,
-		bool transferable_,
-		bool burnable_
-	) external onlyOwner returns (uint256 tokenId) {
-		tokenId = nextTokenId++;
-		tokenTypes[tokenId] = TokenType({
-			name: name_,
-			symbol: symbol_,
-			maxSupply: maxSupply_,
-			totalMinted: 0,
-			transferable: transferable_,
-			burnable: burnable_
-		});
-		if (bytes(uri_).length > 0) {
-			_uris[tokenId] = uri_;
-		}
-		emit TokenTypeDefined(tokenId, name_, symbol_, maxSupply_, transferable_, burnable_);
-	}
+    /// @notice Define a new token type. Returns the auto-assigned tokenId (starts at 0).
+    /// @param name_         Display name (e.g. "Food Voucher")
+    /// @param symbol_       Short symbol (e.g. "FOOD")
+    /// @param maxSupply_    Hard cap on total minted. 0 = unlimited (fungible), 1 = unique NFT,
+    ///                      N = capped supply (badges, tickets, etc.)
+    /// @param uri_          Optional per-type metadata URI; falls back to contract-level URI if empty
+    /// @param transferable_ Whether holders can transfer tokens (owner/program can always transfer)
+    /// @param burnable_     Whether holders can burn tokens (owner/program can always burn)
+    function defineTokenType(
+        string calldata name_,
+        string calldata symbol_,
+        uint256 maxSupply_,
+        string calldata uri_,
+        bool transferable_,
+        bool burnable_
+    ) external onlyOwner returns (uint256 tokenId) {
+        tokenId = nextTokenId++;
+        tokenTypes[tokenId] = TokenType({
+            name: name_,
+            symbol: symbol_,
+            maxSupply: maxSupply_,
+            totalMinted: 0,
+            transferable: transferable_,
+            burnable: burnable_
+        });
+        if (bytes(uri_).length > 0) {
+            _uris[tokenId] = uri_;
+        }
+        emit TokenTypeDefined(tokenId, name_, symbol_, maxSupply_, transferable_, burnable_);
+    }
 
-	/// @notice Mint tokens of a given type to a recipient. onlyOwner.
-	function mint(address to, uint256 tokenId, uint256 amount) external onlyOwner {
-		_validateMint(tokenId, amount);
-		tokenTypes[tokenId].totalMinted += amount;
-		_mint(to, tokenId, amount, "");
-	}
+    /// @notice Mint tokens of a given type to a recipient. onlyOwner.
+    function mint(address to, uint256 tokenId, uint256 amount) external onlyOwner {
+        _validateMint(tokenId, amount);
+        tokenTypes[tokenId].totalMinted += amount;
+        _mint(to, tokenId, amount, "");
+    }
 
-	/// @notice Batch mint multiple token types in one call. onlyOwner.
-	function mintBatch(
-		address to,
-		uint256[] calldata tokenIds,
-		uint256[] calldata amounts
-	) external onlyOwner {
-		for (uint256 i = 0; i < tokenIds.length; i++) {
-			_validateMint(tokenIds[i], amounts[i]);
-			tokenTypes[tokenIds[i]].totalMinted += amounts[i];
-		}
-		_mintBatch(to, tokenIds, amounts, "");
-	}
+    /// @notice Batch mint multiple token types in one call. onlyOwner.
+    function mintBatch(address to, uint256[] calldata tokenIds, uint256[] calldata amounts) external onlyOwner {
+        for (uint256 i = 0; i < tokenIds.length; i++) {
+            _validateMint(tokenIds[i], amounts[i]);
+            tokenTypes[tokenIds[i]].totalMinted += amounts[i];
+        }
+        _mintBatch(to, tokenIds, amounts, "");
+    }
 
-	/// @notice Per-type metadata URI; falls back to contract-level URI if none set.
-	function uri(uint256 tokenId) public view override returns (string memory) {
-		string memory tokenUri = _uris[tokenId];
-		if (bytes(tokenUri).length > 0) return tokenUri;
-		return super.uri(tokenId);
-	}
+    /// @notice Per-type metadata URI; falls back to contract-level URI if none set.
+    function uri(uint256 tokenId) public view override returns (string memory) {
+        string memory tokenUri = _uris[tokenId];
+        if (bytes(tokenUri).length > 0) return tokenUri;
+        return super.uri(tokenId);
+    }
 
-	/// @notice Return full metadata for a token type.
-	function getTokenType(uint256 tokenId) external view returns (TokenType memory) {
-		if (tokenId >= nextTokenId) revert UnknownTokenType(tokenId);
-		return tokenTypes[tokenId];
-	}
+    /// @notice Return full metadata for a token type.
+    function getTokenType(uint256 tokenId) external view returns (TokenType memory) {
+        if (tokenId >= nextTokenId) revert UnknownTokenType(tokenId);
+        return tokenTypes[tokenId];
+    }
 
-	// ── Internal ─────────────────────────────────────────────────────────────
+    // ── Internal ─────────────────────────────────────────────────────────────
 
-	function _validateMint(uint256 tokenId, uint256 amount) internal view {
-		if (tokenId >= nextTokenId) revert UnknownTokenType(tokenId);
-		TokenType storage tt = tokenTypes[tokenId];
-		if (tt.maxSupply > 0 && tt.totalMinted + amount > tt.maxSupply)
-			revert ExceedsMaxSupply(tokenId, amount, tt.maxSupply - tt.totalMinted);
-	}
+    function _validateMint(uint256 tokenId, uint256 amount) internal view {
+        if (tokenId >= nextTokenId) revert UnknownTokenType(tokenId);
+        TokenType storage tt = tokenTypes[tokenId];
+        if (tt.maxSupply > 0 && tt.totalMinted + amount > tt.maxSupply)
+            revert ExceedsMaxSupply(tokenId, amount, tt.maxSupply - tt.totalMinted);
+    }
 
-	/// @dev Enforce per-type transfer and burn restrictions.
-	///      Mints (from == 0) are always allowed (gated by onlyOwner on mint()).
-	///      The contract owner (CGProgram) and authorized transferrers (e.g. CGDistribution)
-	///      are always allowed to transfer and burn regardless of the flags.
-	function _update(
-		address from,
-		address to,
-		uint256[] memory ids,
-		uint256[] memory values
-	) internal override {
-		bool isMint = from == address(0);
-		bool isPrivileged = _msgSender() == owner() || authorizedTransferrers[_msgSender()];
+    /// @dev Enforce per-type transfer and burn restrictions.
+    ///      Mints (from == 0) are always allowed (gated by onlyOwner on mint()).
+    ///      The contract owner (CGProgram) and authorized transferrers (e.g. CGDistribution)
+    ///      are always allowed to transfer and burn regardless of the flags.
+    function _update(address from, address to, uint256[] memory ids, uint256[] memory values) internal override {
+        bool isMint = from == address(0);
+        bool isPrivileged = _msgSender() == owner() || authorizedTransferrers[_msgSender()];
 
-		if (!isMint && !isPrivileged) {
-			bool isBurn = to == address(0);
-			for (uint256 i = 0; i < ids.length; i++) {
-				if (ids[i] >= nextTokenId) revert UnknownTokenType(ids[i]);
-				TokenType storage tt = tokenTypes[ids[i]];
-				if (isBurn) {
-					if (!tt.burnable) revert BurnDisabled(ids[i]);
-				} else {
-					if (!tt.transferable) revert TransferDisabled(ids[i]);
-				}
-			}
-		}
+        if (!isMint && !isPrivileged) {
+            bool isBurn = to == address(0);
+            for (uint256 i = 0; i < ids.length; i++) {
+                if (ids[i] >= nextTokenId) revert UnknownTokenType(ids[i]);
+                TokenType storage tt = tokenTypes[ids[i]];
+                if (isBurn) {
+                    if (!tt.burnable) revert BurnDisabled(ids[i]);
+                } else {
+                    if (!tt.transferable) revert TransferDisabled(ids[i]);
+                }
+            }
+        }
 
-		super._update(from, to, ids, values);
-	}
+        super._update(from, to, ids, values);
+    }
 }

@@ -15,7 +15,7 @@ export function DebugContracts() {
   const contractNames = useMemo(
     () =>
       (Object.keys(contractsData) as ContractName[]).sort((a, b) => {
-        return a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" });
+        return String(a).localeCompare(String(b), undefined, { numeric: true, sensitivity: "base" });
       }),
     [contractsData],
   );

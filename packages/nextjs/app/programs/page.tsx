@@ -59,7 +59,7 @@ const ProgramsPage = () => {
         </div>
       ) : (
         <div className="grid gap-4">
-          {orgAddresses?.map(orgAddr => <OrgPrograms key={orgAddr} orgAddress={orgAddr} />)}
+          {orgAddresses?.map((orgAddr: string) => <OrgPrograms key={orgAddr} orgAddress={orgAddr} />)}
         </div>
       )}
     </div>

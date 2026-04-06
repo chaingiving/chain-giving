@@ -3,11 +3,14 @@
 import { useState } from "react";
 import { Address as AddressDisplay, Balance, EtherInput } from "@scaffold-ui/components";
 import { Address, formatEther, isAddress, isAddressEqual, parseEther, zeroAddress } from "viem";
-import { useAccount, useReadContract, useWriteContract } from "wagmi";
+import { useAccount, useReadContract } from "wagmi";
 import { AddressInputWithQr } from "~~/components/AddressInputWithQr";
+import { OrgGasSponsorshipBadge } from "~~/components/OrgGasSponsorshipBadge";
 import { cgProgramAbi } from "~~/contracts/cgProgramAbi";
-import { useBlockExplorerLink, useTransactor } from "~~/hooks/scaffold-eth";
-import { getParsedError, notification } from "~~/utils/scaffold-eth";
+import { useBlockExplorerLink } from "~~/hooks/scaffold-eth";
+import { useProgramOrganization } from "~~/hooks/useProgramOrganization";
+import { useSponsoredWrite } from "~~/hooks/useSponsoredWrite";
+import { notification } from "~~/utils/scaffold-eth";
 
 const cgCrowdfundingAbi = [
   {
@@ -84,26 +87,17 @@ function useContractRead<T>(address: Address, functionName: string, args?: reado
   return { ...result, data: result.data as T | undefined };
 }
 
-function useCGProgramWrite(programAddress: Address) {
-  const { writeContractAsync } = useWriteContract();
-  const writeTx = useTransactor();
+function useCGProgramWrite(programAddress: Address, orgAddress: Address | undefined) {
+  const { write: sponsoredWrite } = useSponsoredWrite(orgAddress);
 
   return async (functionName: string, args?: readonly unknown[], value?: bigint) => {
-    try {
-      await writeTx(() =>
-        writeContractAsync({
-          address: programAddress,
-          abi: cgProgramAbi,
-          functionName: functionName as any,
-          args: args as any,
-          value: value as any,
-        } as any),
-      );
-      return true;
-    } catch (e) {
-      notification.error(getParsedError(e));
-      return false;
-    }
+    return sponsoredWrite({
+      address: programAddress,
+      abi: cgProgramAbi,
+      functionName,
+      args,
+      value,
+    });
   };
 }
 
@@ -131,6 +125,7 @@ function validateBeneficiaries(entries: BeneficiaryEntry[]): { addresses: Addres
 
 export const CGProgramView = ({ address }: { address: Address }) => {
   const { address: connectedAddress } = useAccount();
+  const { orgAddress } = useProgramOrganization(address);
 
   const { data: name, isLoading: nameLoading, error: nameError } = useContractRead<string>(address, "name");
   const { data: state } = useContractRead<number>(address, "state");
@@ -175,6 +170,7 @@ export const CGProgramView = ({ address }: { address: Address }) => {
             owner={owner}
             lockDistributions={lockDistributions}
             isOwner={isOwner}
+            orgAddress={orgAddress}
           />
         </div>
       </div>
@@ -189,6 +185,7 @@ export const CGProgramView = ({ address }: { address: Address }) => {
             lockDistributions={lockDistributions}
             distributions={distributionsInfo ?? []}
             connectedAddress={connectedAddress}
+            orgAddress={orgAddress}
           />
         </div>
       </div>
@@ -201,6 +198,7 @@ export const CGProgramView = ({ address }: { address: Address }) => {
             programAddress={address}
             isOwner={isOwner}
             isActive={isActive}
+            orgAddress={orgAddress}
           />
           <DistributionsSection
             distributions={distributionsInfo ?? []}
@@ -213,12 +211,14 @@ export const CGProgramView = ({ address }: { address: Address }) => {
               !isAddressEqual(crowdfundingInfo.addr, zeroAddress) &&
               crowdfundingInfo.totalRaised > 0n
             }
+            orgAddress={orgAddress}
           />
           {isOwner && isActive && (
             <OwnerActions
               address={address}
               crowdfundingInfo={crowdfundingInfo}
               distributions={distributionsInfo ?? []}
+              orgAddress={orgAddress}
             />
           )}
         </div>
@@ -234,6 +234,7 @@ function ProgramSection({
   owner,
   lockDistributions,
   isOwner,
+  orgAddress,
 }: {
   address: Address;
   name: string | undefined;
@@ -241,6 +242,7 @@ function ProgramSection({
   owner: Address | undefined;
   lockDistributions: boolean | undefined;
   isOwner: boolean;
+  orgAddress: Address | undefined;
 }) {
   const addressLink = useBlockExplorerLink(address);
   const ownerLink = useBlockExplorerLink(owner);
@@ -249,7 +251,10 @@ function ProgramSection({
     <>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="card-title text-3xl">{name || "CGProgram"}</h2>
-        <span className={`badge ${STATE_COLORS[programState]} badge-lg`}>{programState}</span>
+        <div className="flex items-center gap-2">
+          {orgAddress && <OrgGasSponsorshipBadge orgAddress={orgAddress} />}
+          <span className={`badge ${STATE_COLORS[programState]} badge-lg`}>{programState}</span>
+        </div>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
@@ -302,12 +307,14 @@ function TokenSection({
   programAddress,
   isOwner,
   isActive,
+  orgAddress,
 }: {
   tokenAddress: Address | undefined;
   tokenTypes: TokenTypeInfo[];
   programAddress: Address;
   isOwner: boolean;
   isActive: boolean;
+  orgAddress: Address | undefined;
 }) {
   const tokenLink = useBlockExplorerLink(tokenAddress);
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -337,7 +344,11 @@ function TokenSection({
       </div>
 
       {showCreateForm && (
-        <CreateTokenTypeForm programAddress={programAddress} onDone={() => setShowCreateForm(false)} />
+        <CreateTokenTypeForm
+          programAddress={programAddress}
+          orgAddress={orgAddress}
+          onDone={() => setShowCreateForm(false)}
+        />
       )}
 
       {tokenTypes.length === 0 && !showCreateForm ? (
@@ -383,6 +394,7 @@ function CrowdfundingSection({
   lockDistributions,
   distributions,
   connectedAddress,
+  orgAddress,
 }: {
   crowdfundingInfo: CrowdfundingInfo | undefined;
   programAddress: Address;
@@ -391,12 +403,12 @@ function CrowdfundingSection({
   lockDistributions: boolean | undefined;
   distributions: DistributionInfo[];
   connectedAddress: Address | undefined;
+  orgAddress: Address | undefined;
 }) {
   const [contributeAmount, setContributeAmount] = useState("");
-  const write = useCGProgramWrite(programAddress);
+  const [isPending, setIsPending] = useState(false);
   const cfLink = useBlockExplorerLink(crowdfundingInfo?.addr);
-  const { writeContractAsync } = useWriteContract();
-  const writeTx = useTransactor();
+  const { write: sponsoredWrite } = useSponsoredWrite(orgAddress);
 
   const cfAddr = crowdfundingInfo?.addr;
   const isValidCf = cfAddr && !isAddressEqual(cfAddr, zeroAddress);
@@ -410,18 +422,17 @@ function CrowdfundingSection({
   });
 
   const writeCf = async (functionName: "cancelContribution" | "refund") => {
-    if (!cfAddr) return;
+    if (!cfAddr || isPending) return;
+    setIsPending(true);
     try {
-      await writeTx(() =>
-        writeContractAsync({
-          address: cfAddr,
-          abi: cgCrowdfundingAbi,
-          functionName,
-        } as any),
-      );
-      refetchUserContribution();
-    } catch (e) {
-      notification.error(getParsedError(e));
+      const success = await sponsoredWrite({
+        address: cfAddr,
+        abi: cgCrowdfundingAbi,
+        functionName,
+      });
+      if (success) refetchUserContribution();
+    } finally {
+      setIsPending(false);
     }
   };
 
@@ -432,7 +443,7 @@ function CrowdfundingSection({
       <div>
         <h3 className="card-title">Crowdfunding</h3>
         <p className="opacity-60">No crowdfunding configured for this program.</p>
-        {isOwner && isActive && <SetCrowdfundingForm programAddress={programAddress} />}
+        {isOwner && isActive && <SetCrowdfundingForm programAddress={programAddress} orgAddress={orgAddress} />}
       </div>
     );
   }
@@ -448,9 +459,19 @@ function CrowdfundingSection({
   const contributeLocked = lockDistributions && !allDistributionsReady;
 
   const handleContribute = async () => {
-    if (!contributeAmount) return;
-    const success = await write("contribute", undefined, parseEther(contributeAmount));
-    if (success) setContributeAmount("");
+    if (!contributeAmount || isPending) return;
+    setIsPending(true);
+    try {
+      const success = await sponsoredWrite({
+        address: programAddress,
+        abi: cgProgramAbi,
+        functionName: "contribute",
+        value: parseEther(contributeAmount),
+      });
+      if (success) setContributeAmount("");
+    } finally {
+      setIsPending(false);
+    }
   };
 
   return (
@@ -495,13 +516,17 @@ function CrowdfundingSection({
             </div>
             <div className="flex gap-2">
               {crowdfundingInfo.state === 0 && (
-                <button className="btn btn-sm btn-outline btn-error" onClick={() => writeCf("cancelContribution")}>
-                  Cancel contribution
+                <button
+                  className="btn btn-sm btn-outline btn-error"
+                  disabled={isPending}
+                  onClick={() => writeCf("cancelContribution")}
+                >
+                  {isPending ? <span className="loading loading-spinner loading-xs" /> : "Cancel contribution"}
                 </button>
               )}
               {crowdfundingInfo.state === 3 && (
-                <button className="btn btn-sm btn-warning" onClick={() => writeCf("refund")}>
-                  Claim refund
+                <button className="btn btn-sm btn-warning" disabled={isPending} onClick={() => writeCf("refund")}>
+                  {isPending ? <span className="loading loading-spinner loading-xs" /> : "Claim refund"}
                 </button>
               )}
             </div>
@@ -536,9 +561,9 @@ function CrowdfundingSection({
             <button
               className="btn btn-primary"
               onClick={handleContribute}
-              disabled={!contributeAmount || !!contributeLocked}
+              disabled={!contributeAmount || !!contributeLocked || isPending}
             >
-              Contribute
+              {isPending ? <span className="loading loading-spinner loading-xs" /> : "Contribute"}
             </button>
           </div>
         </div>
@@ -547,10 +572,16 @@ function CrowdfundingSection({
   );
 }
 
-function SetCrowdfundingForm({ programAddress }: { programAddress: Address }) {
+function SetCrowdfundingForm({
+  programAddress,
+  orgAddress,
+}: {
+  programAddress: Address;
+  orgAddress: Address | undefined;
+}) {
   const [target, setTarget] = useState("");
   const [deadlineDays, setDeadlineDays] = useState("");
-  const write = useCGProgramWrite(programAddress);
+  const write = useCGProgramWrite(programAddress, orgAddress);
 
   const handleSet = async () => {
     if (!target || !deadlineDays) return;
@@ -601,6 +632,7 @@ function DistributionsSection({
   isActive,
   isOwner,
   crowdfundingHasContributions,
+  orgAddress,
 }: {
   distributions: DistributionInfo[];
   tokenTypes: TokenTypeInfo[];
@@ -608,6 +640,7 @@ function DistributionsSection({
   isActive: boolean;
   isOwner: boolean;
   crowdfundingHasContributions: boolean;
+  orgAddress: Address | undefined;
 }) {
   const [showNewForm, setShowNewForm] = useState(false);
 
@@ -632,6 +665,7 @@ function DistributionsSection({
           nextIndex={distributions.length}
           tokenTypes={tokenTypes}
           onDone={() => setShowNewForm(false)}
+          orgAddress={orgAddress}
         />
       )}
 
@@ -653,6 +687,7 @@ function DistributionsSection({
                 isActive={isActive}
                 isOwner={isOwner}
                 crowdfundingHasContributions={crowdfundingHasContributions}
+                orgAddress={orgAddress}
               />
             );
           })}
@@ -667,16 +702,18 @@ function NewDistributionForm({
   nextIndex,
   tokenTypes,
   onDone,
+  orgAddress,
 }: {
   programAddress: Address;
   nextIndex: number;
   tokenTypes: TokenTypeInfo[];
   onDone: () => void;
+  orgAddress: Address | undefined;
 }) {
   const [entries, setEntries] = useState<BeneficiaryEntry[]>([{ id: crypto.randomUUID(), address: "", amount: "" }]);
   const [selectedTokenId, setSelectedTokenId] = useState<bigint>(tokenTypes[0]?.tokenId ?? 0n);
   const [isPending, setIsPending] = useState(false);
-  const write = useCGProgramWrite(programAddress);
+  const write = useCGProgramWrite(programAddress, orgAddress);
 
   const selectedTokenType = tokenTypes.find(tt => tt.tokenId === selectedTokenId);
   const isNft = selectedTokenType?.maxSupply === 1n;
@@ -744,6 +781,7 @@ function DistributionItem({
   isActive,
   isOwner,
   crowdfundingHasContributions,
+  orgAddress,
 }: {
   dist: DistributionInfo;
   index: number;
@@ -753,11 +791,12 @@ function DistributionItem({
   isActive: boolean;
   isOwner: boolean;
   crowdfundingHasContributions: boolean;
+  orgAddress: Address | undefined;
 }) {
   const [showLockConfirm, setShowLockConfirm] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [editMode, setEditMode] = useState<"none" | "set" | "add" | "remove">("none");
-  const write = useCGProgramWrite(programAddress);
+  const write = useCGProgramWrite(programAddress, orgAddress);
   const distLink = useBlockExplorerLink(dist.addr);
 
   const deleteDisabledReason =
@@ -854,6 +893,7 @@ function DistributionItem({
               existingBeneficiaries={dist.beneficiaries}
               existingAmounts={dist.amounts}
               onClose={() => setEditMode("none")}
+              orgAddress={orgAddress}
             />
           ) : editMode === "add" ? (
             <AddBeneficiariesForm
@@ -861,6 +901,7 @@ function DistributionItem({
               distributionIndex={index}
               tokenType={tokenType}
               onClose={() => setEditMode("none")}
+              orgAddress={orgAddress}
             />
           ) : editMode === "remove" ? (
             <RemoveBeneficiariesPanel
@@ -869,6 +910,7 @@ function DistributionItem({
               beneficiaries={dist.beneficiaries}
               amounts={dist.amounts}
               onClose={() => setEditMode("none")}
+              orgAddress={orgAddress}
             />
           ) : null}
         </div>
@@ -1051,6 +1093,7 @@ function EditBeneficiariesForm({
   existingBeneficiaries,
   existingAmounts,
   onClose,
+  orgAddress,
 }: {
   programAddress: Address;
   distributionIndex: number;
@@ -1058,6 +1101,7 @@ function EditBeneficiariesForm({
   existingBeneficiaries: Address[];
   existingAmounts: bigint[];
   onClose: () => void;
+  orgAddress: Address | undefined;
 }) {
   const [entries, setEntries] = useState<BeneficiaryEntry[]>(() =>
     existingBeneficiaries.length > 0
@@ -1068,7 +1112,7 @@ function EditBeneficiariesForm({
         }))
       : [{ id: crypto.randomUUID(), address: "", amount: "" }],
   );
-  const write = useCGProgramWrite(programAddress);
+  const write = useCGProgramWrite(programAddress, orgAddress);
   const isNft = tokenType?.maxSupply === 1n;
 
   const handleSet = async () => {
@@ -1105,14 +1149,16 @@ function AddBeneficiariesForm({
   distributionIndex,
   tokenType,
   onClose,
+  orgAddress,
 }: {
   programAddress: Address;
   distributionIndex: number;
   tokenType: TokenTypeInfo | undefined;
   onClose: () => void;
+  orgAddress: Address | undefined;
 }) {
   const [entries, setEntries] = useState<BeneficiaryEntry[]>([{ id: crypto.randomUUID(), address: "", amount: "" }]);
-  const write = useCGProgramWrite(programAddress);
+  const write = useCGProgramWrite(programAddress, orgAddress);
   const isNft = tokenType?.maxSupply === 1n;
 
   const handleAdd = async () => {
@@ -1150,15 +1196,17 @@ function RemoveBeneficiariesPanel({
   beneficiaries,
   amounts,
   onClose,
+  orgAddress,
 }: {
   programAddress: Address;
   distributionIndex: number;
   beneficiaries: Address[];
   amounts: bigint[];
   onClose: () => void;
+  orgAddress: Address | undefined;
 }) {
   const [selected, setSelected] = useState<Set<Address>>(new Set());
-  const write = useCGProgramWrite(programAddress);
+  const write = useCGProgramWrite(programAddress, orgAddress);
 
   const toggle = (addr: Address) => {
     const next = new Set(selected);
@@ -1263,16 +1311,18 @@ function OwnerActions({
   address,
   crowdfundingInfo,
   distributions,
+  orgAddress,
 }: {
   address: Address;
   crowdfundingInfo: CrowdfundingInfo | undefined;
   distributions: DistributionInfo[];
+  orgAddress: Address | undefined;
 }) {
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [showTransferConfirm, setShowTransferConfirm] = useState(false);
   const [newOwner, setNewOwner] = useState("");
   const [isPending, setIsPending] = useState(false);
-  const write = useCGProgramWrite(address);
+  const write = useCGProgramWrite(address, orgAddress);
 
   const executeDisabledReason = getExecuteDisabledReason(crowdfundingInfo, distributions);
   const canExecute = executeDisabledReason === null;
@@ -1408,14 +1458,22 @@ function OwnerActions({
   );
 }
 
-function CreateTokenTypeForm({ programAddress, onDone }: { programAddress: Address; onDone: () => void }) {
+function CreateTokenTypeForm({
+  programAddress,
+  orgAddress,
+  onDone,
+}: {
+  programAddress: Address;
+  orgAddress: Address | undefined;
+  onDone: () => void;
+}) {
   const [name, setName] = useState("");
   const [symbol, setSymbol] = useState("");
   const [maxSupply, setMaxSupply] = useState("");
   const [uri, setUri] = useState("");
   const [transferable, setTransferable] = useState(true);
   const [burnable, setBurnable] = useState(true);
-  const write = useCGProgramWrite(programAddress);
+  const write = useCGProgramWrite(programAddress, orgAddress);
 
   const handleCreate = async () => {
     if (!name || !symbol) {

@@ -2,18 +2,22 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Address as AddressDisplay } from "@scaffold-ui/components";
-import { Address, isAddressEqual } from "viem";
-import { useAccount, useReadContract, useWriteContract } from "wagmi";
+import { Address as AddressDisplay, EtherInput } from "@scaffold-ui/components";
+import { Address, isAddressEqual, parseEther } from "viem";
+import { useAccount, useReadContract } from "wagmi";
+import { OrgGasSponsorshipBadge } from "~~/components/OrgGasSponsorshipBadge";
 import { ProgramCard } from "~~/components/ProgramCard";
 import { cgOrganizationAbi } from "~~/contracts/cgOrganizationAbi";
-import { useTransactor } from "~~/hooks/scaffold-eth";
-import { getParsedError, notification } from "~~/utils/scaffold-eth";
+import { useScaffoldReadContract, useScaffoldWriteContract } from "~~/hooks/scaffold-eth";
+import { useOrgGasSponsorship } from "~~/hooks/useOrgGasSponsorship";
+import { useSponsoredWrite } from "~~/hooks/useSponsoredWrite";
 
 export const CGOrganizationView = ({ address }: { address: Address }) => {
   const { address: connectedAddress } = useAccount();
   const [newProgramName, setNewProgramName] = useState("");
   const [lockDistributions, setLockDistributions] = useState(false);
+  const [depositAmount, setDepositAmount] = useState("");
+  const [depositKey, setDepositKey] = useState(0);
 
   const { data: name } = useReadContract({
     address,
@@ -44,27 +48,52 @@ export const CGOrganizationView = ({ address }: { address: Address }) => {
     query: { refetchInterval: 5000 },
   });
 
-  const { writeContractAsync } = useWriteContract();
-  const writeTx = useTransactor();
+  // Sponsored writes for org operations (e.g., createProgram)
+  const { write: sponsoredWrite, isSponsorshipAvailable } = useSponsoredWrite(address);
+
+  const { data: registryOwner } = useScaffoldReadContract({
+    contractName: "CGRegistry",
+    functionName: "owner",
+  });
+
+  const { orgBalanceFormatted, isLoading: sponsorshipLoading } = useOrgGasSponsorship(address);
+
+  // Direct write to CGPaymaster for depositing sponsorship funds (not itself sponsored)
+  const { writeContractAsync: depositForOrg, isPending: isDepositing } = useScaffoldWriteContract({
+    contractName: "CGPaymaster",
+  });
 
   const isOwner = connectedAddress && owner ? isAddressEqual(connectedAddress, owner) : false;
+  const isRegistryOwner =
+    connectedAddress && registryOwner ? isAddressEqual(connectedAddress, registryOwner as Address) : false;
+  const canManageSponsorship = isOwner || isRegistryOwner;
+
+  const handleDeposit = async () => {
+    if (!depositAmount) return;
+    try {
+      await depositForOrg({
+        functionName: "depositFor",
+        args: [address],
+        value: parseEther(depositAmount),
+      });
+      setDepositAmount("");
+      setDepositKey(k => k + 1);
+    } catch {
+      // useScaffoldWriteContract handles error notifications
+    }
+  };
 
   const handleCreateProgram = async () => {
     if (!newProgramName.trim()) return;
-    try {
-      await writeTx(() =>
-        writeContractAsync({
-          address,
-          abi: cgOrganizationAbi,
-          functionName: "createProgram",
-          args: [newProgramName.trim(), lockDistributions],
-        }),
-      );
+    const success = await sponsoredWrite({
+      address,
+      abi: cgOrganizationAbi,
+      functionName: "createProgram",
+      args: [newProgramName.trim(), lockDistributions],
+    });
+    if (success) {
       setNewProgramName("");
       setLockDistributions(false);
-    } catch (e) {
-      const errorMessage = getParsedError(e);
-      notification.error(errorMessage);
     }
   };
 
@@ -79,11 +108,43 @@ export const CGOrganizationView = ({ address }: { address: Address }) => {
           <span>Owner:</span>
           <AddressDisplay address={owner} size="sm" />
           {isOwner && <span className="badge badge-info badge-sm">You</span>}
+          <OrgGasSponsorshipBadge orgAddress={address} />
         </div>
         <p className="text-sm opacity-60 mt-1">
           {programCount?.toString() ?? "0"} {programCount === 1n ? "program" : "programs"}
         </p>
       </div>
+
+      {canManageSponsorship && (
+        <div className="card bg-base-200 shadow-md border border-base-300 mb-8">
+          <div className="card-body p-6">
+            <h2 className="card-title text-lg">Fund Gas Sponsorship</h2>
+            <p className="text-sm opacity-70">
+              Deposit ETH to sponsor gas for users interacting with this organization&apos;s programs.
+              {sponsorshipLoading ? (
+                <span className="loading loading-dots loading-xs ml-1" />
+              ) : (
+                <span className="font-medium"> Current balance: {orgBalanceFormatted ?? "0"} ETH</span>
+              )}
+            </p>
+            <div className="flex gap-2 items-end">
+              <div className="grow">
+                <label className="label">
+                  <span className="label-text">Amount to deposit</span>
+                </label>
+                <EtherInput key={depositKey} onValueChange={({ valueInEth }) => setDepositAmount(valueInEth)} />
+              </div>
+              <button
+                className="btn btn-primary btn-sm"
+                onClick={handleDeposit}
+                disabled={!depositAmount || isDepositing}
+              >
+                {isDepositing ? <span className="loading loading-spinner loading-xs" /> : "Deposit"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {isOwner && (
         <div className="card bg-base-200 shadow-md border border-base-300 mb-8">
@@ -112,7 +173,7 @@ export const CGOrganizationView = ({ address }: { address: Address }) => {
                 onClick={handleCreateProgram}
                 disabled={!newProgramName.trim()}
               >
-                Create Program
+                {isSponsorshipAvailable ? "Create Program (Gas Sponsored)" : "Create Program"}
               </button>
             </div>
           </div>

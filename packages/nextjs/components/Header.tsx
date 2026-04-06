@@ -5,8 +5,13 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { hardhat } from "viem/chains";
+<<<<<<< claude/add-passkey-auth-rlSVj
 import { Bars3Icon, BugAntIcon, BuildingOfficeIcon, GiftIcon } from "@heroicons/react/24/outline";
 import { PasskeyConnectButton } from "~~/components/PasskeyConnectButton";
+=======
+import { useAccount } from "wagmi";
+import { Bars3Icon, BugAntIcon, BuildingOfficeIcon, GiftIcon, WalletIcon } from "@heroicons/react/24/outline";
+>>>>>>> main
 import { FaucetButton, RainbowKitCustomConnectButton } from "~~/components/scaffold-eth";
 import { useOutsideClick, useTargetNetwork } from "~~/hooks/scaffold-eth";
 
@@ -40,10 +45,24 @@ export const menuLinks: HeaderMenuLink[] = [
 
 export const HeaderMenuLinks = () => {
   const pathname = usePathname();
+  const { address: connectedAddress } = useAccount();
+
+  const allLinks = [
+    ...menuLinks,
+    ...(connectedAddress
+      ? [
+          {
+            label: "Wallet",
+            href: `/wallet/${connectedAddress}`,
+            icon: <WalletIcon className="h-4 w-4" />,
+          },
+        ]
+      : []),
+  ];
 
   return (
     <>
-      {menuLinks.map(({ label, href, icon }) => {
+      {allLinks.map(({ label, href, icon }) => {
         const isActive = pathname === href;
         return (
           <li key={href}>

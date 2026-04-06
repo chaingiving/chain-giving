@@ -135,7 +135,7 @@ const OrganizationsPage = () => {
       ) : (
         <>
           <div className="grid gap-4 sm:grid-cols-2">
-            {orgAddresses?.map(addr => <OrgCard key={addr} address={addr} />)}
+            {orgAddresses?.map((addr: string) => <OrgCard key={addr} address={addr} />)}
           </div>
 
           {totalPages > 1 && (

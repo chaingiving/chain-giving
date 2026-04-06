@@ -1,27 +1,16 @@
 import { Address } from "viem";
-import { useWriteContract } from "wagmi";
 import { cgTokenAbi } from "~~/contracts/cgTokenAbi";
-import { useTransactor } from "~~/hooks/scaffold-eth";
-import { getParsedError, notification } from "~~/utils/scaffold-eth";
+import { useSponsoredWrite } from "~~/hooks/useSponsoredWrite";
 
-export function useCGTokenWrite(tokenAddress: Address) {
-  const { writeContractAsync } = useWriteContract();
-  const writeTx = useTransactor();
+export function useCGTokenWrite(tokenAddress: Address, orgAddress?: Address) {
+  const { write: sponsoredWrite } = useSponsoredWrite(orgAddress);
 
   return async (functionName: string, args: readonly unknown[]) => {
-    try {
-      await writeTx(() =>
-        writeContractAsync({
-          address: tokenAddress,
-          abi: cgTokenAbi,
-          functionName: functionName as any,
-          args: args as any,
-        } as any),
-      );
-      return true;
-    } catch (e) {
-      notification.error(getParsedError(e));
-      return false;
-    }
+    return sponsoredWrite({
+      address: tokenAddress,
+      abi: cgTokenAbi,
+      functionName,
+      args,
+    });
   };
 }

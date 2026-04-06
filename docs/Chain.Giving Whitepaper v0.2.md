@@ -171,3 +171,8 @@ To make the chain-giving blockchain usable to conduct aid programs, the followin
 * Blockchain Data Explorer: Based on an index of blockchain data, allows anyone to monitor current and past program executions, including viewing live updates on token redemptions.
 
 See [Frontend](./tech-specs/cg-frontend.md)/
+
+## Gas Sponsoring {#gas-sponsoring}
+
+See [Gas Sponsoring](./tech-specs/cg-gas-sponsoring.md)/
+

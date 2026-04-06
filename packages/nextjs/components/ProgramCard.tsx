@@ -35,7 +35,7 @@ export const ProgramCard = ({ address, orgName }: { address: Address; orgName?: 
         </div>
         <div className="flex items-center gap-4 text-sm opacity-60">
           {orgName && <span>Org: {orgName}</span>}
-          <AddressDisplay address={address} size="xs" />
+          <AddressDisplay address={address} size="xs" disableAddressLink />
         </div>
       </div>
     </Link>

@@ -3670,6 +3670,7 @@ __metadata:
     next-nprogress-bar: ~2.3.13
     next-themes: ~0.3.0
     patch-package: ^8.0.1
+    porto: ^0.2.37
     postcss: ~8.4.45
     prettier: ~3.5.3
     qrcode.react: ~4.0.1
@@ -15378,6 +15379,50 @@ __metadata:
   bin:
     porto: dist/cli/bin/index.js
   checksum: abf70fa7867c7e075f0cbc3c3281fed6611f35026a6fe9cdcfaf15ec3db9a7dd109ad8b087126923f97bfdb49114b48e5715292addaf38b4105b656345653509
+  languageName: node
+  linkType: hard
+
+"porto@npm:^0.2.37":
+  version: 0.2.37
+  resolution: "porto@npm:0.2.37"
+  dependencies:
+    hono: ^4.10.3
+    idb-keyval: ^6.2.1
+    mipd: ^0.0.7
+    ox: ^0.9.6
+    zod: ^4.1.5
+    zustand: ^5.0.1
+  peerDependencies:
+    "@tanstack/react-query": ">=5.59.0"
+    "@wagmi/core": ">=2.16.3"
+    expo-auth-session: ">=7.0.8"
+    expo-crypto: ">=15.0.7"
+    expo-web-browser: ">=15.0.8"
+    react: ">=18"
+    react-native: ">=0.81.4"
+    typescript: ">=5.4.0"
+    viem: ">=2.37.0"
+    wagmi: ">=2.0.0"
+  peerDependenciesMeta:
+    "@tanstack/react-query":
+      optional: true
+    expo-auth-session:
+      optional: true
+    expo-crypto:
+      optional: true
+    expo-web-browser:
+      optional: true
+    react:
+      optional: true
+    react-native:
+      optional: true
+    typescript:
+      optional: true
+    wagmi:
+      optional: true
+  bin:
+    porto: dist/cli/bin/index.js
+  checksum: 35c8721b971bd9ee6d629a447a60c37ed2533fe4377f8b50344fe8cfd91f6749e2ec2aee5c81289ad788fdb8c2e83dbc488917769cb7b21e912416e02f2eb9d4
   languageName: node
   linkType: hard
 

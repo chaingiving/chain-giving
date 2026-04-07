@@ -51,7 +51,7 @@ createAppKit({
   networks: enabledChains as any,
   features: {
     email: true,
-    socials: ["google", "apple", "github"],
+    socials: ["google", "apple", "github", "discord", "facebook"],
     emailShowWallets: false,
   },
 });

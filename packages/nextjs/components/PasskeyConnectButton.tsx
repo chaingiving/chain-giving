@@ -1,29 +1,19 @@
 "use client";
 
-import { Hooks } from "porto/wagmi";
-import { useAccount, useConnectors } from "wagmi";
-import { KeyIcon } from "@heroicons/react/24/outline";
+import { useAppKit } from "@reown/appkit/react";
+import { useAccount } from "wagmi";
+import { EnvelopeIcon } from "@heroicons/react/24/outline";
 
-export const PORTO_CONNECTOR_ID = "xyz.ithaca.porto";
-
-export const PasskeyConnectButton = () => {
+export const EmbeddedWalletButton = () => {
   const { isConnected } = useAccount();
-  const connectors = useConnectors();
-  const portoConnector = connectors.find(c => c.id === PORTO_CONNECTOR_ID);
+  const { open } = useAppKit();
 
-  const { mutate: connect, isPending } = Hooks.useConnect();
-
-  if (isConnected || !portoConnector) return null;
+  if (isConnected) return null;
 
   return (
-    <button
-      className="btn btn-primary btn-sm gap-2"
-      onClick={() => connect({ connector: portoConnector })}
-      disabled={isPending}
-      type="button"
-    >
-      <KeyIcon className="h-4 w-4" />
-      {isPending ? "Connecting..." : "Sign in with Passkey"}
+    <button className="btn btn-primary btn-sm gap-2" onClick={() => open()} type="button">
+      <EnvelopeIcon className="h-4 w-4" />
+      Sign in with Email
     </button>
   );
 };

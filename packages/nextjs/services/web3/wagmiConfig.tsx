@@ -1,8 +1,8 @@
+import { WagmiAdapter } from "@reown/appkit-adapter-wagmi";
+import { createAppKit } from "@reown/appkit/react";
 import { wagmiConnectors } from "./wagmiConnectors";
-import { porto } from "porto/wagmi";
-import { Chain, createClient, fallback, http } from "viem";
-import { hardhat, mainnet } from "viem/chains";
-import { createConfig } from "wagmi";
+import { Chain, fallback, http } from "viem";
+import { mainnet } from "viem/chains";
 import scaffoldConfig, { DEFAULT_ALCHEMY_API_KEY, ScaffoldConfig } from "~~/scaffold.config";
 import { getAlchemyHttpUrl } from "~~/utils/scaffold-eth";
 
@@ -13,13 +13,11 @@ export const enabledChains = targetNetworks.find((network: Chain) => network.id 
   ? targetNetworks
   : ([...targetNetworks, mainnet] as const);
 
-export const wagmiConfig = createConfig({
-  chains: enabledChains,
-  connectors: [...wagmiConnectors(), porto()],
-  ssr: true,
-  client: ({ chain }) => {
-    const mainnetFallbackWithDefaultRPC = [http("https://mainnet.rpc.buidlguidl.com")];
-    let rpcFallbacks = [...(chain.id === mainnet.id ? mainnetFallbackWithDefaultRPC : []), http()];
+// Build per-chain transports with the same RPC fallback logic as before.
+const transports = Object.fromEntries(
+  enabledChains.map(chain => {
+    const mainnetFallback = chain.id === mainnet.id ? [http("https://mainnet.rpc.buidlguidl.com")] : [];
+    let rpcFallbacks = [...mainnetFallback, http()];
     const rpcOverrideUrl = (scaffoldConfig.rpcOverrides as ScaffoldConfig["rpcOverrides"])?.[chain.id];
     if (rpcOverrideUrl) {
       rpcFallbacks = [http(rpcOverrideUrl), ...rpcFallbacks];
@@ -32,10 +30,30 @@ export const wagmiConfig = createConfig({
           : [http(alchemyHttpUrl), ...rpcFallbacks];
       }
     }
-    return createClient({
-      chain,
-      transport: fallback(rpcFallbacks),
-      ...(chain.id !== (hardhat as Chain).id ? { pollingInterval: scaffoldConfig.pollingInterval } : {}),
-    });
+    return [chain.id, fallback(rpcFallbacks)];
+  }),
+);
+
+// WagmiAdapter replaces createConfig and adds Reown's embedded wallet connector.
+// The RainbowKit connectors are passed through so MetaMask, Ledger, Safe, etc. still work.
+const wagmiAdapter = new WagmiAdapter({
+  networks: enabledChains as any,
+  projectId: scaffoldConfig.walletConnectProjectId,
+  ssr: true,
+  transports,
+  pollingInterval: scaffoldConfig.pollingInterval,
+  connectors: wagmiConnectors(),
+});
+
+createAppKit({
+  adapters: [wagmiAdapter],
+  projectId: scaffoldConfig.walletConnectProjectId,
+  networks: enabledChains as any,
+  features: {
+    email: true,
+    socials: ["google", "apple", "github", "discord", "facebook"],
+    emailShowWallets: false,
   },
 });
+
+export const wagmiConfig = wagmiAdapter.wagmiConfig;

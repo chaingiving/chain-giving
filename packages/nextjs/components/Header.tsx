@@ -7,7 +7,7 @@ import { usePathname } from "next/navigation";
 import { hardhat } from "viem/chains";
 import { useAccount } from "wagmi";
 import { Bars3Icon, BugAntIcon, BuildingOfficeIcon, GiftIcon, WalletIcon } from "@heroicons/react/24/outline";
-import { PasskeyConnectButton } from "~~/components/PasskeyConnectButton";
+import { EmbeddedWalletButton } from "~~/components/PasskeyConnectButton";
 import { FaucetButton, RainbowKitCustomConnectButton } from "~~/components/scaffold-eth";
 import { useOutsideClick, useTargetNetwork } from "~~/hooks/scaffold-eth";
 
@@ -121,7 +121,7 @@ export const Header = () => {
         </ul>
       </div>
       <div className="navbar-end grow mr-4 gap-2">
-        <PasskeyConnectButton />
+        <EmbeddedWalletButton />
         <RainbowKitCustomConnectButton />
         {isLocalNetwork && <FaucetButton />}
       </div>

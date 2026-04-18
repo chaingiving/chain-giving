@@ -33,7 +33,8 @@ const scaffoldConfig = {
   // You can get your own at https://cloud.walletconnect.com
   // It's recommended to store it in an env variable:
   // .env.local for local testing, and in the Vercel/system env config for live apps.
-  walletConnectProjectId: process.env.NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID || "3a8170812b534d0ff9d794f19a901d64",
+  // Default to Chain.Giving project ID
+  walletConnectProjectId: process.env.NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID || "5a4882d8b717259a79ca0b5feb86e664",
   // Configure Burner Wallet visibility:
   // - "localNetworksOnly": only show when all target networks are local (hardhat/anvil)
   // - "allNetworks": show on any configured target networks

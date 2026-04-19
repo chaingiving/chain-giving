@@ -8,7 +8,7 @@ import { type Address as ViemAddress, isAddressEqual, zeroAddress } from "viem";
 import { useAccount, useReadContract } from "wagmi";
 import { BuildingOffice2Icon, GiftIcon, WalletIcon } from "@heroicons/react/24/outline";
 import { ChainGivingHeader } from "~~/components/ChainGivingHeader";
-import { EmbeddedWalletButton } from "~~/components/PasskeyConnectButton";
+import { EmbeddedWalletButton } from "~~/components/ConnectButton";
 import { ProgramCard } from "~~/components/ProgramCard";
 import { RainbowKitCustomConnectButton } from "~~/components/scaffold-eth";
 import { cgOrganizationAbi } from "~~/contracts/cgOrganizationAbi";

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Address as AddressDisplay, Balance, EtherInput } from "@scaffold-ui/components";
 import { Address, formatEther, isAddress, isAddressEqual, parseEther, zeroAddress } from "viem";
 import { useAccount, useReadContract } from "wagmi";
+import { TrashIcon } from "@heroicons/react/24/outline";
 import { AddressInputWithQr } from "~~/components/AddressInputWithQr";
 import { OrgGasSponsorshipBadge } from "~~/components/OrgGasSponsorshipBadge";
 import { cgProgramAbi } from "~~/contracts/cgProgramAbi";
@@ -833,8 +834,9 @@ function DistributionItem({
                 className="btn btn-ghost btn-xs text-error"
                 disabled={deleteDisabledReason !== null}
                 onClick={() => setShowDeleteConfirm(true)}
+                aria-label="Delete distribution"
               >
-                ✕
+                <TrashIcon className="h-4 w-4" />
               </button>
             </div>
           )}

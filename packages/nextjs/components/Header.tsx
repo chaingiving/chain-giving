@@ -14,7 +14,7 @@ import {
   InformationCircleIcon,
   WalletIcon,
 } from "@heroicons/react/24/outline";
-import { EmbeddedWalletButton } from "~~/components/PasskeyConnectButton";
+import { EmbeddedWalletButton } from "~~/components/ConnectButton";
 import { SwitchTheme } from "~~/components/SwitchTheme";
 import { FaucetButton, RainbowKitCustomConnectButton } from "~~/components/scaffold-eth";
 import { useOutsideClick, useTargetNetwork } from "~~/hooks/scaffold-eth";

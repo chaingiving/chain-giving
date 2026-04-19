@@ -9,7 +9,7 @@ import { useOrgGasSponsorship } from "~~/hooks/useOrgGasSponsorship";
  * the connected wallet can use sponsored transactions.
  */
 export const OrgGasSponsorshipBadge = ({ orgAddress }: { orgAddress: Address }) => {
-  const { hasBudget, orgBalance, isPaymasterSupported, isEIP5792Wallet, isLoading } = useOrgGasSponsorship(orgAddress);
+  const { hasBudget, orgBalance, isLoading } = useOrgGasSponsorship(orgAddress);
 
   if (isLoading) {
     return <span className="loading loading-dots loading-xs" />;
@@ -26,42 +26,14 @@ export const OrgGasSponsorshipBadge = ({ orgAddress }: { orgAddress: Address }) 
     );
   }
 
-  if (!isEIP5792Wallet) {
-    return (
-      <div
-        className="tooltip tooltip-bottom"
-        data-tip={`Gas budget: ${formatEther(orgBalance ?? 0n)} ETH. Connect an EIP-5792 wallet (e.g. Coinbase Smart Wallet) to use sponsored transactions.`}
-      >
-        <span className="badge badge-warning badge-sm gap-1">
-          <GasIcon />
-          {formatEther(orgBalance ?? 0n)} ETH (wallet not supported)
-        </span>
-      </div>
-    );
-  }
-
-  if (!isPaymasterSupported) {
-    return (
-      <div
-        className="tooltip tooltip-bottom"
-        data-tip={`Gas budget: ${formatEther(orgBalance ?? 0n)} ETH. Your wallet does not support paymaster on this chain.`}
-      >
-        <span className="badge badge-warning badge-sm gap-1">
-          <GasIcon />
-          {formatEther(orgBalance ?? 0n)} ETH (no paymaster support)
-        </span>
-      </div>
-    );
-  }
-
   return (
     <div
       className="tooltip tooltip-bottom"
       data-tip={`Transactions will be sponsored from this organization's gas budget (${formatEther(orgBalance ?? 0n)} ETH remaining)`}
     >
-      <span className="badge badge-success badge-sm gap-1">
+      <span className="badge badge-success badge-lg gap-1">
         <GasIcon />
-        Gas sponsored ({formatEther(orgBalance ?? 0n)} ETH)
+        Gas sponsored
       </span>
     </div>
   );

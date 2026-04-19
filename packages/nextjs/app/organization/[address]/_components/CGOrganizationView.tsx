@@ -126,7 +126,11 @@ export const CGOrganizationView = ({ address }: { address: Address }) => {
         </Link>
         <h1 className="text-3xl font-bold">{name || "Loading..."}</h1>
         <div className="flex items-center gap-2 mt-1 text-sm opacity-70">
-          <span>Owner:</span>
+          <span>Organization Address:</span>
+          <AddressDisplay address={address} size="sm" />
+        </div>
+        <div className="flex items-center gap-2 mt-1 text-sm opacity-70">
+          <span>Organization Owner:</span>
           <AddressDisplay address={owner} size="sm" />
           {isOwner && <span className="badge badge-info badge-sm">You</span>}
         </div>

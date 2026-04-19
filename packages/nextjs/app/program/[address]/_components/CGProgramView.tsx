@@ -260,7 +260,7 @@ function ProgramSection({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <p className="text-sm opacity-60">Program Address</p>
-          <AddressDisplay address={address} format="long" blockExplorerAddressLink={addressLink} />
+          <AddressDisplay address={address} blockExplorerAddressLink={addressLink} />
         </div>
         <div>
           <p className="text-sm opacity-60">Program Owner</p>

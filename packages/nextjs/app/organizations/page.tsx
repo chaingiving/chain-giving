@@ -42,6 +42,10 @@ const OrgCard = ({ address }: { address: Address }) => {
       <div className="card-body p-4">
         <h3 className="card-title text-lg">{name || "Loading..."}</h3>
         <div className="flex items-center gap-2 text-sm opacity-70">
+          <span>Address:</span>
+          <AddressDisplay address={address} size="sm" />
+        </div>
+        <div className="flex items-center gap-2 text-sm opacity-70">
           <span>Owner:</span>
           <AddressDisplay address={owner} size="sm" />
           {isOwner && <span className="badge badge-info badge-sm">You</span>}

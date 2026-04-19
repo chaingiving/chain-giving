@@ -91,7 +91,7 @@ const deployedContracts = {
       deployedOnBlock: 1,
     },
     CGPaymaster: {
-      address: "0x5FC8d32690cc91D4c39d9d3abcBD16989F875707",
+      address: "0xB7f8BC63BbcaD18155201308C8f3540b07f84F5e",
       abi: [
         {
           inputs: [
@@ -651,10 +651,10 @@ const deployedContracts = {
         renounceOwnership: "@openzeppelin/contracts/access/Ownable.sol",
         transferOwnership: "@openzeppelin/contracts/access/Ownable.sol",
       },
-      deployedOnBlock: 11,
+      deployedOnBlock: 21,
     },
     CGProgramFactory: {
-      address: "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512",
+      address: "0x2279B7A0a67DB372996a5FaB50D91eAA73d2eBe6",
       abi: [
         {
           inputs: [
@@ -875,10 +875,10 @@ const deployedContracts = {
         renounceOwnership: "@openzeppelin/contracts/access/Ownable.sol",
         transferOwnership: "@openzeppelin/contracts/access/Ownable.sol",
       },
-      deployedOnBlock: 3,
+      deployedOnBlock: 15,
     },
     CGRegistry: {
-      address: "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0",
+      address: "0x8A791620dd6260079BF849Dc5567aDC3F2FdC318",
       abi: [
         {
           inputs: [
@@ -893,7 +893,17 @@ const deployedContracts = {
         },
         {
           inputs: [],
+          name: "AlreadyOrganization",
+          type: "error",
+        },
+        {
+          inputs: [],
           name: "EmptyName",
+          type: "error",
+        },
+        {
+          inputs: [],
+          name: "NotOrganization",
           type: "error",
         },
         {
@@ -932,6 +942,19 @@ const deployedContracts = {
               name: "organization",
               type: "address",
             },
+          ],
+          name: "OrganizationAdded",
+          type: "event",
+        },
+        {
+          anonymous: false,
+          inputs: [
+            {
+              indexed: true,
+              internalType: "address",
+              name: "organization",
+              type: "address",
+            },
             {
               indexed: true,
               internalType: "address",
@@ -954,6 +977,19 @@ const deployedContracts = {
             {
               indexed: true,
               internalType: "address",
+              name: "organization",
+              type: "address",
+            },
+          ],
+          name: "OrganizationRemoved",
+          type: "event",
+        },
+        {
+          anonymous: false,
+          inputs: [
+            {
+              indexed: true,
+              internalType: "address",
               name: "previousOwner",
               type: "address",
             },
@@ -966,6 +1002,19 @@ const deployedContracts = {
           ],
           name: "OwnershipTransferred",
           type: "event",
+        },
+        {
+          inputs: [
+            {
+              internalType: "address",
+              name: "organization_",
+              type: "address",
+            },
+          ],
+          name: "addOrganization",
+          outputs: [],
+          stateMutability: "nonpayable",
+          type: "function",
         },
         {
           inputs: [
@@ -1093,6 +1142,19 @@ const deployedContracts = {
           type: "function",
         },
         {
+          inputs: [
+            {
+              internalType: "address",
+              name: "organization_",
+              type: "address",
+            },
+          ],
+          name: "removeOrganization",
+          outputs: [],
+          stateMutability: "nonpayable",
+          type: "function",
+        },
+        {
           inputs: [],
           name: "renounceOwnership",
           outputs: [],
@@ -1118,7 +1180,7 @@ const deployedContracts = {
         renounceOwnership: "@openzeppelin/contracts/access/Ownable.sol",
         transferOwnership: "@openzeppelin/contracts/access/Ownable.sol",
       },
-      deployedOnBlock: 5,
+      deployedOnBlock: 17,
     },
     MockEntryPoint: {
       address: "0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9",
@@ -1314,7 +1376,7 @@ const deployedContracts = {
       deployedOnBlock: 39853214,
     },
     CGPaymaster: {
-      address: "0x0e4914C6c2c7299dd1129800AcA5eB9df2ae896B",
+      address: "0xD18DB2D019eC38a2c6A974Bb04F6A3782b304D03",
       abi: [
         {
           inputs: [
@@ -1874,10 +1936,10 @@ const deployedContracts = {
         renounceOwnership: "@openzeppelin/contracts/access/Ownable.sol",
         transferOwnership: "@openzeppelin/contracts/access/Ownable.sol",
       },
-      deployedOnBlock: 39855078,
+      deployedOnBlock: 40434505,
     },
     CGProgramFactory: {
-      address: "0xdf32E8a18E850972D0995EEE1170b8Ea59Ba59fE",
+      address: "0x11024acB38FAafB88b3eD5A05C1A4376C87802D4",
       abi: [
         {
           inputs: [
@@ -2098,10 +2160,10 @@ const deployedContracts = {
         renounceOwnership: "@openzeppelin/contracts/access/Ownable.sol",
         transferOwnership: "@openzeppelin/contracts/access/Ownable.sol",
       },
-      deployedOnBlock: 39853216,
+      deployedOnBlock: 40434396,
     },
     CGRegistry: {
-      address: "0xE9440951e75CfF532Facac87A9914479C647e84C",
+      address: "0xc59613797d0F0cF146506a98f88f36f800a56053",
       abi: [
         {
           inputs: [
@@ -2116,7 +2178,17 @@ const deployedContracts = {
         },
         {
           inputs: [],
+          name: "AlreadyOrganization",
+          type: "error",
+        },
+        {
+          inputs: [],
           name: "EmptyName",
+          type: "error",
+        },
+        {
+          inputs: [],
+          name: "NotOrganization",
           type: "error",
         },
         {
@@ -2155,6 +2227,19 @@ const deployedContracts = {
               name: "organization",
               type: "address",
             },
+          ],
+          name: "OrganizationAdded",
+          type: "event",
+        },
+        {
+          anonymous: false,
+          inputs: [
+            {
+              indexed: true,
+              internalType: "address",
+              name: "organization",
+              type: "address",
+            },
             {
               indexed: true,
               internalType: "address",
@@ -2177,6 +2262,19 @@ const deployedContracts = {
             {
               indexed: true,
               internalType: "address",
+              name: "organization",
+              type: "address",
+            },
+          ],
+          name: "OrganizationRemoved",
+          type: "event",
+        },
+        {
+          anonymous: false,
+          inputs: [
+            {
+              indexed: true,
+              internalType: "address",
               name: "previousOwner",
               type: "address",
             },
@@ -2189,6 +2287,19 @@ const deployedContracts = {
           ],
           name: "OwnershipTransferred",
           type: "event",
+        },
+        {
+          inputs: [
+            {
+              internalType: "address",
+              name: "organization_",
+              type: "address",
+            },
+          ],
+          name: "addOrganization",
+          outputs: [],
+          stateMutability: "nonpayable",
+          type: "function",
         },
         {
           inputs: [
@@ -2316,6 +2427,19 @@ const deployedContracts = {
           type: "function",
         },
         {
+          inputs: [
+            {
+              internalType: "address",
+              name: "organization_",
+              type: "address",
+            },
+          ],
+          name: "removeOrganization",
+          outputs: [],
+          stateMutability: "nonpayable",
+          type: "function",
+        },
+        {
           inputs: [],
           name: "renounceOwnership",
           outputs: [],
@@ -2341,7 +2465,7 @@ const deployedContracts = {
         renounceOwnership: "@openzeppelin/contracts/access/Ownable.sol",
         transferOwnership: "@openzeppelin/contracts/access/Ownable.sol",
       },
-      deployedOnBlock: 39853217,
+      deployedOnBlock: 40434397,
     },
   },
 } as const;

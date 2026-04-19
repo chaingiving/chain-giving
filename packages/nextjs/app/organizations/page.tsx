@@ -5,14 +5,17 @@ import Link from "next/link";
 import { Address as AddressDisplay } from "@scaffold-ui/components";
 import { Address, isAddressEqual } from "viem";
 import { useAccount, useReadContract } from "wagmi";
+import { TrashIcon } from "@heroicons/react/24/outline";
 import { AddressInputWithQr } from "~~/components/AddressInputWithQr";
 import { cgOrganizationAbi } from "~~/contracts/cgOrganizationAbi";
 import { useScaffoldReadContract, useScaffoldWriteContract } from "~~/hooks/scaffold-eth";
 
 const PAGE_SIZE = 10;
 
-const OrgCard = ({ address }: { address: Address }) => {
+const OrgCard = ({ address, canRemove }: { address: Address; canRemove: boolean }) => {
   const { address: connectedAddress } = useAccount();
+  const { writeContractAsync: writeRegistry } = useScaffoldWriteContract("CGRegistry");
+  const [isRemoving, setIsRemoving] = useState(false);
 
   const { data: name } = useReadContract({
     address,
@@ -37,10 +40,36 @@ const OrgCard = ({ address }: { address: Address }) => {
 
   const isOwner = connectedAddress && owner ? isAddressEqual(connectedAddress, owner) : false;
 
+  const handleRemove = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!window.confirm(`Remove organization "${name ?? address}" from the registry?`)) return;
+    setIsRemoving(true);
+    try {
+      await writeRegistry({ functionName: "removeOrganization", args: [address] });
+    } catch (err) {
+      console.error("Failed to remove organization:", err);
+    } finally {
+      setIsRemoving(false);
+    }
+  };
+
   return (
     <Link href={`/organization/${address}`} className="card bg-base-100 shadow-md hover:shadow-lg transition-shadow">
       <div className="card-body p-4">
-        <h3 className="card-title text-lg">{name || "Loading..."}</h3>
+        <div className="flex items-start justify-between gap-2">
+          <h3 className="card-title text-lg">{name || "Loading..."}</h3>
+          {canRemove && (
+            <button
+              className="btn btn-ghost btn-xs text-error"
+              onClick={handleRemove}
+              disabled={isRemoving}
+              aria-label="Remove organization"
+            >
+              {isRemoving ? <span className="loading loading-spinner loading-xs" /> : <TrashIcon className="h-4 w-4" />}
+            </button>
+          )}
+        </div>
         <div className="flex items-center gap-2 text-sm opacity-70">
           <span>Address:</span>
           <AddressDisplay address={address} size="sm" />
@@ -139,7 +168,7 @@ const OrganizationsPage = () => {
       ) : (
         <>
           <div className="grid gap-4 sm:grid-cols-2">
-            {orgAddresses?.map((addr: string) => <OrgCard key={addr} address={addr} />)}
+            {orgAddresses?.map((addr: string) => <OrgCard key={addr} address={addr} canRemove={isRegistryOwner} />)}
           </div>
 
           {totalPages > 1 && (

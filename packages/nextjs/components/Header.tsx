@@ -34,7 +34,7 @@ export const menuLinks: HeaderMenuLink[] = [
     icon: <GiftIcon className="h-4 w-4" />,
   },
   {
-    label: "Debug Contracts",
+    label: "Debug",
     href: "/debug",
     icon: <BugAntIcon className="h-4 w-4" />,
   },
@@ -107,7 +107,7 @@ export const Header = () => {
           >
             <HeaderMenuLinks />
             <li className="mt-2 border-t border-base-300 pt-2">
-              <SwitchTheme />
+              <SwitchTheme className="!justify-start px-3" />
             </li>
           </ul>
         </details>

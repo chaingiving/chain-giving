@@ -1,6 +1,6 @@
+import { wagmiConnectors } from "./wagmiConnectors";
 import { WagmiAdapter } from "@reown/appkit-adapter-wagmi";
 import { createAppKit } from "@reown/appkit/react";
-import { wagmiConnectors } from "./wagmiConnectors";
 import { Chain, fallback, http } from "viem";
 import { mainnet } from "viem/chains";
 import scaffoldConfig, { DEFAULT_ALCHEMY_API_KEY, ScaffoldConfig } from "~~/scaffold.config";
@@ -49,11 +49,13 @@ createAppKit({
   adapters: [wagmiAdapter],
   projectId: scaffoldConfig.walletConnectProjectId,
   networks: enabledChains as any,
+  /* Note Features are overwritten by those set on dashboard.reown.com
   features: {
     email: true,
     socials: ["google", "apple", "github", "discord", "facebook"],
     emailShowWallets: false,
   },
+  */
 });
 
 export const wagmiConfig = wagmiAdapter.wagmiConfig;

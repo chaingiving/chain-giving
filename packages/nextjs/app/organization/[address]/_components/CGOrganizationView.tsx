@@ -4,10 +4,10 @@ import { useState } from "react";
 import Link from "next/link";
 import { Address as AddressDisplay, EtherInput } from "@scaffold-ui/components";
 import { Address, isAddressEqual, parseEther } from "viem";
-import { useAccount, useReadContract } from "wagmi";
-import { OrgGasSponsorshipBadge } from "~~/components/OrgGasSponsorshipBadge";
+import { useAccount, useReadContract, useReadContracts } from "wagmi";
 import { ProgramCard } from "~~/components/ProgramCard";
 import { cgOrganizationAbi } from "~~/contracts/cgOrganizationAbi";
+import { cgProgramAbi } from "~~/contracts/cgProgramAbi";
 import { useScaffoldReadContract, useScaffoldWriteContract } from "~~/hooks/scaffold-eth";
 import { useOrgGasSponsorship } from "~~/hooks/useOrgGasSponsorship";
 import { useSponsoredWrite } from "~~/hooks/useSponsoredWrite";
@@ -18,6 +18,7 @@ export const CGOrganizationView = ({ address }: { address: Address }) => {
   const [lockDistributions, setLockDistributions] = useState(false);
   const [depositAmount, setDepositAmount] = useState("");
   const [depositKey, setDepositKey] = useState(0);
+  const [sponsorshipOpen, setSponsorshipOpen] = useState(false);
 
   const { data: name } = useReadContract({
     address,
@@ -47,6 +48,26 @@ export const CGOrganizationView = ({ address }: { address: Address }) => {
     args: [0n, BigInt(100)],
     query: { refetchInterval: 5000 },
   });
+
+  const { data: programStates } = useReadContracts({
+    contracts: (programAddresses ?? []).map(addr => ({
+      address: addr,
+      abi: cgProgramAbi,
+      functionName: "state" as const,
+    })),
+    query: { enabled: !!programAddresses?.length, refetchInterval: 10000 },
+  });
+
+  const programCounts = programStates?.reduce(
+    (acc, r) => {
+      if (r.status !== "success") return acc;
+      const s = Number(r.result);
+      if (s === 0 || s === 1) acc.active++;
+      if (s === 2) acc.completed++;
+      return acc;
+    },
+    { active: 0, completed: 0 },
+  );
 
   // Sponsored writes for org operations (e.g., createProgram)
   const { write: sponsoredWrite, isSponsorshipAvailable } = useSponsoredWrite(address);
@@ -108,43 +129,41 @@ export const CGOrganizationView = ({ address }: { address: Address }) => {
           <span>Owner:</span>
           <AddressDisplay address={owner} size="sm" />
           {isOwner && <span className="badge badge-info badge-sm">You</span>}
-          <OrgGasSponsorshipBadge orgAddress={address} />
         </div>
-        <p className="text-sm opacity-60 mt-1">
-          {programCount?.toString() ?? "0"} {programCount === 1n ? "program" : "programs"}
-        </p>
-      </div>
-
-      {canManageSponsorship && (
-        <div className="card bg-base-200 shadow-md border border-base-300 mb-8">
-          <div className="card-body p-6">
-            <h2 className="card-title text-lg">Fund Gas Sponsorship</h2>
-            <p className="text-sm opacity-70">
-              Deposit ETH to sponsor gas for users interacting with this organization&apos;s programs.
+        <div className="text-sm opacity-60 mt-1">
+          Programs: {programCount?.toString() ?? "0"}
+          {programCounts && ` (${programCounts.completed} completed, ${programCounts.active} active)`}
+        </div>
+        {canManageSponsorship && (
+          <div className="mt-1">
+            <div className="flex items-center gap-2 text-sm">
+              <span className="opacity-70">Gas Sponsorship Balance:</span>
               {sponsorshipLoading ? (
-                <span className="loading loading-dots loading-xs ml-1" />
+                <span className="loading loading-dots loading-xs" />
               ) : (
-                <span className="font-medium"> Current balance: {orgBalanceFormatted ?? "0"} ETH</span>
+                <span className="font-medium">{orgBalanceFormatted ?? "0"} ETH</span>
               )}
-            </p>
-            <div className="flex gap-2 items-end">
-              <div className="grow">
-                <label className="label">
-                  <span className="label-text">Amount to deposit</span>
-                </label>
-                <EtherInput key={depositKey} onValueChange={({ valueInEth }) => setDepositAmount(valueInEth)} />
-              </div>
-              <button
-                className="btn btn-primary btn-sm"
-                onClick={handleDeposit}
-                disabled={!depositAmount || isDepositing}
-              >
-                {isDepositing ? <span className="loading loading-spinner loading-xs" /> : "Deposit"}
+              <button className="btn btn-secondary btn-xs" onClick={() => setSponsorshipOpen(o => !o)}>
+                {sponsorshipOpen ? "Hide" : "Deposit"}
               </button>
             </div>
+            {sponsorshipOpen && (
+              <div className="flex gap-2 items-end mt-2">
+                <div className="grow">
+                  <EtherInput key={depositKey} onValueChange={({ valueInEth }) => setDepositAmount(valueInEth)} />
+                </div>
+                <button
+                  className="btn btn-primary btn-sm"
+                  onClick={handleDeposit}
+                  disabled={!depositAmount || isDepositing}
+                >
+                  {isDepositing ? <span className="loading loading-spinner loading-xs" /> : "Deposit"}
+                </button>
+              </div>
+            )}
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       {isOwner && (
         <div className="card bg-base-200 shadow-md border border-base-300 mb-8">

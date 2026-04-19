@@ -8,7 +8,7 @@ const titleTemplate = "%s | Chain.Giving";
 export const getMetadata = ({
   title,
   description,
-  imageRelativePath = "/chain_giving_header.png",
+  imageRelativePath = "/logo.svg",
 }: {
   title: string;
   description: string;

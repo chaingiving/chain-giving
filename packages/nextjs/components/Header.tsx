@@ -6,7 +6,14 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { hardhat } from "viem/chains";
 import { useAccount } from "wagmi";
-import { Bars3Icon, BugAntIcon, BuildingOfficeIcon, GiftIcon, WalletIcon } from "@heroicons/react/24/outline";
+import {
+  Bars3Icon,
+  BugAntIcon,
+  BuildingOfficeIcon,
+  GiftIcon,
+  InformationCircleIcon,
+  WalletIcon,
+} from "@heroicons/react/24/outline";
 import { EmbeddedWalletButton } from "~~/components/PasskeyConnectButton";
 import { SwitchTheme } from "~~/components/SwitchTheme";
 import { FaucetButton, RainbowKitCustomConnectButton } from "~~/components/scaffold-eth";
@@ -55,6 +62,11 @@ export const HeaderMenuLinks = () => {
           },
         ]
       : []),
+    {
+      label: "About Us",
+      href: "https://chain.giving",
+      icon: <InformationCircleIcon className="h-4 w-4" />,
+    },
   ];
 
   return (
@@ -125,8 +137,8 @@ export const Header = () => {
         </ul>
       </div>
       <div className="navbar-end grow mr-4 gap-2">
-        <EmbeddedWalletButton />
-        <RainbowKitCustomConnectButton />
+        <EmbeddedWalletButton hideOnHome />
+        <RainbowKitCustomConnectButton hideOnHome />
         {isLocalNetwork && <FaucetButton />}
         <div className="hidden lg:flex">
           <SwitchTheme />

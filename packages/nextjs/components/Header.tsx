@@ -8,6 +8,7 @@ import { hardhat } from "viem/chains";
 import { useAccount } from "wagmi";
 import { Bars3Icon, BugAntIcon, BuildingOfficeIcon, GiftIcon, WalletIcon } from "@heroicons/react/24/outline";
 import { EmbeddedWalletButton } from "~~/components/PasskeyConnectButton";
+import { SwitchTheme } from "~~/components/SwitchTheme";
 import { FaucetButton, RainbowKitCustomConnectButton } from "~~/components/scaffold-eth";
 import { useOutsideClick, useTargetNetwork } from "~~/hooks/scaffold-eth";
 
@@ -105,6 +106,9 @@ export const Header = () => {
             }}
           >
             <HeaderMenuLinks />
+            <li className="mt-2 border-t border-base-300 pt-2">
+              <SwitchTheme />
+            </li>
           </ul>
         </details>
         <Link href="/" passHref className="hidden lg:flex items-center gap-2 ml-4 mr-6 shrink-0">
@@ -124,6 +128,9 @@ export const Header = () => {
         <EmbeddedWalletButton />
         <RainbowKitCustomConnectButton />
         {isLocalNetwork && <FaucetButton />}
+        <div className="hidden lg:flex">
+          <SwitchTheme />
+        </div>
       </div>
     </div>
   );

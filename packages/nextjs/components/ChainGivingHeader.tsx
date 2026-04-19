@@ -6,7 +6,7 @@ type Props = {
 
 export const ChainGivingHeader = ({ className }: Props) => (
   <div
-    className={`cg-root flex items-center justify-center gap-3 select-none leading-none ${className ?? ""}`}
+    className={`cg-root flex items-center justify-center gap-1 select-none leading-none ${className ?? ""}`}
     style={{
       fontFamily:
         'ui-rounded, "SF Pro Rounded", "Hiragino Maru Gothic ProN", Quicksand, Manjari, "Arial Rounded MT", "Arial Rounded MT Bold", Calibri, source-sans-pro, sans-serif',
@@ -42,7 +42,7 @@ export const ChainGivingHeader = ({ className }: Props) => (
           cg-pulse 2.8s ease-in-out 0.9s infinite;
       }
       @keyframes cg-pop { from { opacity: 0; transform: scale(0.3) rotate(-15deg); } to { opacity: 1; transform: scale(1) rotate(0deg); } }
-      @keyframes cg-pulse { 0%, 60%, 100% { transform: scale(1); } 30% { transform: scale(1.08); } }
+      @keyframes cg-pulse { 0%, 60%, 100% { transform: scale(1); } 30% { transform: scale(1.25); } }
       @media (prefers-reduced-motion: reduce) { .cg-word, .cg-icon { animation: none; opacity: 1; transform: none; } }
     `}</style>
   </div>

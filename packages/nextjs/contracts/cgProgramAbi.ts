@@ -2,7 +2,6 @@ export const cgProgramAbi = [
   // ── Errors ──────────────────────────────────────────────────────────────
   { inputs: [], name: "ContributionsExist", type: "error" },
   { inputs: [], name: "CrowdfundingAlreadySet", type: "error" },
-  { inputs: [], name: "CrowdfundingNotFunded", type: "error" },
   { inputs: [{ name: "index", type: "uint256" }], name: "DistributionAlreadyDistributed", type: "error" },
   { inputs: [{ name: "index", type: "uint256" }], name: "DistributionNotReady", type: "error" },
   { inputs: [], name: "DistributionsLocked", type: "error" },
@@ -24,7 +23,10 @@ export const cgProgramAbi = [
   // ── Events ──────────────────────────────────────────────────────────────
   {
     anonymous: false,
-    inputs: [{ indexed: false, name: "crowdfunding", type: "address" }],
+    inputs: [
+      { indexed: false, name: "crowdfunding", type: "address" },
+      { indexed: false, name: "currency", type: "address" },
+    ],
     name: "CrowdfundingSet",
     type: "event",
   },
@@ -95,7 +97,26 @@ export const cgProgramAbi = [
     type: "function",
   },
   { inputs: [], name: "cancel", outputs: [], stateMutability: "nonpayable", type: "function" },
-  { inputs: [], name: "contribute", outputs: [], stateMutability: "payable", type: "function" },
+  {
+    inputs: [{ name: "amount", type: "uint256" }],
+    name: "donate",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [
+      { name: "amount", type: "uint256" },
+      { name: "permitDeadline", type: "uint256" },
+      { name: "v", type: "uint8" },
+      { name: "r", type: "bytes32" },
+      { name: "s", type: "bytes32" },
+    ],
+    name: "donateWithPermit",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
   {
     inputs: [{ name: "tokenId_", type: "uint256" }],
     name: "createDistribution",
@@ -145,6 +166,23 @@ export const cgProgramAbi = [
   { inputs: [], name: "renounceOwnership", outputs: [], stateMutability: "nonpayable", type: "function" },
   {
     inputs: [
+      { name: "to", type: "address" },
+      { name: "amount", type: "uint256" },
+    ],
+    name: "returnUntracked",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [{ name: "to", type: "address" }],
+    name: "sweepUntracked",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [
       { name: "distributionIndex", type: "uint256" },
       { name: "beneficiaries_", type: "address[]" },
       { name: "amounts_", type: "uint256[]" },
@@ -156,6 +194,7 @@ export const cgProgramAbi = [
   },
   {
     inputs: [
+      { name: "currency_", type: "address" },
       { name: "target_", type: "uint256" },
       { name: "deadline_", type: "uint256" },
     ],
@@ -222,10 +261,13 @@ export const cgProgramAbi = [
       {
         components: [
           { name: "addr", type: "address" },
+          { name: "currency", type: "address" },
           { name: "fundingTarget", type: "uint256" },
           { name: "deadline", type: "uint256" },
           { name: "state", type: "uint8" },
           { name: "totalRaised", type: "uint256" },
+          { name: "totalTracked", type: "uint256" },
+          { name: "isFunded", type: "bool" },
         ],
         name: "info",
         type: "tuple",

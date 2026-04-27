@@ -1,17 +1,19 @@
 "use client";
 
 import { useState } from "react";
-import { Address as AddressDisplay, Balance, EtherInput } from "@scaffold-ui/components";
-import { Address, formatEther, isAddress, isAddressEqual, parseEther, zeroAddress } from "viem";
-import { useAccount, useReadContract } from "wagmi";
+import { Address as AddressDisplay, Balance } from "@scaffold-ui/components";
+import { Address, erc20Abi, formatUnits, isAddress, isAddressEqual, parseUnits, zeroAddress } from "viem";
+import { useAccount, usePublicClient, useReadContract, useWriteContract } from "wagmi";
 import { TrashIcon } from "@heroicons/react/24/outline";
 import { AddressInputWithQr } from "~~/components/AddressInputWithQr";
+import { CurrencyLogo } from "~~/components/CurrencyLogo";
 import { OrgGasSponsorshipBadge } from "~~/components/OrgGasSponsorshipBadge";
 import { cgProgramAbi } from "~~/contracts/cgProgramAbi";
+import { DonationCurrency, findCurrency, getDonationCurrencies } from "~~/contracts/donationCurrencies";
 import { useBlockExplorerLink } from "~~/hooks/scaffold-eth";
 import { useProgramOrganization } from "~~/hooks/useProgramOrganization";
 import { useSponsoredWrite } from "~~/hooks/useSponsoredWrite";
-import { notification } from "~~/utils/scaffold-eth";
+import { getParsedError, notification } from "~~/utils/scaffold-eth";
 
 const cgCrowdfundingAbi = [
   {
@@ -26,7 +28,7 @@ const cgCrowdfundingAbi = [
 ] as const;
 
 const PROGRAM_STATES = ["Active", "Executing", "Completed", "Cancelled"] as const;
-const CROWDFUNDING_STATES = ["Unfunded", "Funded", "Withdrawn", "Cancelled"] as const;
+const CROWDFUNDING_STATES = ["Active", "Withdrawn", "Cancelled"] as const;
 const DISTRIBUTION_STATES = ["Draft", "Ready", "Distributed"] as const;
 
 const STATE_COLORS: Record<string, string> = {
@@ -34,8 +36,6 @@ const STATE_COLORS: Record<string, string> = {
   Executing: "badge-warning",
   Completed: "badge-info",
   Cancelled: "badge-error",
-  Unfunded: "badge-warning",
-  Funded: "badge-success",
   Withdrawn: "badge-info",
   Draft: "badge-ghost",
   Ready: "badge-success",
@@ -55,10 +55,13 @@ type TokenTypeInfo = {
 
 type CrowdfundingInfo = {
   addr: Address;
+  currency: Address;
   fundingTarget: bigint;
   deadline: bigint;
   state: number;
   totalRaised: bigint;
+  totalTracked: bigint;
+  isFunded: boolean;
 };
 
 type DistributionInfo = {
@@ -161,7 +164,7 @@ export const CGProgramView = ({ address }: { address: Address }) => {
   }
 
   return (
-    <div className="flex flex-col gap-6 px-4 py-8 max-w-5xl mx-auto">
+    <div className="flex flex-col gap-6 px-4 py-8 max-w-7xl mx-auto">
       <div className="card bg-base-100 shadow-xl">
         <div className="card-body">
           <ProgramSection
@@ -406,13 +409,18 @@ function CrowdfundingSection({
   connectedAddress: Address | undefined;
   orgAddress: Address | undefined;
 }) {
-  const [contributeAmount, setContributeAmount] = useState("");
+  const [donateAmount, setDonateAmount] = useState("");
   const [isPending, setIsPending] = useState(false);
+  const { chainId } = useAccount();
   const cfLink = useBlockExplorerLink(crowdfundingInfo?.addr);
   const { write: sponsoredWrite } = useSponsoredWrite(orgAddress);
+  const { writeContractAsync: writeToken } = useWriteContract();
 
   const cfAddr = crowdfundingInfo?.addr;
   const isValidCf = cfAddr && !isAddressEqual(cfAddr, zeroAddress);
+  const currency = findCurrency(chainId, crowdfundingInfo?.currency);
+  const symbol = currency?.symbol ?? "tokens";
+  const decimals = currency?.decimals ?? 18;
 
   const { data: userContribution, refetch: refetchUserContribution } = useReadContract({
     address: isValidCf ? cfAddr : undefined,
@@ -420,6 +428,17 @@ function CrowdfundingSection({
     functionName: "contributions",
     args: connectedAddress ? [connectedAddress] : undefined,
     query: { enabled: !!isValidCf && !!connectedAddress, refetchInterval: 5000 },
+  });
+
+  const { data: allowance, refetch: refetchAllowance } = useReadContract({
+    address: crowdfundingInfo?.currency,
+    abi: erc20Abi,
+    functionName: "allowance",
+    args: connectedAddress ? [connectedAddress, programAddress] : undefined,
+    query: {
+      enabled: !!crowdfundingInfo?.currency && !!connectedAddress && !!currency,
+      refetchInterval: 5000,
+    },
   });
 
   const writeCf = async (functionName: "cancelContribution" | "refund") => {
@@ -451,25 +470,66 @@ function CrowdfundingSection({
 
   const cfState = CROWDFUNDING_STATES[crowdfundingInfo.state] ?? "Unknown";
   const deadline = new Date(Number(crowdfundingInfo.deadline) * 1000);
+  const isCfActive = crowdfundingInfo.state === 0;
+  const isCfCancelled = crowdfundingInfo.state === 2;
+  // totalRaised on the contract returns the live balance while ACTIVE and the frozen amount
+  // after WITHDRAWN, so we can use it directly here.
+  const directTransfers =
+    crowdfundingInfo.totalRaised > crowdfundingInfo.totalTracked
+      ? crowdfundingInfo.totalRaised - crowdfundingInfo.totalTracked
+      : 0n;
   const progress =
     crowdfundingInfo.fundingTarget > 0n
       ? Number((crowdfundingInfo.totalRaised * 10000n) / crowdfundingInfo.fundingTarget) / 100
       : 0;
 
   const allDistributionsReady = distributions.length > 0 && distributions.every(d => d.state === 1);
-  const contributeLocked = lockDistributions && !allDistributionsReady;
+  const donateLocked = lockDistributions && !allDistributionsReady;
+  const unknownCurrency = !currency;
 
-  const handleContribute = async () => {
-    if (!contributeAmount || isPending) return;
+  const handleDonate = async () => {
+    if (!donateAmount || isPending || !currency) return;
+    let amountWei: bigint;
+    try {
+      amountWei = parseUnits(donateAmount, decimals);
+    } catch {
+      notification.error("Invalid amount");
+      return;
+    }
+    if (amountWei <= 0n) {
+      notification.error("Amount must be positive");
+      return;
+    }
+
     setIsPending(true);
     try {
+      const currentAllowance = (allowance as bigint | undefined) ?? 0n;
+      if (currentAllowance < amountWei) {
+        try {
+          await writeToken({
+            address: currency.address,
+            abi: erc20Abi,
+            functionName: "approve",
+            args: [programAddress, amountWei],
+          });
+          await refetchAllowance();
+        } catch (e) {
+          notification.error(getParsedError(e));
+          return;
+        }
+      }
+
       const success = await sponsoredWrite({
         address: programAddress,
         abi: cgProgramAbi,
-        functionName: "contribute",
-        value: parseEther(contributeAmount),
+        functionName: "donate",
+        args: [amountWei],
       });
-      if (success) setContributeAmount("");
+      if (success) {
+        setDonateAmount("");
+        refetchUserContribution();
+        refetchAllowance();
+      }
     } finally {
       setIsPending(false);
     }
@@ -482,19 +542,34 @@ function CrowdfundingSection({
         <span className={`badge ${STATE_COLORS[cfState]}`}>{cfState}</span>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
-        <div>
+        <div className="min-w-0">
           <p className="text-sm opacity-60">Contract Address</p>
           <AddressDisplay address={crowdfundingInfo.addr} blockExplorerAddressLink={cfLink} />
         </div>
-        <div>
+        <div className="min-w-0">
+          <p className="text-sm opacity-60 flex items-center gap-1.5">
+            <CurrencyLogo currency={currency} /> Currency ({symbol})
+          </p>
+          <AddressDisplay address={crowdfundingInfo.currency} />
+        </div>
+        <div className="min-w-0">
           <p className="text-sm opacity-60">Funding Target</p>
-          <p className="font-mono">{formatEther(crowdfundingInfo.fundingTarget)} ETH</p>
+          <p className="font-mono flex items-center gap-1.5">
+            {formatUnits(crowdfundingInfo.fundingTarget, decimals)} <CurrencyLogo currency={currency} /> {symbol}
+          </p>
         </div>
-        <div>
+        <div className="min-w-0">
           <p className="text-sm opacity-60">Total Raised</p>
-          <p className="font-mono">{formatEther(crowdfundingInfo.totalRaised)} ETH</p>
+          <p className="font-mono flex items-center gap-1.5">
+            {formatUnits(crowdfundingInfo.totalRaised, decimals)} <CurrencyLogo currency={currency} /> {symbol}
+          </p>
+          {isCfActive && directTransfers > 0n && (
+            <p className="text-xs opacity-60 flex items-center gap-1.5">
+              Including {formatUnits(directTransfers, decimals)} in Direct Transfers
+            </p>
+          )}
         </div>
-        <div>
+        <div className="min-w-0">
           <p className="text-sm opacity-60">Deadline</p>
           <p className="font-mono">{deadline.toLocaleString()}</p>
         </div>
@@ -503,7 +578,7 @@ function CrowdfundingSection({
       <div className="mt-4">
         <div className="flex justify-between text-sm mb-1">
           <span>Progress</span>
-          <span>{Math.min(progress, 100).toFixed(1)}%</span>
+          <span>{progress.toFixed(1)}%</span>
         </div>
         <progress className="progress progress-primary w-full" value={Math.min(progress, 100)} max="100" />
       </div>
@@ -513,10 +588,12 @@ function CrowdfundingSection({
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <p className="text-xs font-semibold uppercase tracking-wide opacity-60 mb-0.5">Your contribution</p>
-              <p className="text-2xl font-bold font-mono">{formatEther(userContribution)} ETH</p>
+              <p className="text-2xl font-bold font-mono flex items-center gap-2">
+                {formatUnits(userContribution, decimals)} <CurrencyLogo currency={currency} size={22} /> {symbol}
+              </p>
             </div>
             <div className="flex gap-2">
-              {crowdfundingInfo.state === 0 && (
+              {isCfActive && (
                 <button
                   className="btn btn-sm btn-outline btn-error"
                   disabled={isPending}
@@ -525,7 +602,7 @@ function CrowdfundingSection({
                   {isPending ? <span className="loading loading-spinner loading-xs" /> : "Cancel contribution"}
                 </button>
               )}
-              {crowdfundingInfo.state === 3 && (
+              {isCfCancelled && (
                 <button className="btn btn-sm btn-warning" disabled={isPending} onClick={() => writeCf("refund")}>
                   {isPending ? <span className="loading loading-spinner loading-xs" /> : "Claim refund"}
                 </button>
@@ -535,36 +612,216 @@ function CrowdfundingSection({
         </div>
       )}
 
-      {crowdfundingInfo.state === 3 && connectedAddress && userContribution === 0n && (
+      {isCfCancelled && connectedAddress && userContribution === 0n && (
         <div className="mt-4 p-3 rounded-xl bg-base-200 border border-base-300 text-sm opacity-60 text-center">
           This program was cancelled. You have no contribution to refund.
         </div>
       )}
 
-      {crowdfundingInfo.state === 0 && (
+      <DirectTransfersPanel
+        crowdfundingInfo={crowdfundingInfo}
+        programAddress={programAddress}
+        isOwner={isOwner}
+        currency={currency}
+        symbol={symbol}
+        decimals={decimals}
+        orgAddress={orgAddress}
+      />
+
+      {isCfActive && (
         <div className="mt-4">
-          {contributeLocked && (
+          {donateLocked && (
             <div role="alert" className="alert alert-warning mb-3 py-2 text-sm">
               <WarningIcon />
               <span>
-                Contributions are locked until all distributions are defined and marked as &quot;Ready&quot; by the
-                program owner.
+                Donations are locked until all distributions are defined and marked as &quot;Ready&quot; by the program
+                owner.
               </span>
+            </div>
+          )}
+          {unknownCurrency && (
+            <div role="alert" className="alert alert-warning mb-3 py-2 text-sm">
+              <WarningIcon />
+              <span>Donation currency is not in the recognized list for this network. Donations are disabled.</span>
             </div>
           )}
           <div className="flex gap-2 items-end">
             <div className="grow">
               <label className="label">
-                <span className="label-text">Contribute ETH</span>
+                <span className="label-text flex items-center gap-1.5">
+                  Donate <CurrencyLogo currency={currency} /> {symbol}
+                </span>
               </label>
-              <EtherInput onValueChange={({ valueInEth }) => setContributeAmount(valueInEth)} />
+              <input
+                type="number"
+                className="input input-bordered w-full"
+                value={donateAmount}
+                onChange={e => setDonateAmount(e.target.value)}
+                placeholder="0.00"
+                min="0"
+                step="any"
+                disabled={unknownCurrency}
+              />
             </div>
             <button
               className="btn btn-primary"
-              onClick={handleContribute}
-              disabled={!contributeAmount || !!contributeLocked || isPending}
+              onClick={handleDonate}
+              disabled={!donateAmount || donateLocked || isPending || unknownCurrency}
             >
-              {isPending ? <span className="loading loading-spinner loading-xs" /> : "Contribute"}
+              {isPending ? <span className="loading loading-spinner loading-xs" /> : "Donate"}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DirectTransfersPanel({
+  crowdfundingInfo,
+  programAddress,
+  isOwner,
+  currency,
+  symbol,
+  decimals,
+  orgAddress,
+}: {
+  crowdfundingInfo: CrowdfundingInfo;
+  programAddress: Address;
+  isOwner: boolean;
+  currency: DonationCurrency | undefined;
+  symbol: string;
+  decimals: number;
+  orgAddress: Address | undefined;
+}) {
+  const [returnTo, setReturnTo] = useState("");
+  const [returnAmount, setReturnAmount] = useState("");
+  const [sweepTo, setSweepTo] = useState("");
+  const [isPending, setIsPending] = useState(false);
+  const { write: sponsoredWrite } = useSponsoredWrite(orgAddress);
+
+  const { data: cfBalance, refetch: refetchBalance } = useReadContract({
+    address: crowdfundingInfo.currency,
+    abi: erc20Abi,
+    functionName: "balanceOf",
+    args: [crowdfundingInfo.addr],
+    query: { refetchInterval: 5000 },
+  });
+
+  const balance = (cfBalance as bigint | undefined) ?? 0n;
+  const directTransfers = balance > crowdfundingInfo.totalTracked ? balance - crowdfundingInfo.totalTracked : 0n;
+  const isCancelled = crowdfundingInfo.state === 2;
+  const canSweep = isCancelled && directTransfers > 0n;
+  const sweepable = canSweep ? directTransfers : 0n;
+
+  // Owner-only panel; non-owners see the direct-transfer total inline in the Crowdfunding card.
+  if (!isOwner) return null;
+  if (directTransfers === 0n) return null;
+
+  const handleReturn = async () => {
+    if (isPending) return;
+    if (!isAddress(returnTo)) {
+      notification.error("Invalid recipient address");
+      return;
+    }
+    let amount: bigint;
+    try {
+      amount = parseUnits(returnAmount, decimals);
+    } catch {
+      notification.error("Invalid amount");
+      return;
+    }
+    if (amount <= 0n || amount > directTransfers) {
+      notification.error(`Amount must be between 0 and ${formatUnits(directTransfers, decimals)} ${symbol}`);
+      return;
+    }
+    setIsPending(true);
+    try {
+      const success = await sponsoredWrite({
+        address: programAddress,
+        abi: cgProgramAbi,
+        functionName: "returnUntracked",
+        args: [returnTo as Address, amount],
+      });
+      if (success) {
+        setReturnTo("");
+        setReturnAmount("");
+        refetchBalance();
+      }
+    } finally {
+      setIsPending(false);
+    }
+  };
+
+  const handleSweep = async () => {
+    if (isPending) return;
+    if (!isAddress(sweepTo)) {
+      notification.error("Invalid recipient address");
+      return;
+    }
+    setIsPending(true);
+    try {
+      const success = await sponsoredWrite({
+        address: programAddress,
+        abi: cgProgramAbi,
+        functionName: "sweepUntracked",
+        args: [sweepTo as Address],
+      });
+      if (success) {
+        setSweepTo("");
+        refetchBalance();
+      }
+    } finally {
+      setIsPending(false);
+    }
+  };
+
+  return (
+    <div className="mt-4 p-4 rounded-xl bg-base-200 border border-base-300 flex flex-col gap-3">
+      {directTransfers > 0n && (
+        <div className="flex flex-col">
+          <p className="text-sm font-medium">Refund direct transfers</p>
+          <p className="text-xs opacity-60">
+            Manually return direct transfers to a sender you identified off-chain. Limited to the direct-transfer
+            balance — tracked donations are always reserved for refunds.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-2">
+            <div className="grow">
+              <AddressInputWithQr value={returnTo} onChange={setReturnTo} placeholder="Recipient address" />
+            </div>
+            <input
+              type="number"
+              className="input input-bordered sm:w-40"
+              value={returnAmount}
+              onChange={e => setReturnAmount(e.target.value)}
+              placeholder={`Amount (${symbol})`}
+              min="0"
+              step="any"
+            />
+            <button
+              className="btn btn-secondary"
+              onClick={handleReturn}
+              disabled={isPending || !returnTo || !returnAmount}
+            >
+              Return
+            </button>
+          </div>
+        </div>
+      )}
+
+      {canSweep && (
+        <div className="flex flex-col gap-2 border-t border-base-300 pt-3">
+          <p className="text-sm font-medium">Sweep non-refundable balance</p>
+          <p className="text-xs opacity-60">
+            Crowdfunding is cancelled. {formatUnits(sweepable, decimals)} <CurrencyLogo currency={currency} size={12} />{" "}
+            {symbol} can be swept to a recovery address. The contract always reserves tracked balance for donor refunds.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-2">
+            <div className="grow">
+              <AddressInputWithQr value={sweepTo} onChange={setSweepTo} placeholder="Recovery address" />
+            </div>
+            <button className="btn btn-warning" onClick={handleSweep} disabled={isPending || !sweepTo}>
+              Sweep
             </button>
           </div>
         </div>
@@ -580,19 +837,61 @@ function SetCrowdfundingForm({
   programAddress: Address;
   orgAddress: Address | undefined;
 }) {
+  const { chainId } = useAccount();
+  const publicClient = usePublicClient();
+  const currencies = getDonationCurrencies(chainId);
+  const [currencyAddress, setCurrencyAddress] = useState<Address | "">(currencies[0]?.address ?? "");
   const [target, setTarget] = useState("");
   const [deadlineDays, setDeadlineDays] = useState("");
   const write = useCGProgramWrite(programAddress, orgAddress);
 
+  const selected: DonationCurrency | undefined = currencies.find(c => c.address === currencyAddress);
+
   const handleSet = async () => {
-    if (!target || !deadlineDays) return;
-    const deadlineTimestamp = BigInt(Math.floor(Date.now() / 1000) + Number(deadlineDays) * 86400);
-    const success = await write("setCrowdfunding", [parseEther(target), deadlineTimestamp]);
+    if (!target || !deadlineDays || !selected) return;
+    const days = Number(deadlineDays);
+    if (!Number.isFinite(days) || days <= 0) {
+      notification.error("Deadline must be at least 1 day");
+      return;
+    }
+    let amount: bigint;
+    try {
+      amount = parseUnits(target, selected.decimals);
+    } catch {
+      notification.error("Invalid target amount");
+      return;
+    }
+    if (amount <= 0n) {
+      notification.error("Target must be positive");
+      return;
+    }
+
+    // Use the chain's current block timestamp as the base — the local node's clock can drift
+    // from wall-clock after tests run `time.increaseTo`, which would make Date.now() too early.
+    let baseTs: bigint;
+    try {
+      const block = await publicClient!.getBlock();
+      baseTs = block.timestamp;
+    } catch {
+      baseTs = BigInt(Math.floor(Date.now() / 1000));
+    }
+    const deadlineTimestamp = baseTs + BigInt(Math.floor(days * 86400));
+    const success = await write("setCrowdfunding", [selected.address, amount, deadlineTimestamp]);
     if (success) {
       setTarget("");
       setDeadlineDays("");
     }
   };
+
+  if (currencies.length === 0) {
+    return (
+      <div className="mt-4 border-t border-base-300 pt-4">
+        <div role="alert" className="alert alert-warning text-sm">
+          <span>No donation currencies are configured for this network.</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="mt-4 border-t border-base-300 pt-4">
@@ -600,9 +899,35 @@ function SetCrowdfundingForm({
       <div className="flex flex-col sm:flex-row gap-2">
         <div className="grow">
           <label className="label">
-            <span className="label-text">Target (ETH)</span>
+            <span className="label-text">Currency</span>
           </label>
-          <EtherInput onValueChange={({ valueInEth }) => setTarget(valueInEth)} />
+          <select
+            className="select select-bordered w-full"
+            value={currencyAddress}
+            onChange={e => setCurrencyAddress(e.target.value as Address)}
+          >
+            {currencies.map(c => (
+              <option key={c.address} value={c.address}>
+                {c.symbol} — {c.name}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="grow">
+          <label className="label">
+            <span className="label-text flex items-center gap-1.5">
+              Target (<CurrencyLogo currency={selected} /> {selected?.symbol ?? ""})
+            </span>
+          </label>
+          <input
+            type="number"
+            className="input input-bordered w-full"
+            value={target}
+            onChange={e => setTarget(e.target.value)}
+            placeholder="1000"
+            min="0"
+            step="any"
+          />
         </div>
         <div className="grow">
           <label className="label">
@@ -617,7 +942,7 @@ function SetCrowdfundingForm({
           />
         </div>
         <div className="flex items-end">
-          <button className="btn btn-secondary" onClick={handleSet} disabled={!target || !deadlineDays}>
+          <button className="btn btn-secondary" onClick={handleSet} disabled={!target || !deadlineDays || !selected}>
             Set
           </button>
         </div>
@@ -1301,7 +1626,8 @@ function getExecuteDisabledReason(
   const hasCrowdfunding = crowdfundingInfo && !isAddressEqual(crowdfundingInfo.addr, zeroAddress);
   if (!hasCrowdfunding) return "No crowdfunding configured";
   if (distributions.length === 0) return "No distributions created";
-  if (crowdfundingInfo.state !== 1) return "Crowdfunding is not funded yet";
+  if (crowdfundingInfo.state !== 0) return "Crowdfunding is no longer active";
+  if (!crowdfundingInfo.isFunded) return "Crowdfunding has not reached its target yet";
 
   const notReadyIndex = distributions.findIndex(d => d.state !== 1);
   if (notReadyIndex !== -1) return `Distribution #${notReadyIndex} is not ready`;
@@ -1359,7 +1685,7 @@ function OwnerActions({
           className="tooltip tooltip-bottom"
           data-tip={
             canExecute
-              ? "Withdraw crowdfunded ETH to the owner and distribute tokens to all beneficiaries."
+              ? "Withdraw crowdfunded funds to the owner and distribute tokens to all beneficiaries."
               : executeDisabledReason
           }
         >

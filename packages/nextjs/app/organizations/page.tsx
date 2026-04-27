@@ -72,11 +72,11 @@ const OrgCard = ({ address, canRemove }: { address: Address; canRemove: boolean 
         </div>
         <div className="flex items-center gap-2 text-sm opacity-70">
           <span>Address:</span>
-          <AddressDisplay address={address} size="sm" />
+          <AddressDisplay address={address} size="sm" disableAddressLink />
         </div>
         <div className="flex items-center gap-2 text-sm opacity-70">
           <span>Owner:</span>
-          <AddressDisplay address={owner} size="sm" />
+          <AddressDisplay address={owner} size="sm" disableAddressLink />
           {isOwner && <span className="badge badge-info badge-sm">You</span>}
         </div>
         <div className="text-sm opacity-70">

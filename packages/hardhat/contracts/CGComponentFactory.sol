@@ -15,8 +15,13 @@ contract CGComponentFactory {
         return address(t);
     }
 
-    function createCrowdfunding(address owner_, uint256 target_, uint256 deadline_) external returns (address) {
-        CGCrowdfunding c = new CGCrowdfunding(owner_, target_, deadline_);
+    function createCrowdfunding(
+        address owner_,
+        address token_,
+        uint256 target_,
+        uint256 deadline_
+    ) external returns (address) {
+        CGCrowdfunding c = new CGCrowdfunding(owner_, token_, target_, deadline_);
         return address(c);
     }
 

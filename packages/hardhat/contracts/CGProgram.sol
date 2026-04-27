@@ -3,6 +3,9 @@ pragma solidity ^0.8.20;
 
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 import { IERC1155 } from "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { IERC20Permit } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Permit.sol";
+import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { CGToken } from "./CGToken.sol";
 import { CGCrowdfunding } from "./CGCrowdfunding.sol";
 import { CGDistribution } from "./CGDistribution.sol";
@@ -14,6 +17,8 @@ import { CGComponentFactory } from "./CGComponentFactory.sol";
 ///         Child contracts are deployed via external factories to keep bytecode under the
 ///         24 KB Spurious Dragon limit.
 contract CGProgram is Ownable {
+    using SafeERC20 for IERC20;
+
     enum State {
         ACTIVE,
         EXECUTING,
@@ -34,10 +39,13 @@ contract CGProgram is Ownable {
 
     struct CrowdfundingInfo {
         address addr;
+        address currency;
         uint256 fundingTarget;
         uint256 deadline;
         CGCrowdfunding.State state;
         uint256 totalRaised;
+        uint256 totalTracked;
+        bool isFunded;
     }
 
     struct DistributionInfo {
@@ -67,7 +75,7 @@ contract CGProgram is Ownable {
         bool transferable,
         bool burnable
     );
-    event CrowdfundingSet(address crowdfunding);
+    event CrowdfundingSet(address crowdfunding, address currency);
     event DistributionCreated(uint256 index, address distribution, uint256 tokenId);
     event DistributionDeleted(uint256 index, address distribution);
     event ProgramExecuted();
@@ -77,7 +85,6 @@ contract CGProgram is Ownable {
     error CrowdfundingAlreadySet();
     error NoCrowdfunding();
     error NoDistributions();
-    error CrowdfundingNotFunded();
     error DistributionNotReady(uint256 index);
     error DistributionsLocked();
     error ExceedsTotalSupply(uint256 tokenId, uint256 totalRequired, uint256 maxSupply);
@@ -101,12 +108,6 @@ contract CGProgram is Ownable {
     }
 
     /// @notice Define a new ERC-1155 token type on the program's token contract.
-    /// @param name_         Display name (e.g. "Food Voucher")
-    /// @param symbol_       Short symbol (e.g. "FOOD")
-    /// @param maxSupply_    0 = unlimited (fungible), 1 = unique NFT, N = capped (badges/tickets)
-    /// @param uri_          Optional per-type metadata URI
-    /// @param transferable_ Whether holders can transfer tokens
-    /// @param burnable_     Whether holders can burn tokens
     function defineTokenType(
         string calldata name_,
         string calldata symbol_,
@@ -120,17 +121,18 @@ contract CGProgram is Ownable {
         emit TokenTypeDefined(tokenId, name_, symbol_, maxSupply_, transferable_, burnable_);
     }
 
-    /// @notice Deploy and attach a CGCrowdfunding.
-    function setCrowdfunding(uint256 target_, uint256 deadline_) external onlyOwner {
+    /// @notice Deploy and attach a CGCrowdfunding for the given ERC-20 currency.
+    function setCrowdfunding(address currency_, uint256 target_, uint256 deadline_) external onlyOwner {
         if (state != State.ACTIVE) revert ProgramNotActive();
         if (address(crowdfunding) != address(0)) revert CrowdfundingAlreadySet();
 
-        crowdfunding = CGCrowdfunding(componentFactory.createCrowdfunding(address(this), target_, deadline_));
-        emit CrowdfundingSet(address(crowdfunding));
+        crowdfunding = CGCrowdfunding(
+            componentFactory.createCrowdfunding(address(this), currency_, target_, deadline_)
+        );
+        emit CrowdfundingSet(address(crowdfunding), currency_);
     }
 
     /// @notice Deploy a new CGDistribution for a specific token type.
-    /// @param tokenId_ The ERC-1155 token type to distribute (must be defined on the CGToken).
     function createDistribution(uint256 tokenId_) external onlyOwner returns (address) {
         if (state != State.ACTIVE) revert ProgramNotActive();
         if (lockDistributions && _crowdfundingHasContributions()) revert DistributionsLocked();
@@ -151,7 +153,6 @@ contract CGProgram is Ownable {
         return address(dist);
     }
 
-    /// @notice Proxy call to set beneficiaries on a distribution.
     function setBeneficiaries(
         uint256 distributionIndex,
         address[] calldata beneficiaries_,
@@ -165,7 +166,6 @@ contract CGProgram is Ownable {
         _validateSupplyCap(dist.tokenId());
     }
 
-    /// @notice Proxy call to append beneficiaries to a distribution.
     function addBeneficiaries(
         uint256 distributionIndex,
         address[] calldata beneficiaries_,
@@ -179,7 +179,6 @@ contract CGProgram is Ownable {
         _validateSupplyCap(dist.tokenId());
     }
 
-    /// @notice Proxy call to remove beneficiaries from a distribution.
     function removeBeneficiaries(uint256 distributionIndex, address[] calldata toRemove_) external onlyOwner {
         if (state != State.ACTIVE) revert ProgramNotActive();
         if (lockDistributions && _crowdfundingHasContributions()) revert DistributionsLocked();
@@ -187,8 +186,6 @@ contract CGProgram is Ownable {
         distributions[distributionIndex].removeBeneficiaries(toRemove_);
     }
 
-    /// @notice Permanently remove a distribution. DRAFT can always be deleted; READY requires no contributions.
-    ///         Uses swap-and-pop so the last distribution takes the deleted slot.
     function deleteDistribution(uint256 distributionIndex) external onlyOwner {
         if (state != State.ACTIVE) revert ProgramNotActive();
         CGDistribution.State distState = distributions[distributionIndex].state();
@@ -197,7 +194,6 @@ contract CGProgram is Ownable {
 
         address deleted = address(distributions[distributionIndex]);
 
-        // Revoke the distribution's ability to bypass soulbound restrictions
         token.setAuthorizedTransferrer(deleted, false);
 
         uint256 last = distributions.length - 1;
@@ -209,7 +205,6 @@ contract CGProgram is Ownable {
         emit DistributionDeleted(distributionIndex, deleted);
     }
 
-    /// @notice Mint ERC-1155 tokens to a distribution and mark it READY.
     function markDistributionReady(uint256 distributionIndex) external onlyOwner {
         if (state != State.ACTIVE) revert ProgramNotActive();
 
@@ -221,8 +216,35 @@ contract CGProgram is Ownable {
         dist.markReady();
     }
 
-    /// @notice Accept ETH contributions. Enforces the lock-distributions rule.
-    function contribute() external payable {
+    /// @notice Donate ERC-20 tokens through the program. Caller must approve the program for `amount`.
+    ///         Enforces lock-distributions gating.
+    function donate(uint256 amount) external {
+        _preDonateChecks();
+        IERC20 currency = crowdfunding.token();
+        currency.safeTransferFrom(msg.sender, address(this), amount);
+        currency.forceApprove(address(crowdfunding), amount);
+        crowdfunding.donateFor(msg.sender, amount);
+    }
+
+    /// @notice EIP-2612 permit + donate in one transaction. Donor signs a permit authorizing
+    ///         the PROGRAM (not the crowdfunding) to spend `amount`. Permit is wrapped in
+    ///         try/catch to defend against permit-front-running griefing.
+    function donateWithPermit(
+        uint256 amount,
+        uint256 permitDeadline,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    ) external {
+        _preDonateChecks();
+        IERC20 currency = crowdfunding.token();
+        try IERC20Permit(address(currency)).permit(msg.sender, address(this), amount, permitDeadline, v, r, s) {} catch {}
+        currency.safeTransferFrom(msg.sender, address(this), amount);
+        currency.forceApprove(address(crowdfunding), amount);
+        crowdfunding.donateFor(msg.sender, amount);
+    }
+
+    function _preDonateChecks() internal view {
         if (state != State.ACTIVE) revert ProgramNotActive();
         if (address(crowdfunding) == address(0)) revert NoCrowdfunding();
 
@@ -232,17 +254,15 @@ contract CGProgram is Ownable {
                 if (distributions[i].state() != CGDistribution.State.READY) revert DistributionNotReady(i);
             }
         }
-
-        crowdfunding.contributeFor{ value: msg.value }(msg.sender);
     }
 
     /// @notice Withdraw funds and distribute tokens — all in one transaction.
+    /// @dev    crowdfunding.withdraw() auto-syncs direct transfers and reverts with
+    ///         NotInState if the campaign is still under target after sync.
     function execute() external onlyOwner {
         if (state != State.ACTIVE) revert ProgramNotActive();
         if (address(crowdfunding) == address(0)) revert NoCrowdfunding();
         if (distributions.length == 0) revert NoDistributions();
-
-        if (crowdfunding.state() != CGCrowdfunding.State.FUNDED) revert CrowdfundingNotFunded();
 
         for (uint256 i = 0; i < distributions.length; i++) {
             if (distributions[i].state() != CGDistribution.State.READY) revert DistributionNotReady(i);
@@ -262,17 +282,26 @@ contract CGProgram is Ownable {
         emit ProgramExecuted();
     }
 
-    /// @notice Cancel program and crowdfunding.
+    /// @notice Owner-only wrapper around crowdfunding.returnUntracked(to, amount).
+    ///         Lets the program owner refund stray direct transfers identified off-chain.
+    function returnUntracked(address to, uint256 amount) external onlyOwner {
+        if (address(crowdfunding) == address(0)) revert NoCrowdfunding();
+        crowdfunding.returnUntracked(to, amount);
+    }
+
+    /// @notice Owner-only wrapper around crowdfunding.sweepUntracked(to). Only callable
+    ///         after the crowdfunding has been cancelled (enforced by the crowdfunding).
+    function sweepUntracked(address to) external onlyOwner {
+        if (address(crowdfunding) == address(0)) revert NoCrowdfunding();
+        crowdfunding.sweepUntracked(to);
+    }
+
     function cancel() external onlyOwner {
         if (state != State.ACTIVE) revert ProgramNotActive();
 
         state = State.CANCELLED;
 
-        if (
-            address(crowdfunding) != address(0) &&
-            (crowdfunding.state() == CGCrowdfunding.State.UNFUNDED ||
-                crowdfunding.state() == CGCrowdfunding.State.FUNDED)
-        ) {
+        if (address(crowdfunding) != address(0) && crowdfunding.state() == CGCrowdfunding.State.ACTIVE) {
             crowdfunding.cancel();
         }
 
@@ -283,7 +312,6 @@ contract CGProgram is Ownable {
         return distributions.length;
     }
 
-    /// @notice Return info for all defined token types.
     function getTokenTypes() external view returns (TokenTypeInfo[] memory infos) {
         uint256 count = token.nextTokenId();
         infos = new TokenTypeInfo[](count);
@@ -302,20 +330,21 @@ contract CGProgram is Ownable {
         }
     }
 
-    /// @notice Return all crowdfunding info in a single call.
     function getCrowdfundingInfo() external view returns (CrowdfundingInfo memory info) {
         if (address(crowdfunding) == address(0)) return info;
 
         info = CrowdfundingInfo({
             addr: address(crowdfunding),
+            currency: address(crowdfunding.token()),
             fundingTarget: crowdfunding.fundingTarget(),
             deadline: crowdfunding.deadline(),
             state: crowdfunding.state(),
-            totalRaised: crowdfunding.totalRaised()
+            totalRaised: crowdfunding.totalRaised(),
+            totalTracked: crowdfunding.totalTracked(),
+            isFunded: crowdfunding.isFunded()
         });
     }
 
-    /// @notice Return info for a single distribution.
     function getDistributionInfo(uint256 index) public view returns (DistributionInfo memory) {
         CGDistribution dist = distributions[index];
         return
@@ -330,7 +359,6 @@ contract CGProgram is Ownable {
             });
     }
 
-    /// @notice Return info for all distributions.
     function getAllDistributionsInfo() external view returns (DistributionInfo[] memory infos) {
         infos = new DistributionInfo[](distributions.length);
         for (uint256 i = 0; i < distributions.length; i++) {
@@ -338,7 +366,6 @@ contract CGProgram is Ownable {
         }
     }
 
-    /// @dev Reverts if aggregate token requirements across all distributions exceed maxSupply.
     function _validateSupplyCap(uint256 distTokenId_) internal view {
         CGToken.TokenType memory tt = token.getTokenType(distTokenId_);
         if (tt.maxSupply > 0) {
@@ -352,7 +379,6 @@ contract CGProgram is Ownable {
         return address(crowdfunding) != address(0) && crowdfunding.totalRaised() > 0;
     }
 
-    /// @dev Sum totalRequired across all distributions targeting the same token type.
     function _totalRequiredForToken(uint256 tokenId_) internal view returns (uint256 total) {
         for (uint256 i = 0; i < distributions.length; i++) {
             CGDistribution dist = distributions[i];

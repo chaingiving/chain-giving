@@ -11,6 +11,14 @@ import { Header } from "~~/components/Header";
 import { BlockieAvatar } from "~~/components/scaffold-eth";
 import { wagmiConfig } from "~~/services/web3/wagmiConfig";
 
+// Silence Lit dev-mode warning emitted from @reown/appkit's web components.
+// Must run before any Lit element loads.
+if (typeof globalThis !== "undefined") {
+  const g = globalThis as typeof globalThis & { litIssuedWarnings?: Set<string> };
+  g.litIssuedWarnings ??= new Set();
+  g.litIssuedWarnings.add("dev-mode");
+}
+
 const ScaffoldEthApp = ({ children }: { children: React.ReactNode }) => {
   return (
     <>

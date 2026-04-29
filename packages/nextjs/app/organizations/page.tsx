@@ -14,7 +14,7 @@ const PAGE_SIZE = 10;
 
 const OrgCard = ({ address, canRemove }: { address: Address; canRemove: boolean }) => {
   const { address: connectedAddress } = useAccount();
-  const { writeContractAsync: writeRegistry } = useScaffoldWriteContract("CGRegistry");
+  const { writeContractAsync: writeRegistry } = useScaffoldWriteContract({ contractName: "CGRegistry" });
   const [isRemoving, setIsRemoving] = useState(false);
 
   const { data: name } = useReadContract({
@@ -111,7 +111,7 @@ const OrganizationsPage = () => {
     watch: true,
   });
 
-  const { writeContractAsync: writeRegistry, isPending } = useScaffoldWriteContract("CGRegistry");
+  const { writeContractAsync: writeRegistry, isPending } = useScaffoldWriteContract({ contractName: "CGRegistry" });
 
   const isRegistryOwner = connectedAddress && registryOwner ? isAddressEqual(connectedAddress, registryOwner) : false;
   const totalOrgs = Number(orgCount ?? 0n);

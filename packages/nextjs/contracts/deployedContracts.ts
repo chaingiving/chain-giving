@@ -2421,13 +2421,18 @@ const deployedContracts = {
   },
   84532: {
     CGComponentFactory: {
-      address: "0xaCb44Add7F4ca79cc370d2905D3B13B7626601e1",
+      address: "0x3F4331C1b059A7ED05c96aD1CD0802b00Bfd65f0",
       abi: [
         {
           inputs: [
             {
               internalType: "address",
               name: "owner_",
+              type: "address",
+            },
+            {
+              internalType: "address",
+              name: "token_",
               type: "address",
             },
             {
@@ -2502,10 +2507,10 @@ const deployedContracts = {
         },
       ],
       inheritedFunctions: {},
-      deployedOnBlock: 39853214,
+      deployedOnBlock: 40861437,
     },
     CGPaymaster: {
-      address: "0xD18DB2D019eC38a2c6A974Bb04F6A3782b304D03",
+      address: "0xe4E02848DcDA529d3F5045B50c99044095cE4112",
       abi: [
         {
           inputs: [
@@ -3065,10 +3070,10 @@ const deployedContracts = {
         renounceOwnership: "@openzeppelin/contracts/access/Ownable.sol",
         transferOwnership: "@openzeppelin/contracts/access/Ownable.sol",
       },
-      deployedOnBlock: 40434505,
+      deployedOnBlock: 40861725,
     },
     CGProgramFactory: {
-      address: "0x11024acB38FAafB88b3eD5A05C1A4376C87802D4",
+      address: "0x7756b2e513Ad5f28E521d0bB73b439684ab0e55a",
       abi: [
         {
           inputs: [
@@ -3289,10 +3294,10 @@ const deployedContracts = {
         renounceOwnership: "@openzeppelin/contracts/access/Ownable.sol",
         transferOwnership: "@openzeppelin/contracts/access/Ownable.sol",
       },
-      deployedOnBlock: 40434396,
+      deployedOnBlock: 40861440,
     },
     CGRegistry: {
-      address: "0xc59613797d0F0cF146506a98f88f36f800a56053",
+      address: "0x55e8A9b0897bCEbA1aC628c1D9A7814F51691c90",
       abi: [
         {
           inputs: [
@@ -3594,7 +3599,7 @@ const deployedContracts = {
         renounceOwnership: "@openzeppelin/contracts/access/Ownable.sol",
         transferOwnership: "@openzeppelin/contracts/access/Ownable.sol",
       },
-      deployedOnBlock: 40434397,
+      deployedOnBlock: 40861465,
     },
   },
 } as const;

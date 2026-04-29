@@ -9,7 +9,7 @@ import { useDeployedContractInfo, useTargetNetwork } from "~~/hooks/scaffold-eth
 export function useOrgGasSponsorship(orgAddress: Address | undefined) {
   const { address: connectedAddress, chainId } = useAccount();
   const { targetNetwork } = useTargetNetwork();
-  const { data: paymasterInfo } = useDeployedContractInfo("CGPaymaster");
+  const { data: paymasterInfo } = useDeployedContractInfo({ contractName: "CGPaymaster" });
 
   // Read org balance from CGPaymaster
   const { data: orgBalance, isLoading: balanceLoading } = useReadContract({

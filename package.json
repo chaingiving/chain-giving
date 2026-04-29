@@ -56,6 +56,9 @@
     "husky": "~9.1.6",
     "lint-staged": "~13.2.2"
   },
+  "resolutions": {
+    "@wagmi/connectors": "6.2.0"
+  },
   "packageManager": "yarn@4.14.1",
   "engines": {
     "node": ">=20.18.3"

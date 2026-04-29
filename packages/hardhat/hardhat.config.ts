@@ -115,7 +115,7 @@ const config: HardhatUserConfig = {
     baseSepolia: {
       url: "https://sepolia.base.org",
       accounts: [deployerPrivateKey],
-      gasMultiplier: 2,
+      gasMultiplier: 5,
     },
     scrollSepolia: {
       url: "https://sepolia-rpc.scroll.io",

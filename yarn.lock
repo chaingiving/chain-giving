@@ -3935,7 +3935,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@scaffold-ui/debug-contracts@npm:0.1.8":
+"@scaffold-ui/debug-contracts@npm:^0.1.8":
   version: 0.1.8
   resolution: "@scaffold-ui/debug-contracts@npm:0.1.8"
   dependencies:
@@ -3950,24 +3950,6 @@ __metadata:
     viem: ^2.23.0
     wagmi: ^2.14.11
   checksum: 10/ddcdbd60b54b23e1452ca3009c89df97fe978cc982d1a09866f097456f5a189a7784ffe9f97648ac601f4939bea268e2ac8a2bdc7a28eae75cad2ebdc87b22f2
-  languageName: node
-  linkType: hard
-
-"@scaffold-ui/debug-contracts@patch:@scaffold-ui/debug-contracts@npm%3A0.1.8#~/.yarn/patches/@scaffold-ui-debug-contracts-npm-0.1.8-042cb95e1d.patch":
-  version: 0.1.8
-  resolution: "@scaffold-ui/debug-contracts@patch:@scaffold-ui/debug-contracts@npm%3A0.1.8#~/.yarn/patches/@scaffold-ui-debug-contracts-npm-0.1.8-042cb95e1d.patch::version=0.1.8&hash=429a0b"
-  dependencies:
-    "@heroicons/react": "npm:^2.2.0"
-    react-hot-toast: "npm:^2.5.2"
-  peerDependencies:
-    "@scaffold-ui/components": 0.1.9
-    "@scaffold-ui/hooks": 0.1.7
-    "@tanstack/react-query": ^5.59.15
-    "@types/react": ^19.0.7
-    react: ^19.2.3
-    viem: ^2.23.0
-    wagmi: ^2.14.11
-  checksum: 10/dfe99125a8827b4c1522683952f67ec50b157ebe1eda15e88910c01c62e3ae5e6287e7851ecb85ae5f6f5fa84726e74a20553e200dd6723b3194d6b09629cea3
   languageName: node
   linkType: hard
 
@@ -4140,7 +4122,7 @@ __metadata:
     "@reown/appkit": "npm:^1.8.19"
     "@reown/appkit-adapter-wagmi": "npm:^1.8.19"
     "@scaffold-ui/components": "npm:^0.1.8"
-    "@scaffold-ui/debug-contracts": "patch:@scaffold-ui/debug-contracts@npm%3A0.1.8#~/.yarn/patches/@scaffold-ui-debug-contracts-npm-0.1.8-042cb95e1d.patch"
+    "@scaffold-ui/debug-contracts": "npm:^0.1.8"
     "@scaffold-ui/hooks": "npm:^0.1.6"
     "@tailwindcss/postcss": "npm:4.0.15"
     "@tanstack/react-query": "npm:~5.59.15"

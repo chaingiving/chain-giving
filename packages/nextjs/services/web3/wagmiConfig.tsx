@@ -45,17 +45,21 @@ const wagmiAdapter = new WagmiAdapter({
   connectors: wagmiConnectors(),
 });
 
-createAppKit({
-  adapters: [wagmiAdapter],
-  projectId: scaffoldConfig.walletConnectProjectId,
-  networks: enabledChains as any,
-  /* Note Features are overwritten by those set on dashboard.reown.com
-  features: {
-    email: true,
-    socials: ["google", "apple", "github", "discord", "facebook"],
-    emailShowWallets: false,
-  },
-  */
-});
+// createAppKit instantiates Reown's Lit-based modal web components, which can't
+// run during SSG/SSR. Defer to the client.
+if (typeof window !== "undefined") {
+  createAppKit({
+    adapters: [wagmiAdapter],
+    projectId: scaffoldConfig.walletConnectProjectId,
+    networks: enabledChains as any,
+    /* Note Features are overwritten by those set on dashboard.reown.com
+    features: {
+      email: true,
+      socials: ["google", "apple", "github", "discord", "facebook"],
+      emailShowWallets: false,
+    },
+    */
+  });
+}
 
 export const wagmiConfig = wagmiAdapter.wagmiConfig;

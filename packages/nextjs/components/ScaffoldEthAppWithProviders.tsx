@@ -11,6 +11,14 @@ import { Header } from "~~/components/Header";
 import { BlockieAvatar } from "~~/components/scaffold-eth";
 import { wagmiConfig } from "~~/services/web3/wagmiConfig";
 
+// Silence Lit dev-mode warning emitted from @reown/appkit's web components.
+// Must run before any Lit element loads.
+if (typeof globalThis !== "undefined") {
+  const g = globalThis as typeof globalThis & { litIssuedWarnings?: Set<string> };
+  g.litIssuedWarnings ??= new Set();
+  g.litIssuedWarnings.add("dev-mode");
+}
+
 const ScaffoldEthApp = ({ children }: { children: React.ReactNode }) => {
   return (
     <>
@@ -40,13 +48,15 @@ export const ScaffoldEthAppWithProviders = ({ children }: { children: React.Reac
     setMounted(true);
   }, []);
 
+  // Reown AppKit + wagmi don't survive SSR/SSG cleanly: createAppKit relies on
+  // browser-only Lit web components, and useConfig calls inside the adapter
+  // throw before it's initialized. Render nothing until the client mounts.
+  if (!mounted) return null;
+
   return (
     <WagmiProvider config={wagmiConfig}>
       <QueryClientProvider client={queryClient}>
-        <RainbowKitProvider
-          avatar={BlockieAvatar}
-          theme={mounted ? (isDarkMode ? darkTheme() : lightTheme()) : lightTheme()}
-        >
+        <RainbowKitProvider avatar={BlockieAvatar} theme={isDarkMode ? darkTheme() : lightTheme()}>
           <ProgressBar height="3px" color="#2299dd" />
           <ScaffoldEthApp>{children}</ScaffoldEthApp>
         </RainbowKitProvider>

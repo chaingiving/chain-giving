@@ -14,7 +14,7 @@ const PAGE_SIZE = 10;
 
 const OrgCard = ({ address, canRemove }: { address: Address; canRemove: boolean }) => {
   const { address: connectedAddress } = useAccount();
-  const { writeContractAsync: writeRegistry } = useScaffoldWriteContract("CGRegistry");
+  const { writeContractAsync: writeRegistry } = useScaffoldWriteContract({ contractName: "CGRegistry" });
   const [isRemoving, setIsRemoving] = useState(false);
 
   const { data: name } = useReadContract({
@@ -72,11 +72,11 @@ const OrgCard = ({ address, canRemove }: { address: Address; canRemove: boolean 
         </div>
         <div className="flex items-center gap-2 text-sm opacity-70">
           <span>Address:</span>
-          <AddressDisplay address={address} size="sm" />
+          <AddressDisplay address={address} size="sm" disableAddressLink />
         </div>
         <div className="flex items-center gap-2 text-sm opacity-70">
           <span>Owner:</span>
-          <AddressDisplay address={owner} size="sm" />
+          <AddressDisplay address={owner} size="sm" disableAddressLink />
           {isOwner && <span className="badge badge-info badge-sm">You</span>}
         </div>
         <div className="text-sm opacity-70">
@@ -111,7 +111,7 @@ const OrganizationsPage = () => {
     watch: true,
   });
 
-  const { writeContractAsync: writeRegistry, isPending } = useScaffoldWriteContract("CGRegistry");
+  const { writeContractAsync: writeRegistry, isPending } = useScaffoldWriteContract({ contractName: "CGRegistry" });
 
   const isRegistryOwner = connectedAddress && registryOwner ? isAddressEqual(connectedAddress, registryOwner) : false;
   const totalOrgs = Number(orgCount ?? 0n);

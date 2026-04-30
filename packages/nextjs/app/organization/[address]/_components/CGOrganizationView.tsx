@@ -64,9 +64,10 @@ export const CGOrganizationView = ({ address }: { address: Address }) => {
       const s = Number(r.result);
       if (s === 0 || s === 1) acc.active++;
       if (s === 2) acc.completed++;
+      if (s === 3) acc.cancelled++;
       return acc;
     },
-    { active: 0, completed: 0 },
+    { active: 0, completed: 0, cancelled: 0 },
   );
 
   // Sponsored writes for org operations (e.g., createProgram)
@@ -136,7 +137,10 @@ export const CGOrganizationView = ({ address }: { address: Address }) => {
         </div>
         <div className="text-sm opacity-60 mt-1">
           Programs: {programCount?.toString() ?? "0"}
-          {programCounts && ` (${programCounts.completed} completed, ${programCounts.active} active)`}
+          {programCounts &&
+            ` (${programCounts.completed} completed, ${programCounts.active} active${
+              programCounts.cancelled > 0 ? `, ${programCounts.cancelled} cancelled` : ""
+            })`}
         </div>
         {canManageSponsorship && (
           <div className="mt-1">

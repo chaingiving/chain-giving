@@ -35,6 +35,7 @@ contract CGDistribution is Ownable, ERC165, IERC1155Receiver {
     error InsufficientTokenBalance(uint256 required, uint256 available);
     error ZeroAmount();
     error ZeroAddress();
+    error UnsupportedReceiver(address beneficiary);
 
     constructor(address owner_, IERC1155 token_, uint256 tokenId_) Ownable(owner_) {
         token = token_;
@@ -52,6 +53,7 @@ contract CGDistribution is Ownable, ERC165, IERC1155Receiver {
         for (uint256 i = 0; i < beneficiaries_.length; i++) {
             if (beneficiaries_[i] == address(0)) revert ZeroAddress();
             if (amounts_[i] == 0) revert ZeroAmount();
+            _requireValidReceiver(beneficiaries_[i]);
         }
 
         beneficiaries = beneficiaries_;
@@ -69,6 +71,7 @@ contract CGDistribution is Ownable, ERC165, IERC1155Receiver {
         for (uint256 i = 0; i < newBeneficiaries_.length; i++) {
             if (newBeneficiaries_[i] == address(0)) revert ZeroAddress();
             if (newAmounts_[i] == 0) revert ZeroAmount();
+            _requireValidReceiver(newBeneficiaries_[i]);
             beneficiaries.push(newBeneficiaries_[i]);
             amounts.push(newAmounts_[i]);
         }
@@ -143,6 +146,18 @@ contract CGDistribution is Ownable, ERC165, IERC1155Receiver {
 
     function getAmounts() external view returns (uint256[] memory) {
         return amounts;
+    }
+
+    /// @dev EOAs always pass. Contracts must advertise IERC1155Receiver via ERC-165 so that
+    ///      `safeTransferFrom` in `distribute()` cannot revert with `ERC1155InvalidReceiver`
+    ///      after the distribution has been locked into READY.
+    function _requireValidReceiver(address beneficiary) internal view {
+        if (beneficiary.code.length == 0) return;
+        try IERC165(beneficiary).supportsInterface(type(IERC1155Receiver).interfaceId) returns (bool ok) {
+            if (!ok) revert UnsupportedReceiver(beneficiary);
+        } catch {
+            revert UnsupportedReceiver(beneficiary);
+        }
     }
 
     // ── IERC1155Receiver ─────────────────────────────────────────────────────

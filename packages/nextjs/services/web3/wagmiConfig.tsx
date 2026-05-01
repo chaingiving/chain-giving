@@ -45,21 +45,22 @@ const wagmiAdapter = new WagmiAdapter({
   connectors: wagmiConnectors(),
 });
 
-// createAppKit instantiates Reown's Lit-based modal web components, which can't
-// run during SSG/SSR. Defer to the client.
-if (typeof window !== "undefined") {
-  createAppKit({
-    adapters: [wagmiAdapter],
-    projectId: scaffoldConfig.walletConnectProjectId,
-    networks: enabledChains as any,
-    /* Note Features are overwritten by those set on dashboard.reown.com
-    features: {
-      email: true,
-      socials: ["google", "apple", "github", "discord", "facebook"],
-      emailShowWallets: false,
-    },
-    */
-  });
-}
+// createAppKit must run at module load on both server and client: it finishes
+// wiring the WagmiAdapter (connectors, embedded-wallet provider, connector
+// state). Without it, wagmiAdapter.wagmiConfig is half-initialized and any
+// downstream useConfig() throws WagmiProviderNotFoundError. The adapter has
+// ssr: true to make this safe outside the browser.
+createAppKit({
+  adapters: [wagmiAdapter],
+  projectId: scaffoldConfig.walletConnectProjectId,
+  networks: enabledChains as any,
+  /* Note Features are overwritten by those set on dashboard.reown.com
+  features: {
+    email: true,
+    socials: ["google", "apple", "github", "discord", "facebook"],
+    emailShowWallets: false,
+  },
+  */
+});
 
 export const wagmiConfig = wagmiAdapter.wagmiConfig;

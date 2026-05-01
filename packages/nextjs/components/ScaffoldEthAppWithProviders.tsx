@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { RainbowKitProvider, darkTheme, lightTheme } from "@rainbow-me/rainbowkit";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AppProgressBar as ProgressBar } from "next-nprogress-bar";
@@ -42,16 +41,6 @@ export const queryClient = new QueryClient({
 export const ScaffoldEthAppWithProviders = ({ children }: { children: React.ReactNode }) => {
   const { resolvedTheme } = useTheme();
   const isDarkMode = resolvedTheme === "dark";
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  // Reown AppKit + wagmi don't survive SSR/SSG cleanly: createAppKit relies on
-  // browser-only Lit web components, and useConfig calls inside the adapter
-  // throw before it's initialized. Render nothing until the client mounts.
-  if (!mounted) return null;
 
   return (
     <WagmiProvider config={wagmiConfig}>

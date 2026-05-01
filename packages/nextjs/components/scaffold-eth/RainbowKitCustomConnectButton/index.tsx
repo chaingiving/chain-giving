@@ -42,7 +42,7 @@ export const RainbowKitCustomConnectButton = ({ hideOnHome = false, size = "sm" 
               if (!connected) {
                 if (hideOnHome && pathname === "/") return null;
                 return (
-                  <button className={`btn btn-warning ${btnSize} gap-2`} onClick={openConnectModal} type="button">
+                  <button className={`btn btn-primary ${btnSize} gap-2`} onClick={openConnectModal} type="button">
                     <WalletIcon className="h-4 w-4" />
                     Connect Wallet
                   </button>

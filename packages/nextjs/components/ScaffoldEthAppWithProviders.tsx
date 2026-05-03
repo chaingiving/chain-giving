@@ -8,6 +8,7 @@ import { AppProgressBar as ProgressBar } from "next-nprogress-bar";
 import { useTheme } from "next-themes";
 import { Toaster } from "react-hot-toast";
 import { WagmiProvider } from "wagmi";
+import { FallbackShell } from "~~/components/FallbackShell";
 import { Header } from "~~/components/Header";
 import { BlockieAvatar } from "~~/components/scaffold-eth";
 import scaffoldConfig from "~~/scaffold.config";
@@ -48,18 +49,20 @@ class ProvidersErrorBoundary extends Component<{ children: ReactNode }, { hasErr
   render() {
     if (this.state.hasError) {
       return (
-        <div className="flex flex-col min-h-screen items-center justify-center gap-4 p-8 text-center">
-          <h1 className="text-2xl font-semibold">Wallet features are temporarily unavailable</h1>
-          <p className="opacity-70 max-w-md">
-            The wallet provider failed to initialize. This is usually a configuration issue (for example, the current
-            domain isn&apos;t on the WalletConnect / Reown allowlist). The rest of Chain.Giving will be back online once
-            this is resolved.
-          </p>
-          <pre className="text-xs opacity-50 max-w-full overflow-auto">{this.state.message}</pre>
-          <button className="btn btn-primary btn-sm" onClick={() => window.location.reload()} type="button">
-            Reload
-          </button>
-        </div>
+        <FallbackShell>
+          <div className="flex flex-col flex-1 items-center justify-center gap-4 p-8 text-center">
+            <h1 className="text-2xl font-semibold">Wallet features are temporarily unavailable</h1>
+            <p className="opacity-70 max-w-md">
+              The wallet provider failed to initialize. This is usually a configuration issue (for example, the current
+              domain isn&apos;t on the WalletConnect / Reown allowlist). You can still browse the rest of Chain.Giving
+              from the menu above while we resolve it.
+            </p>
+            <pre className="text-xs opacity-50 max-w-full overflow-auto">{this.state.message}</pre>
+            <button className="btn btn-primary btn-sm" onClick={() => window.location.reload()} type="button">
+              Reload
+            </button>
+          </div>
+        </FallbackShell>
       );
     }
     return this.props.children;

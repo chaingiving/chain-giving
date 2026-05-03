@@ -6,46 +6,12 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { hardhat } from "viem/chains";
 import { useAccount } from "wagmi";
-import {
-  Bars3Icon,
-  BugAntIcon,
-  BuildingOfficeIcon,
-  GiftIcon,
-  InformationCircleIcon,
-  WalletIcon,
-} from "@heroicons/react/24/outline";
+import { Bars3Icon, InformationCircleIcon, WalletIcon } from "@heroicons/react/24/outline";
 import { EmbeddedWalletButton } from "~~/components/ConnectButton";
 import { SwitchTheme } from "~~/components/SwitchTheme";
+import { menuLinks } from "~~/components/menuLinks";
 import { FaucetButton, RainbowKitCustomConnectButton } from "~~/components/scaffold-eth";
 import { useOutsideClick, useTargetNetwork } from "~~/hooks/scaffold-eth";
-
-type HeaderMenuLink = {
-  label: string;
-  href: string;
-  icon?: React.ReactNode;
-};
-
-export const menuLinks: HeaderMenuLink[] = [
-  {
-    label: "Home",
-    href: "/",
-  },
-  {
-    label: "Organizations",
-    href: "/organizations",
-    icon: <BuildingOfficeIcon className="h-4 w-4" />,
-  },
-  {
-    label: "Programs",
-    href: "/programs",
-    icon: <GiftIcon className="h-4 w-4" />,
-  },
-  {
-    label: "Debug",
-    href: "/debug",
-    icon: <BugAntIcon className="h-4 w-4" />,
-  },
-];
 
 export const HeaderMenuLinks = () => {
   const pathname = usePathname();

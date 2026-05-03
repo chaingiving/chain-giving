@@ -12,6 +12,7 @@
 /.next/
 /out/
 .vercel
+next-env.d.ts
 
 # production
 /build

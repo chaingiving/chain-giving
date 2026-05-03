@@ -1,5 +1,10 @@
 import Link from "next/link";
 
+// /_not-found is rendered inside the root layout, which mounts WagmiProvider
+// and a <Header /> that calls useAccount(). Prerendering it statically would
+// run those hooks during SSG and throw WagmiProviderNotFoundError.
+export const dynamic = "force-dynamic";
+
 export default function NotFound() {
   return (
     <div className="flex items-center h-full flex-1 justify-center bg-base-200">

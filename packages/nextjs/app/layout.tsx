@@ -10,6 +10,11 @@ export const metadata = getMetadata({
   description: "Truthful Giving for Everyone",
 });
 
+// Every page wraps <Header /> which calls useAccount(), and the wallet adapter
+// can't be initialised during SSG. Opt the whole app out of static generation;
+// for a wallet-first dapp there's nothing meaningful to prerender anyway.
+export const dynamic = "force-dynamic";
+
 const ScaffoldEthApp = ({ children }: { children: React.ReactNode }) => {
   return (
     <html suppressHydrationWarning className={``}>

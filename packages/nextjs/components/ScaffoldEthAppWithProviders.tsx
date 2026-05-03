@@ -1,6 +1,7 @@
 "use client";
 
 import { RainbowKitProvider, darkTheme, lightTheme } from "@rainbow-me/rainbowkit";
+import { createAppKit } from "@reown/appkit/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AppProgressBar as ProgressBar } from "next-nprogress-bar";
 import { useTheme } from "next-themes";
@@ -8,7 +9,8 @@ import { Toaster } from "react-hot-toast";
 import { WagmiProvider } from "wagmi";
 import { Header } from "~~/components/Header";
 import { BlockieAvatar } from "~~/components/scaffold-eth";
-import { wagmiConfig } from "~~/services/web3/wagmiConfig";
+import scaffoldConfig from "~~/scaffold.config";
+import { enabledChains, wagmiAdapter, wagmiConfig } from "~~/services/web3/wagmiConfig";
 
 // Silence Lit dev-mode warning emitted from @reown/appkit's web components.
 // Must run before any Lit element loads.
@@ -17,6 +19,23 @@ if (typeof globalThis !== "undefined") {
   g.litIssuedWarnings ??= new Set();
   g.litIssuedWarnings.add("dev-mode");
 }
+
+// Per Reown's Next.js setup, createAppKit must run from a Client Component file
+// so its Lit-based modal web components are only constructed on the client. It
+// also finishes wiring the WagmiAdapter so wagmiConfig is fully initialised
+// before any downstream useConfig() runs.
+createAppKit({
+  adapters: [wagmiAdapter],
+  projectId: scaffoldConfig.walletConnectProjectId,
+  networks: enabledChains as any,
+  /* Note Features are overwritten by those set on dashboard.reown.com
+  features: {
+    email: true,
+    socials: ["google", "apple", "github", "discord", "facebook"],
+    emailShowWallets: false,
+  },
+  */
+});
 
 const ScaffoldEthApp = ({ children }: { children: React.ReactNode }) => {
   return (

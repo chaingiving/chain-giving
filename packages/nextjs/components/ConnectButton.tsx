@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { useAppKit } from "@reown/appkit/react";
 import { useAccount } from "wagmi";
@@ -10,7 +11,7 @@ type Props = {
   size?: "sm" | "md";
 };
 
-export const EmbeddedWalletButton = ({ hideOnHome = false, size = "sm" }: Props) => {
+const EmbeddedWalletButtonInner = ({ hideOnHome = false, size = "sm" }: Props) => {
   const pathname = usePathname();
   const { isConnected } = useAccount();
   const { open } = useAppKit();
@@ -26,4 +27,14 @@ export const EmbeddedWalletButton = ({ hideOnHome = false, size = "sm" }: Props)
       Sign in with Email
     </button>
   );
+};
+
+// useAppKit reads global state populated by createAppKit, which only runs in
+// the browser (see services/web3/wagmiConfig.tsx). Defer until mount so SSG
+// never invokes it.
+export const EmbeddedWalletButton = (props: Props) => {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  if (!mounted) return null;
+  return <EmbeddedWalletButtonInner {...props} />;
 };

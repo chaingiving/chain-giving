@@ -2,10 +2,11 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { TopUpModal } from "./TopUpModal";
 import { Address as AddressDisplay } from "@scaffold-ui/components";
 import { Address, erc20Abi, formatUnits, isAddress, isAddressEqual, parseUnits } from "viem";
-import { useAccount, useReadContract, useWriteContract } from "wagmi";
-import { QrCodeIcon } from "@heroicons/react/24/outline";
+import { useAccount, useReadContract, useSwitchChain, useWriteContract } from "wagmi";
+import { ArrowDownOnSquareIcon, ArrowsRightLeftIcon, QrCodeIcon } from "@heroicons/react/24/outline";
 import { AccountQRCodeModal } from "~~/components/AccountQRCodeModal";
 import { AddressInputWithQr } from "~~/components/AddressInputWithQr";
 import { CurrencyLogo } from "~~/components/CurrencyLogo";
@@ -13,9 +14,9 @@ import { cgOrganizationAbi } from "~~/contracts/cgOrganizationAbi";
 import { cgProgramAbi } from "~~/contracts/cgProgramAbi";
 import { cgTokenAbi } from "~~/contracts/cgTokenAbi";
 import { DonationCurrency, getDonationCurrencies } from "~~/contracts/donationCurrencies";
-import { useBlockExplorerLink, useScaffoldReadContract } from "~~/hooks/scaffold-eth";
+import { useBlockExplorerLink, useScaffoldReadContract, useTargetNetwork } from "~~/hooks/scaffold-eth";
 import { useCGTokenWrite } from "~~/hooks/useCGTokenWrite";
-import { getParsedError, notification } from "~~/utils/scaffold-eth";
+import { getParsedError, getTargetNetworks, notification } from "~~/utils/scaffold-eth";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -342,6 +343,7 @@ function CurrencyBalanceRow({
   isOwnWallet: boolean;
 }) {
   const [showTransfer, setShowTransfer] = useState(false);
+  const [showTopUp, setShowTopUp] = useState(false);
   const [transferTo, setTransferTo] = useState("");
   const [transferAmount, setTransferAmount] = useState("");
   const [isPending, setIsPending] = useState(false);
@@ -355,7 +357,11 @@ function CurrencyBalanceRow({
     query: { refetchInterval: 5000 },
   });
 
-  if (balance === undefined || balance === 0n) return null;
+  // Visitors viewing someone else's wallet don't need to see zero rows; only
+  // suppress for them. The wallet owner always sees every supported currency
+  // so they can top up.
+  const safeBalance = balance ?? 0n;
+  if (!isOwnWallet && safeBalance === 0n) return null;
 
   const handleTransfer = async () => {
     if (!isAddress(transferTo)) {
@@ -373,7 +379,7 @@ function CurrencyBalanceRow({
       notification.error("Amount must be positive");
       return;
     }
-    if (amountWei > balance) {
+    if (amountWei > safeBalance) {
       notification.error("Amount exceeds balance");
       return;
     }
@@ -404,11 +410,25 @@ function CurrencyBalanceRow({
           <span className="font-semibold text-base">{currency.symbol}</span>
           <span className="text-xs opacity-60">{currency.name}</span>
         </div>
-        <span className="ml-auto font-mono font-bold text-lg">{formatUnits(balance, currency.decimals)}</span>
+        <span className="ml-auto font-mono font-bold text-lg">{formatUnits(safeBalance, currency.decimals)}</span>
         {isOwnWallet && (
-          <button className="btn btn-sm btn-outline" onClick={() => setShowTransfer(v => !v)}>
-            Transfer
-          </button>
+          <>
+            <button
+              className="btn btn-sm btn-outline gap-1"
+              onClick={() => setShowTopUp(true)}
+              title={`How to top up ${currency.symbol}`}
+            >
+              <ArrowDownOnSquareIcon className="h-4 w-4" />
+              Receive
+            </button>
+            <button
+              className="btn btn-sm btn-outline"
+              onClick={() => setShowTransfer(v => !v)}
+              disabled={safeBalance === 0n}
+            >
+              Transfer
+            </button>
+          </>
         )}
       </div>
 
@@ -431,7 +451,7 @@ function CurrencyBalanceRow({
               />
               <button
                 className="btn btn-ghost btn-xs text-xs px-1 h-5 min-h-0 opacity-60 hover:opacity-100"
-                onClick={() => setTransferAmount(formatUnits(balance, currency.decimals))}
+                onClick={() => setTransferAmount(formatUnits(safeBalance, currency.decimals))}
                 title="Use full balance"
               >
                 Max
@@ -446,6 +466,10 @@ function CurrencyBalanceRow({
           </div>
         </div>
       )}
+
+      {showTopUp && (
+        <TopUpModal walletAddress={walletAddress} currency={currency} onClose={() => setShowTopUp(false)} />
+      )}
     </div>
   );
 }
@@ -454,7 +478,10 @@ function CurrencyBalanceRow({
 
 function DonationCurrencyBalances({ walletAddress, isOwnWallet }: { walletAddress: Address; isOwnWallet: boolean }) {
   const { chainId } = useAccount();
-  const currencies = getDonationCurrencies(chainId);
+  const { targetNetwork } = useTargetNetwork();
+  // When the wallet is disconnected, useAccount().chainId is undefined; fall
+  // back to the target network so the supported-currency list is still right.
+  const currencies = getDonationCurrencies(chainId ?? targetNetwork.id);
 
   if (currencies.length === 0) return null;
 
@@ -463,6 +490,43 @@ function DonationCurrencyBalances({ walletAddress, isOwnWallet }: { walletAddres
       {currencies.map(c => (
         <CurrencyBalanceRow key={c.address} walletAddress={walletAddress} currency={c} isOwnWallet={isOwnWallet} />
       ))}
+    </div>
+  );
+}
+
+// ── Network indicator + switcher ────────────────────────────────────────────
+
+function NetworkBadge() {
+  const { chain, isConnected } = useAccount();
+  const { targetNetwork } = useTargetNetwork();
+  const { switchChain, isPending } = useSwitchChain();
+  const networks = getTargetNetworks();
+  const current = chain ?? targetNetwork;
+  const others = networks.filter(n => n.id !== current.id);
+
+  return (
+    <div className="dropdown dropdown-end">
+      <div tabIndex={0} role="button" className="btn btn-sm btn-outline gap-2">
+        <ArrowsRightLeftIcon className="h-4 w-4" />
+        <span>{current.name}</span>
+      </div>
+      {others.length > 0 && (
+        <ul tabIndex={0} className="menu menu-sm dropdown-content bg-base-100 rounded-box z-[1] mt-2 w-56 p-2 shadow">
+          <li className="menu-title text-xs">Switch network</li>
+          {others.map(n => (
+            <li key={n.id}>
+              <button
+                type="button"
+                disabled={!isConnected || isPending}
+                onClick={() => switchChain?.({ chainId: n.id })}
+              >
+                {n.name}
+              </button>
+            </li>
+          ))}
+          {!isConnected && <li className="text-xs opacity-60 px-3 py-1">Connect a wallet to switch network.</li>}
+        </ul>
+      )}
     </div>
   );
 }
@@ -490,6 +554,9 @@ export const WalletView = ({ address }: { address: Address }) => {
           <div className="flex flex-wrap items-center gap-3">
             <h2 className="card-title text-2xl">Wallet</h2>
             {isOwnWallet && <span className="badge badge-primary">Your Account</span>}
+            <div className="ml-auto">
+              <NetworkBadge />
+            </div>
           </div>
 
           <div className="flex items-center gap-3 mt-2">
@@ -510,7 +577,7 @@ export const WalletView = ({ address }: { address: Address }) => {
 
           {!connectedAddress && (
             <div className="alert alert-info text-sm">
-              <span>Connect your wallet to see if this is your account and to perform token actions.</span>
+              <span>Connect your wallet to view your account tokens.</span>
             </div>
           )}
 

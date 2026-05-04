@@ -22,3 +22,10 @@ node_modules
 # cli
 dist
 package-lock.json
+
+# env
+.env
+.env.local
+
+# vercel
+.vercel

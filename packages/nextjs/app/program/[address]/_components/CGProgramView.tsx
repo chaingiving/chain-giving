@@ -1,17 +1,25 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { ConnectButton } from "@rainbow-me/rainbowkit";
+import { useAppKit } from "@reown/appkit/react";
 import { Address as AddressDisplay, Balance } from "@scaffold-ui/components";
 import { Address, erc20Abi, formatUnits, isAddress, isAddressEqual, parseUnits, zeroAddress } from "viem";
 import { useAccount, usePublicClient, useReadContract, useWriteContract } from "wagmi";
-import { CreditCardIcon, TrashIcon } from "@heroicons/react/24/outline";
+import {
+  CreditCardIcon,
+  EnvelopeIcon,
+  InformationCircleIcon,
+  TrashIcon,
+  WalletIcon,
+} from "@heroicons/react/24/outline";
 import { AddressInputWithQr } from "~~/components/AddressInputWithQr";
 import { CurrencyLogo } from "~~/components/CurrencyLogo";
 import { DonateWithFiatButton } from "~~/components/DonateWithFiatButton";
 import { OrgGasSponsorshipBadge } from "~~/components/OrgGasSponsorshipBadge";
 import { cgProgramAbi } from "~~/contracts/cgProgramAbi";
 import { DonationCurrency, findCurrency, getDonationCurrencies } from "~~/contracts/donationCurrencies";
-import { useBlockExplorerLink } from "~~/hooks/scaffold-eth";
+import { useBlockExplorerLink, useTargetNetwork } from "~~/hooks/scaffold-eth";
 import { useProgramOrganization } from "~~/hooks/useProgramOrganization";
 import { useSponsoredWrite } from "~~/hooks/useSponsoredWrite";
 import { getParsedError, notification } from "~~/utils/scaffold-eth";
@@ -411,16 +419,21 @@ function CrowdfundingSection({
   orgAddress: Address | undefined;
 }) {
   const [donateAmount, setDonateAmount] = useState("");
-  const [donateMode, setDonateMode] = useState<"crypto" | "card" | null>(null);
+  const [donateMode, setDonateMode] = useState<"crypto" | "card">("crypto");
   const [isPending, setIsPending] = useState(false);
   const { chainId } = useAccount();
+  const { targetNetwork } = useTargetNetwork();
   const cfLink = useBlockExplorerLink(crowdfundingInfo?.addr);
   const { write: sponsoredWrite } = useSponsoredWrite(orgAddress);
   const { writeContractAsync: writeToken } = useWriteContract();
 
   const cfAddr = crowdfundingInfo?.addr;
   const isValidCf = cfAddr && !isAddressEqual(cfAddr, zeroAddress);
-  const currency = findCurrency(chainId, crowdfundingInfo?.currency);
+  // When the wallet is disconnected, useAccount().chainId is undefined; fall
+  // back to the target network so we can still resolve the donation currency
+  // and render an enabled donate form for visitors before they sign in.
+  const effectiveChainId = chainId ?? targetNetwork.id;
+  const currency = findCurrency(effectiveChainId, crowdfundingInfo?.currency);
   const symbol = currency?.symbol ?? "tokens";
   const decimals = currency?.decimals ?? 18;
 
@@ -501,7 +514,11 @@ function CrowdfundingSection({
   const unknownCurrency = !currency;
 
   const handleDonate = async () => {
-    if (!donateAmount || isPending || !currency) return;
+    if (!donateAmount || isPending || !connectedAddress) return;
+    if (!currency) {
+      notification.error("Donation currency is not in the recognized list for this network.");
+      return;
+    }
     let amountWei: bigint;
     try {
       amountWei = parseUnits(donateAmount, decimals);
@@ -540,7 +557,6 @@ function CrowdfundingSection({
       });
       if (success) {
         setDonateAmount("");
-        setDonateMode(null);
         refetchUserContribution();
         refetchAllowance();
       }
@@ -653,111 +669,158 @@ function CrowdfundingSection({
               </span>
             </div>
           )}
-          {unknownCurrency && (
+          {connectedAddress && unknownCurrency && (
             <div role="alert" className="alert alert-warning mb-3 py-2 text-sm">
               <WarningIcon />
               <span>Donation currency is not in the recognized list for this network. Donations are disabled.</span>
             </div>
           )}
-          <div className="flex flex-wrap gap-2 justify-center">
-            <button
-              className="btn btn-primary"
-              onClick={() => setDonateMode(m => (m === "crypto" ? null : "crypto"))}
-              disabled={donateLocked || unknownCurrency}
-            >
-              <CurrencyLogo currency={currency} /> Donate with crypto
-            </button>
-            {!unknownCurrency && (currency?.symbol === "USDC" || currency?.symbol === "EURC") && (
-              <button
-                className="btn btn-error"
-                onClick={() => setDonateMode(m => (m === "card" ? null : "card"))}
-                disabled={donateLocked}
-              >
-                <CreditCardIcon className="h-4 w-4" />
-                Donate with card
-              </button>
-            )}
-          </div>
-
-          {donateMode && (
-            <div className="mt-3 flex flex-col gap-3 p-4 bg-base-200 rounded-lg text-center items-center">
-              <h3 className="text-2xl font-bold flex items-center gap-2 justify-center">
-                Donate <CurrencyLogo currency={currency} size={24} /> {symbol}
-              </h3>
-              {donateMode === "crypto" && (
-                <div className="text-base max-w-full">
-                  <p>Benefit from on-chain tracking. Your donation is:</p>
-                  <ul className="list-disc list-inside text-left">
-                    <li>Cancellable until the program ends</li>
-                    <li>Refundable if the program is cancelled</li>
-                  </ul>
-                </div>
-              )}
-              {donateMode === "card" && (
-                <div className="flex flex-col max-w-full">
-                  <p className="text-base">
-                    A third-party provider (Coinbase) will charge your card and send the equivalent crypto to the
-                    program.
-                  </p>
-                  <p className="text-base font-semibold flex items-start gap-1 justify-center">
-                    <WarningIcon />
-                    <span>Card donations cannot be cancelled or refunded through Chain.Giving.</span>
-                  </p>
-                </div>
-              )}
-              <div className="flex flex-wrap gap-2 items-center justify-center">
-                {donateMode === "crypto" && (
-                  <div className="flex w-40 input input-bordered input-md items-center pr-1 gap-1">
-                    <input
-                      type="number"
-                      min="0"
-                      step="any"
-                      className="flex-1 bg-transparent outline-none min-w-0 text-center"
-                      placeholder={`Amount (${symbol})`}
-                      value={donateAmount}
-                      onChange={e => setDonateAmount(e.target.value)}
-                      disabled={unknownCurrency}
-                    />
-                    {userBalance !== undefined && (userBalance as bigint) > 0n && (
+          {!unknownCurrency &&
+            (() => {
+              const showCardTab = currency?.symbol === "USDC" || currency?.symbol === "EURC";
+              const tabBase =
+                "py-4 text-lg font-bold flex items-center justify-center gap-2 transition-colors focus-visible:outline-none";
+              const tabActive = "text-blue-800 border-b-2 border-blue-800 -mb-px";
+              const tabInactive = "text-gray-600 hover:bg-base-300/60";
+              return (
+                <div className="mt-3 w-full max-w-md mx-auto bg-base-200 rounded-lg overflow-hidden">
+                  <h3 className="text-2xl font-bold flex items-center gap-2 justify-center text-primary-content py-3 px-4 m-0">
+                    Donate <CurrencyLogo currency={currency} size={24} /> {symbol}
+                  </h3>
+                  <div
+                    role="tablist"
+                    className={`grid ${showCardTab ? "grid-cols-2" : "grid-cols-1"} border-b border-base-300`}
+                  >
+                    <button
+                      role="tab"
+                      type="button"
+                      className={`${tabBase} ${donateMode === "crypto" ? tabActive : tabInactive}`}
+                      onClick={() => setDonateMode("crypto")}
+                    >
+                      <CurrencyLogo currency={currency} size={20} /> Pay with crypto
+                    </button>
+                    {showCardTab && (
                       <button
-                        className="btn btn-ghost btn-xs text-xs px-1 h-5 min-h-0 opacity-60 hover:opacity-100"
-                        onClick={() => setDonateAmount(formatUnits(userBalance as bigint, decimals))}
-                        title="Use full balance"
+                        role="tab"
+                        type="button"
+                        className={`${tabBase} ${donateMode === "card" ? tabActive : tabInactive}`}
+                        onClick={() => setDonateMode("card")}
                       >
-                        Max
+                        <CreditCardIcon className="h-5 w-5" />
+                        Pay with card
                       </button>
                     )}
                   </div>
-                )}
-                {donateMode === "crypto" ? (
-                  <button
-                    className="btn btn-md btn-primary"
-                    onClick={handleDonate}
-                    disabled={!donateAmount || donateLocked || isPending || unknownCurrency}
-                  >
-                    {isPending ? <span className="loading loading-spinner loading-xs" /> : "Donate"}
-                  </button>
-                ) : currency?.symbol === "USDC" || currency?.symbol === "EURC" ? (
-                  <DonateWithFiatButton
-                    asset={currency.symbol}
-                    targetAddress={crowdfundingInfo.addr}
-                    disabled={donateLocked}
-                  />
-                ) : null}
-                <button
-                  className="btn btn-md btn-outline btn-ghost"
-                  disabled={isPending}
-                  onClick={() => setDonateMode(null)}
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          )}
+
+                  <div className="flex flex-col gap-3 p-4 text-center items-center">
+                    {donateMode === "crypto" && (
+                      <div className="flex flex-col text-base max-w-full">
+                        <p>Benefit from on-chain tracking. Your donation is:</p>
+                        <ul className="list-disc list-inside text-left w-fit mx-auto">
+                          <li>Cancellable until the program ends</li>
+                          <li>Refundable if the program is cancelled</li>
+                        </ul>
+                        {!connectedAddress && (
+                          <div role="alert" className="alert text-blue-500 py-2 text-sm text-left mt-2">
+                            <InformationCircleIcon className="h-5 w-5 shrink-0" />
+                            <div>To pay with crypto, sign in or connect a wallet first.</div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    {donateMode === "card" && (
+                      <div className="flex flex-col max-w-full">
+                        <p className="text-base">
+                          A third-party provider (Coinbase) will charge your card and send the equivalent crypto to the
+                          program.
+                        </p>
+                        <div role="alert" className="alert text-warning-content py-2 text-sm text-left">
+                          <WarningIcon />
+                          <span>Card donations cannot be cancelled or refunded through Chain.Giving.</span>
+                        </div>
+                      </div>
+                    )}
+                    <div className="flex flex-wrap gap-2 items-center justify-center">
+                      {donateMode === "crypto" && connectedAddress && (
+                        <div className="flex w-40 input input-bordered input-md items-center pr-1 gap-1">
+                          <input
+                            type="number"
+                            min="0"
+                            step="any"
+                            className="flex-1 bg-transparent outline-none min-w-0 text-center"
+                            placeholder={`Amount (${symbol})`}
+                            value={donateAmount}
+                            onChange={e => setDonateAmount(e.target.value)}
+                          />
+                          {userBalance !== undefined && (userBalance as bigint) > 0n && (
+                            <button
+                              className="btn btn-ghost btn-xs text-xs px-1 h-5 min-h-0 opacity-60 hover:opacity-100"
+                              onClick={() => setDonateAmount(formatUnits(userBalance as bigint, decimals))}
+                              title="Use full balance"
+                            >
+                              Max
+                            </button>
+                          )}
+                        </div>
+                      )}
+                      {donateMode === "crypto" ? (
+                        connectedAddress ? (
+                          <button
+                            className="btn btn-md btn-primary"
+                            onClick={handleDonate}
+                            disabled={!donateAmount || donateLocked || isPending}
+                          >
+                            {isPending ? <span className="loading loading-spinner loading-xs" /> : "Donate"}
+                          </button>
+                        ) : (
+                          <SignInActions />
+                        )
+                      ) : currency?.symbol === "USDC" || currency?.symbol === "EURC" ? (
+                        <DonateWithFiatButton
+                          asset={currency.symbol}
+                          targetAddress={crowdfundingInfo.addr}
+                          disabled={donateLocked}
+                        />
+                      ) : null}
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
         </div>
       )}
     </div>
   );
+}
+
+function SignInActionsInner() {
+  const { open } = useAppKit();
+  return (
+    <ConnectButton.Custom>
+      {({ openConnectModal, mounted }) => (
+        <>
+          <button className="btn btn-md btn-error gap-2" type="button" onClick={() => open()}>
+            <EnvelopeIcon className="h-4 w-4" />
+            Sign in with Email
+          </button>
+          <button className="btn btn-md btn-primary gap-2" type="button" onClick={openConnectModal} disabled={!mounted}>
+            <WalletIcon className="h-4 w-4" />
+            Connect Wallet
+          </button>
+        </>
+      )}
+    </ConnectButton.Custom>
+  );
+}
+
+// useAppKit reads global state populated by createAppKit, which only runs in
+// the browser (see services/web3/wagmiConfig.tsx). Defer until mount so SSG
+// never invokes it.
+function SignInActions() {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  if (!mounted) return null;
+  return <SignInActionsInner />;
 }
 
 function DirectTransfersPanel({
@@ -1403,11 +1466,11 @@ function BeneficiaryRow({ address, amount }: { address: Address; amount: bigint 
   );
 }
 
-function WarningIcon() {
+function WarningIcon({ className = "" }: { className?: string }) {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
-      className="h-5 w-5 shrink-0"
+      className={`h-5 w-5 shrink-0 ${className}`}
       fill="none"
       viewBox="0 0 24 24"
       stroke="currentColor"

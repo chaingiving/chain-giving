@@ -32,6 +32,7 @@
     "blo": "~1.2.0",
     "burner-connector": "0.0.20",
     "daisyui": "5.0.9",
+    "jose": "~5.9.6",
     "kubo-rpc-client": "~5.0.2",
     "next": "~16.2.4",
     "next-nprogress-bar": "~2.4.7",

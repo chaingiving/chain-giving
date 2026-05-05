@@ -589,12 +589,6 @@ export const WalletView = ({ address }: { address: Address }) => {
 
           <h3 className="card-title">Chain.Giving Tokens</h3>
 
-          {!connectedAddress && (
-            <div className="alert alert-info text-sm">
-              <span>Connect your wallet to view your account tokens.</span>
-            </div>
-          )}
-
           {isLoading ? (
             <div className="flex justify-center py-8">
               <span className="loading loading-spinner loading-lg" />

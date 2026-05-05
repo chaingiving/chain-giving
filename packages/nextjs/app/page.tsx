@@ -219,13 +219,41 @@ const Home: NextPage = () => {
       <ChainGivingHeader />
 
       {!connectedAddress ? (
-        <div className="card bg-base-100 shadow-md border border-base-300 rounded-3xl px-6 py-10 mt-8 flex flex-col items-center gap-5">
-          <p className="opacity-70 text-center">
-            Sign in to see your account and activity. No need to create an account.
-          </p>
-          <div className="flex flex-wrap gap-3 justify-center">
-            <EmbeddedWalletButton size="md" />
-            <RainbowKitCustomConnectButton size="md" />
+        <div className="mt-8 flex flex-col gap-8">
+          <div className="card bg-base-100 shadow-md border border-base-300 rounded-3xl px-6 py-10 flex flex-col items-center gap-5">
+            <p className="opacity-70 text-center">
+              Sign in to see your account and activity. No need to create an account.
+            </p>
+            <div className="flex flex-wrap gap-3 justify-center">
+              <EmbeddedWalletButton size="md" />
+              <RainbowKitCustomConnectButton size="md" />
+            </div>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Link
+              href="/organizations"
+              className="card bg-base-100 shadow-md border border-base-300 rounded-3xl px-6 py-8 hover:shadow-lg transition-shadow"
+            >
+              <div className="flex items-center gap-3">
+                <BuildingOffice2Icon className="h-8 w-8" />
+                <div>
+                  <h2 className="text-xl font-bold">Browse Organizations</h2>
+                  <p className="text-sm opacity-70">See who running programs</p>
+                </div>
+              </div>
+            </Link>
+            <Link
+              href="/programs"
+              className="card bg-base-100 shadow-md border border-base-300 rounded-3xl px-6 py-8 hover:shadow-lg transition-shadow"
+            >
+              <div className="flex items-center gap-3">
+                <GiftIcon className="h-8 w-8" />
+                <div>
+                  <h2 className="text-xl font-bold">Browse Programs</h2>
+                  <p className="text-sm opacity-70">Explore active crowdfundings</p>
+                </div>
+              </div>
+            </Link>
           </div>
         </div>
       ) : (

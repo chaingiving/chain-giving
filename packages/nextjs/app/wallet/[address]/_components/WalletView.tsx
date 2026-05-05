@@ -9,6 +9,7 @@ import { useAccount, useReadContract, useSwitchChain, useWriteContract } from "w
 import { ArrowDownOnSquareIcon, ArrowsRightLeftIcon, QrCodeIcon } from "@heroicons/react/24/outline";
 import { AccountQRCodeModal } from "~~/components/AccountQRCodeModal";
 import { AddressInputWithQr } from "~~/components/AddressInputWithQr";
+import { AuthProviderInfo, SignOutButton } from "~~/components/AuthSession";
 import { CurrencyLogo } from "~~/components/CurrencyLogo";
 import { cgOrganizationAbi } from "~~/contracts/cgOrganizationAbi";
 import { cgProgramAbi } from "~~/contracts/cgProgramAbi";
@@ -571,6 +572,12 @@ export const WalletView = ({ address }: { address: Address }) => {
             <button className="btn btn-ghost btn-sm" title="Show QR code" onClick={() => setShowQR(true)}>
               <QrCodeIcon className="h-5 w-5" />
             </button>
+            {isOwnWallet && (
+              <div className="ml-auto flex flex-wrap items-center gap-2">
+                <AuthProviderInfo />
+                <SignOutButton size="sm" />
+              </div>
+            )}
           </div>
 
           <div className="divider" />

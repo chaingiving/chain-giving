@@ -8,6 +8,7 @@ import { QRCodeSVG } from "qrcode.react";
 import { type Address as ViemAddress, isAddressEqual, zeroAddress } from "viem";
 import { useAccount, useReadContract } from "wagmi";
 import { BuildingOffice2Icon, GiftIcon, WalletIcon } from "@heroicons/react/24/outline";
+import { AuthProviderInfo, SignOutButton } from "~~/components/AuthSession";
 import { ChainGivingHeader } from "~~/components/ChainGivingHeader";
 import { EmbeddedWalletButton } from "~~/components/ConnectButton";
 import { ProgramCard } from "~~/components/ProgramCard";
@@ -252,10 +253,14 @@ const Home: NextPage = () => {
                 chain={targetNetwork}
                 blockExplorerAddressLink={getBlockExplorerAddressLink(targetNetwork, connectedAddress)}
               />
-              <Link href={`/wallet/${connectedAddress}`} className="btn btn-sm btn-outline gap-2">
-                <WalletIcon className="h-4 w-4" />
-                View Wallet
-              </Link>
+              <AuthProviderInfo className="justify-center" />
+              <div className="flex flex-wrap items-center justify-center gap-2">
+                <Link href={`/wallet/${connectedAddress}`} className="btn btn-sm btn-outline gap-2">
+                  <WalletIcon className="h-4 w-4" />
+                  View Wallet
+                </Link>
+                <SignOutButton size="sm" />
+              </div>
             </div>
           </aside>
 

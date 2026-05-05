@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { useAppKit } from "@reown/appkit/react";
 import { Address as AddressDisplay, Balance } from "@scaffold-ui/components";
@@ -747,7 +748,7 @@ function CrowdfundingSection({
                             type="number"
                             min="0"
                             step="any"
-                            className="flex-1 bg-transparent outline-none min-w-0 text-center"
+                            className="flex-1 bg-transparent outline-none min-w-0 text-center text-sm placeholder:text-xs"
                             placeholder={`Amount (${symbol})`}
                             value={donateAmount}
                             onChange={e => setDonateAmount(e.target.value)}
@@ -783,6 +784,25 @@ function CrowdfundingSection({
                         />
                       ) : null}
                     </div>
+                    {donateMode === "crypto" && connectedAddress && (
+                      <div className="flex flex-wrap items-center justify-center gap-2 text-xs opacity-80">
+                        <span className="flex items-center gap-1">
+                          In your wallet:
+                          <span className="font-mono font-semibold flex items-center gap-1">
+                            {userBalance !== undefined ? formatUnits(userBalance as bigint, decimals) : "…"}
+                            <CurrencyLogo currency={currency} size={12} />
+                            {symbol}
+                          </span>
+                        </span>
+                        <Link
+                          href={`/wallet/${connectedAddress}`}
+                          className="btn btn-xs btn-ghost btn-link no-underline px-1 gap-1"
+                        >
+                          <WalletIcon className="h-3.5 w-3.5" />
+                          Go to wallet
+                        </Link>
+                      </div>
+                    )}
                   </div>
                 </div>
               );

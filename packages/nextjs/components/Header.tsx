@@ -17,6 +17,7 @@ import {
 import { SwitchTheme } from "~~/components/SwitchTheme";
 import { FaucetButton } from "~~/components/scaffold-eth";
 import { useOutsideClick, useTargetNetwork } from "~~/hooks/scaffold-eth";
+import { useIsAdmin } from "~~/hooks/useIsAdmin";
 
 type HeaderMenuLink = {
   label: string;
@@ -39,18 +40,14 @@ export const menuLinks: HeaderMenuLink[] = [
     href: "/programs",
     icon: <GiftIcon className="h-4 w-4" />,
   },
-  {
-    label: "Debug",
-    href: "/debug",
-    icon: <BugAntIcon className="h-4 w-4" />,
-  },
 ];
 
 export const HeaderMenuLinks = () => {
   const pathname = usePathname();
   const { address: connectedAddress } = useAccount();
+  const isAdmin = useIsAdmin();
 
-  const allLinks = [
+  const allLinks: HeaderMenuLink[] = [
     ...menuLinks,
     ...(connectedAddress
       ? [
@@ -58,6 +55,15 @@ export const HeaderMenuLinks = () => {
             label: "Wallet",
             href: `/wallet/${connectedAddress}`,
             icon: <WalletIcon className="h-4 w-4" />,
+          },
+        ]
+      : []),
+    ...(isAdmin
+      ? [
+          {
+            label: "Debug",
+            href: "/debug",
+            icon: <BugAntIcon className="h-4 w-4" />,
           },
         ]
       : []),

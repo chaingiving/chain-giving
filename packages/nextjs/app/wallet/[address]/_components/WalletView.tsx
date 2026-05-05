@@ -123,10 +123,10 @@ function WalletTokenRow({
     tt.maxSupply === 0n ? "Fungible" : tt.maxSupply === 1n ? "NFT (max 1)" : `Max ${tt.maxSupply.toString()}`;
 
   return (
-    <div className="border border-base-300 rounded-lg p-4 flex flex-col gap-3">
-      <div className="flex flex-wrap items-center gap-2">
+    <div className="border border-base-300 rounded-lg p-3 sm:p-4 flex flex-col gap-3 min-w-0">
+      <div className="flex flex-wrap items-center gap-2 min-w-0">
         <span className="badge badge-outline badge-sm">#{tokenId.toString()}</span>
-        <span className="font-semibold text-base">
+        <span className="font-semibold text-base break-all">
           {tt.name} ({tt.symbol})
         </span>
         <span className="badge badge-ghost badge-sm">{supplyLabel}</span>
@@ -175,8 +175,8 @@ function WalletTokenRow({
         <div className="flex flex-col gap-2 p-3 bg-base-200 rounded-lg">
           <p className="text-sm font-medium">Transfer tokens</p>
           <AddressInputWithQr value={transferTo} onChange={setTransferTo} placeholder="Recipient address" />
-          <div className="flex gap-2 items-center">
-            <div className="flex flex-1 input input-bordered input-sm items-center pr-1 gap-1">
+          <div className="flex flex-wrap gap-2 items-center">
+            <div className="flex flex-1 min-w-[10rem] input input-bordered input-sm items-center pr-1 gap-1">
               <input
                 type="number"
                 min="1"
@@ -207,8 +207,8 @@ function WalletTokenRow({
       {showBurn && (
         <div className="flex flex-col gap-2 p-3 bg-base-200 rounded-lg">
           <p className="text-sm font-medium">Burn tokens (irreversible)</p>
-          <div className="flex gap-2 items-center">
-            <div className="flex flex-1 input input-bordered input-sm items-center pr-1 gap-1">
+          <div className="flex flex-wrap gap-2 items-center">
+            <div className="flex flex-1 min-w-[10rem] input input-bordered input-sm items-center pr-1 gap-1">
               <input
                 type="number"
                 min="1"
@@ -403,18 +403,20 @@ function CurrencyBalanceRow({
   };
 
   return (
-    <div className="border border-base-300 rounded-lg p-4 flex flex-col gap-3">
-      <div className="flex flex-wrap items-center gap-3">
+    <div className="border border-base-300 rounded-lg p-3 sm:p-4 flex flex-col gap-3 min-w-0">
+      <div className="flex flex-wrap items-center gap-2 sm:gap-3 min-w-0">
         <CurrencyLogo currency={currency} size={28} />
-        <div className="flex flex-col">
+        <div className="flex flex-col min-w-0">
           <span className="font-semibold text-base">{currency.symbol}</span>
-          <span className="text-xs opacity-60">{currency.name}</span>
+          <span className="text-xs opacity-60 truncate">{currency.name}</span>
         </div>
-        <span className="ml-auto font-mono font-bold text-lg">{formatUnits(safeBalance, currency.decimals)}</span>
+        <span className="ml-auto font-mono font-bold text-lg break-all">
+          {formatUnits(safeBalance, currency.decimals)}
+        </span>
         {isOwnWallet && (
-          <>
+          <div className="flex gap-2 w-full sm:w-auto">
             <button
-              className="btn btn-sm btn-outline gap-1"
+              className="btn btn-sm btn-outline gap-1 flex-1 sm:flex-none"
               onClick={() => setShowTopUp(true)}
               title={`How to top up ${currency.symbol}`}
             >
@@ -422,13 +424,13 @@ function CurrencyBalanceRow({
               Receive
             </button>
             <button
-              className="btn btn-sm btn-outline"
+              className="btn btn-sm btn-outline flex-1 sm:flex-none"
               onClick={() => setShowTransfer(v => !v)}
               disabled={safeBalance === 0n}
             >
               Transfer
             </button>
-          </>
+          </div>
         )}
       </div>
 
@@ -438,8 +440,8 @@ function CurrencyBalanceRow({
             Transfer <CurrencyLogo currency={currency} /> {currency.symbol}
           </p>
           <AddressInputWithQr value={transferTo} onChange={setTransferTo} placeholder="Recipient address" />
-          <div className="flex gap-2 items-center">
-            <div className="flex flex-1 input input-bordered input-sm items-center pr-1 gap-1">
+          <div className="flex flex-wrap gap-2 items-center">
+            <div className="flex flex-1 min-w-[10rem] input input-bordered input-sm items-center pr-1 gap-1">
               <input
                 type="number"
                 min="0"
@@ -548,9 +550,9 @@ export const WalletView = ({ address }: { address: Address }) => {
   });
 
   return (
-    <div className="flex flex-col gap-6 px-4 py-8 max-w-5xl mx-auto">
+    <div className="flex flex-col gap-6 px-2 sm:px-4 py-8 max-w-5xl mx-auto w-full">
       <div className="card bg-base-100 shadow-xl">
-        <div className="card-body">
+        <div className="card-body p-4 sm:p-6 lg:p-8">
           <div className="flex flex-wrap items-center gap-3">
             <h2 className="card-title text-2xl">Wallet</h2>
             {isOwnWallet && <span className="badge badge-primary">Your Account</span>}
@@ -559,8 +561,13 @@ export const WalletView = ({ address }: { address: Address }) => {
             </div>
           </div>
 
-          <div className="flex items-center gap-3 mt-2">
-            <AddressDisplay address={address} format="long" blockExplorerAddressLink={addressLink} />
+          <div className="flex flex-wrap items-center gap-2 mt-2 min-w-0">
+            <span className="hidden sm:inline-flex">
+              <AddressDisplay address={address} format="long" blockExplorerAddressLink={addressLink} />
+            </span>
+            <span className="sm:hidden inline-flex">
+              <AddressDisplay address={address} format="short" blockExplorerAddressLink={addressLink} />
+            </span>
             <button className="btn btn-ghost btn-sm" title="Show QR code" onClick={() => setShowQR(true)}>
               <QrCodeIcon className="h-5 w-5" />
             </button>

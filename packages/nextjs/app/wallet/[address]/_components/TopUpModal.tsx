@@ -65,34 +65,45 @@ export function TopUpModal({ walletAddress, currency, onClose }: Props) {
 
   return (
     <div className="modal modal-open">
-      <div className="modal-box flex flex-col items-center gap-4 max-w-lg">
-        <button className="btn btn-ghost btn-sm btn-circle absolute right-3 top-3" onClick={onClose}>
+      <div className="modal-box flex flex-col items-center gap-3 w-[calc(100%-1rem)] max-w-lg p-4 sm:p-6 min-w-0">
+        <button className="btn btn-ghost btn-sm btn-circle absolute right-2 top-2" onClick={onClose}>
           ✕
         </button>
         <div className="flex items-center gap-2">
-          <CurrencyLogo currency={currency} size={24} />
-          <p className="font-semibold text-lg">Receive {currency.symbol}</p>
+          <CurrencyLogo currency={currency} size={20} />
+          <p className="font-semibold text-base">Receive {currency.symbol}</p>
         </div>
-        <p className="text-sm text-center opacity-80">
+        <p className="text-xs text-center opacity-80">
           Send <span className="font-semibold">{currency.symbol}</span> on{" "}
           <span className="font-semibold">{network.name}</span> to this address.
         </p>
         <div className="p-3 bg-base-100 rounded-2xl shadow-inner">
           <QRCodeSVG
             value={walletAddress}
-            size={160}
+            size={144}
             bgColor="#ffffff"
             fgColor="#258597"
             level="H"
-            imageSettings={{ src: "/logo.svg", width: 36, height: 36, excavate: true }}
+            imageSettings={{ src: "/logo.svg", width: 32, height: 32, excavate: true }}
           />
         </div>
-        <AddressDisplay
-          address={walletAddress}
-          format="long"
-          blockExplorerAddressLink={getBlockExplorerAddressLink(network, walletAddress)}
-        />
-        <div className="w-full text-xs opacity-60 flex flex-col gap-1">
+        <div className="max-w-full overflow-hidden">
+          <span className="hidden sm:inline-flex">
+            <AddressDisplay
+              address={walletAddress}
+              format="long"
+              blockExplorerAddressLink={getBlockExplorerAddressLink(network, walletAddress)}
+            />
+          </span>
+          <span className="sm:hidden inline-flex">
+            <AddressDisplay
+              address={walletAddress}
+              format="short"
+              blockExplorerAddressLink={getBlockExplorerAddressLink(network, walletAddress)}
+            />
+          </span>
+        </div>
+        <div className="w-full text-[11px] opacity-60 flex flex-col gap-1 min-w-0">
           <span>
             <strong>Network:</strong> {network.name}
           </span>
@@ -101,8 +112,8 @@ export function TopUpModal({ walletAddress, currency, onClose }: Props) {
           </span>
         </div>
         {faucetSupported && (
-          <div className="w-full flex flex-col gap-2 border-t border-base-300">
-            <p className="text-sm">On testnet you can request a small amount of test tokens</p>
+          <div className="w-full flex flex-col gap-2 border-t border-base-300 pt-3">
+            <p className="text-xs">On testnet you can request a small amount of test tokens.</p>
             <button className="btn btn-primary btn-sm" disabled={faucetPending} onClick={requestFaucet}>
               {faucetPending ? <span className="loading loading-spinner loading-xs" /> : `Get test ${currency.symbol}`}
             </button>

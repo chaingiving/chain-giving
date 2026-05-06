@@ -681,11 +681,11 @@ function CrowdfundingSection({
               const showCardTab = currency?.symbol === "USDC" || currency?.symbol === "EURC";
               const tabBase =
                 "py-4 text-lg font-bold flex items-center justify-center gap-2 transition-colors focus-visible:outline-none";
-              const tabActive = "text-blue-800 border-b-2 border-blue-800 -mb-px";
-              const tabInactive = "text-gray-600 hover:bg-base-300/60";
+              const tabActive = "text-blue-700 dark:text-blue-300 border-b-2 border-current -mb-px";
+              const tabInactive = "text-gray-600 dark:text-gray-400 hover:bg-base-300/60";
               return (
                 <div className="mt-3 w-full max-w-md mx-auto bg-base-200 rounded-lg overflow-hidden">
-                  <h3 className="text-2xl font-bold flex items-center gap-2 justify-center text-primary-content py-3 px-4 m-0">
+                  <h3 className="text-2xl font-bold flex items-center gap-2 justify-center py-3 px-4 m-0 text-blue-700 dark:text-blue-300">
                     Donate <CurrencyLogo currency={currency} size={24} /> {symbol}
                   </h3>
                   <div
@@ -722,7 +722,10 @@ function CrowdfundingSection({
                           <li>Refundable if the program is cancelled</li>
                         </ul>
                         {!connectedAddress && (
-                          <div role="alert" className="alert text-blue-500 py-2 text-sm text-left mt-2">
+                          <div
+                            role="alert"
+                            className="alert py-2 text-sm text-left mt-2 text-blue-700 dark:text-blue-300"
+                          >
                             <InformationCircleIcon className="h-5 w-5 shrink-0" />
                             <div>To pay with crypto, sign in or connect a wallet first.</div>
                           </div>
@@ -735,7 +738,7 @@ function CrowdfundingSection({
                           A third-party provider (Coinbase) will charge your card and send the equivalent crypto to the
                           program.
                         </p>
-                        <div role="alert" className="alert text-warning-content py-2 text-sm text-left">
+                        <div role="alert" className="alert alert-warning py-2 text-sm text-left">
                           <WarningIcon />
                           <span>Card donations cannot be cancelled or refunded through Chain.Giving.</span>
                         </div>

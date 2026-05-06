@@ -5,6 +5,8 @@ import { Address as AddressDisplay } from "@scaffold-ui/components";
 import { Address, isAddress, isAddressEqual } from "viem";
 import { useAccount, useReadContract } from "wagmi";
 import { AddressInputWithQr } from "~~/components/AddressInputWithQr";
+import { EmbeddedWalletButton } from "~~/components/ConnectButton";
+import { RainbowKitCustomConnectButton } from "~~/components/scaffold-eth";
 import { cgTokenAbi } from "~~/contracts/cgTokenAbi";
 import { useBlockExplorerLink } from "~~/hooks/scaffold-eth";
 import { useCGTokenWrite } from "~~/hooks/useCGTokenWrite";
@@ -308,8 +310,14 @@ export const CGTokenView = ({ address }: { address: Address }) => {
           <h3 className="card-title">Token Types ({tokenCount})</h3>
 
           {!connectedAddress && (
-            <div className="alert alert-info text-sm">
-              <span>Connect your wallet to see your token balances and spend tokens.</span>
+            <div className="flex flex-col gap-3">
+              <div className="alert text-sm text-blue-700 dark:text-blue-300">
+                <span>Connect your wallet to see your token balances and spend tokens.</span>
+              </div>
+              <div className="flex flex-wrap gap-3 justify-center">
+                <EmbeddedWalletButton size="md" />
+                <RainbowKitCustomConnectButton size="md" />
+              </div>
             </div>
           )}
 

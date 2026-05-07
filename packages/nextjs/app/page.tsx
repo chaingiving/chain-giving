@@ -257,9 +257,9 @@ const Home: NextPage = () => {
           </div>
         </div>
       ) : (
-        <div className="flex flex-col lg:flex-row gap-6 mt-8">
-          <aside className="lg:w-80 lg:shrink-0">
-            <div className="card bg-base-100 shadow-xl border border-base-300 rounded-3xl px-6 py-6 flex flex-col items-center gap-4 lg:sticky lg:top-4">
+        <div className="flex flex-col md:flex-row gap-6 mt-8">
+          <aside className="md:w-72 lg:w-80 md:shrink-0">
+            <div className="card bg-base-100 shadow-xl border border-base-300 rounded-3xl px-6 py-6 flex flex-col items-center gap-4 md:sticky md:top-4">
               <p className="my-2 font-medium">Your Account</p>
               <div className="p-3 bg-base-100 rounded-2xl shadow-inner">
                 <QRCodeSVG

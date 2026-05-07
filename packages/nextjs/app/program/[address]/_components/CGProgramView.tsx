@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { useAppKit } from "@reown/appkit/react";
-import { Address as AddressDisplay, Balance } from "@scaffold-ui/components";
+import { Address as AddressDisplay } from "@scaffold-ui/components";
 import { Address, erc20Abi, formatUnits, isAddress, isAddressEqual, parseUnits, zeroAddress } from "viem";
 import { useAccount, usePublicClient, useReadContract, useWriteContract } from "wagmi";
 import {
@@ -265,8 +265,16 @@ function ProgramSection({
     <>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="card-title text-3xl">{name || "CGProgram"}</h2>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           {orgAddress && <OrgGasSponsorshipBadge orgAddress={orgAddress} />}
+          {lockDistributions && (
+            <span
+              className="tooltip tooltip-bottom"
+              data-tip="When locked, all distributions must be marked as Ready before the crowdfunding can accept contributions. This guarantees contributors know exactly how funds will be allocated."
+            >
+              <span className="badge badge-warning badge-lg cursor-help">Distributions Locked</span>
+            </span>
+          )}
           <span className={`badge ${STATE_COLORS[programState]} badge-lg`}>{programState}</span>
         </div>
       </div>
@@ -281,34 +289,6 @@ function ProgramSection({
             {owner && <AddressDisplay address={owner} blockExplorerAddressLink={ownerLink} />}
             {isOwner && <span className="badge badge-info badge-sm">You</span>}
           </div>
-        </div>
-        <div>
-          <p className="text-sm opacity-60">Contract Balance</p>
-          <Balance address={address} />
-        </div>
-        <div>
-          <p className="text-sm flex items-center gap-1">
-            <span className="opacity-60">Distributions Locked</span>
-            <span
-              className="tooltip tooltip-bottom"
-              data-tip="When locked, all distributions must marked as Ready before the crowdfunding can accept contributions. This guarantees contributors know exactly how funds will be allocated."
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-                className="w-4 h-4 stroke-current cursor-help"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
-              </svg>
-            </span>
-          </p>
-          <p className="font-mono">{lockDistributions ? "Yes" : "No"}</p>
         </div>
       </div>
     </>

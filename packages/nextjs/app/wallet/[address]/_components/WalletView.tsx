@@ -498,11 +498,13 @@ function NativeAssetRow({ walletAddress, isOwnWallet }: { walletAddress: Address
   return (
     <div className="border border-base-300 rounded-lg p-3 sm:p-4 flex flex-col gap-3 min-w-0">
       <div className="flex flex-wrap items-center gap-2 sm:gap-3 min-w-0">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/currencies/eth.svg" alt={symbol} width={28} height={28} className="inline-block align-middle" />
+        <span className="inline-flex items-center justify-center w-7 h-7 shrink-0">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/currencies/eth.svg" alt={symbol} width={18} height={28} className="inline-block align-middle" />
+        </span>
         <div className="flex flex-col min-w-0">
           <span className="font-semibold text-base">{symbol}</span>
-          <span className="text-xs opacity-60 truncate">Native coin</span>
+          <span className="text-xs opacity-60 truncate">Native Coin</span>
         </div>
         <span className="ml-auto font-mono font-bold text-lg break-all">{formatUnits(value, decimals)}</span>
         {isOwnWallet && (

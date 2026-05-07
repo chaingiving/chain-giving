@@ -18,6 +18,7 @@ import { AddressInputWithQr } from "~~/components/AddressInputWithQr";
 import { CurrencyLogo } from "~~/components/CurrencyLogo";
 import { DonateWithFiatButton } from "~~/components/DonateWithFiatButton";
 import { OrgGasSponsorshipBadge } from "~~/components/OrgGasSponsorshipBadge";
+import { cgOrganizationAbi } from "~~/contracts/cgOrganizationAbi";
 import { cgProgramAbi } from "~~/contracts/cgProgramAbi";
 import { DonationCurrency, findCurrency, getDonationCurrencies } from "~~/contracts/donationCurrencies";
 import { useBlockExplorerLink, useTargetNetwork } from "~~/hooks/scaffold-eth";
@@ -278,20 +279,37 @@ function ProgramSection({
           <span className={`badge ${STATE_COLORS[programState]} badge-lg`}>{programState}</span>
         </div>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <p className="text-sm opacity-60">Program Address</p>
+      <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm">
+        {orgAddress && <ProgramOrganizationLink orgAddress={orgAddress} />}
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="opacity-60 shrink-0">Address:</span>
           <AddressDisplay address={address} blockExplorerAddressLink={addressLink} />
         </div>
-        <div>
-          <p className="text-sm opacity-60">Program Owner</p>
-          <div className="flex items-center gap-2">
-            {owner && <AddressDisplay address={owner} blockExplorerAddressLink={ownerLink} />}
-            {isOwner && <span className="badge badge-info badge-sm">You</span>}
-          </div>
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="opacity-60 shrink-0">Owner:</span>
+          {owner && <AddressDisplay address={owner} blockExplorerAddressLink={ownerLink} />}
+          {isOwner && <span className="badge badge-info badge-sm">You</span>}
         </div>
       </div>
     </>
+  );
+}
+
+function ProgramOrganizationLink({ orgAddress }: { orgAddress: Address }) {
+  const { data: orgName } = useReadContract({
+    address: orgAddress,
+    abi: cgOrganizationAbi,
+    functionName: "name",
+    query: { refetchInterval: 30000 },
+  });
+
+  return (
+    <div className="flex items-center gap-2 min-w-0">
+      <span className="opacity-60 shrink-0">Organization:</span>
+      <Link href={`/organization/${orgAddress}`} className="link link-primary font-medium">
+        {(orgName as string | undefined) ?? "View organization"}
+      </Link>
+    </div>
   );
 }
 

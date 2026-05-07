@@ -12,21 +12,25 @@ import { getBlockExplorerAddressLink, notification } from "~~/utils/scaffold-eth
 
 // CDP faucet supports these chains; keep in sync with app/api/faucet/route.ts.
 const FAUCET_CHAIN_IDS = new Set<number>([84532]);
-const FAUCET_TOKEN_BY_SYMBOL: Record<string, string> = { USDC: "usdc", EURC: "eurc" };
+const FAUCET_TOKEN_BY_SYMBOL: Record<string, string> = { USDC: "usdc", EURC: "eurc", ETH: "eth" };
 
 type Props = {
   walletAddress: Address;
-  currency: DonationCurrency;
+  /** ERC-20 currency. Omit when `native` is true. */
+  currency?: DonationCurrency;
+  /** When set, render the modal for the chain's native asset (e.g. ETH). */
+  native?: { symbol: string };
   onClose: () => void;
 };
 
-export function TopUpModal({ walletAddress, currency, onClose }: Props) {
+export function TopUpModal({ walletAddress, currency, native, onClose }: Props) {
   const { chain } = useAccount();
   const { targetNetwork } = useTargetNetwork();
   const network = chain ?? targetNetwork;
   const [faucetPending, setFaucetPending] = useState(false);
 
-  const faucetSupported = FAUCET_CHAIN_IDS.has(network.id) && FAUCET_TOKEN_BY_SYMBOL[currency.symbol] !== undefined;
+  const symbol = native ? native.symbol : (currency?.symbol ?? "");
+  const faucetSupported = FAUCET_CHAIN_IDS.has(network.id) && FAUCET_TOKEN_BY_SYMBOL[symbol] !== undefined;
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -44,7 +48,7 @@ export function TopUpModal({ walletAddress, currency, onClose }: Props) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           address: walletAddress,
-          token: FAUCET_TOKEN_BY_SYMBOL[currency.symbol],
+          token: FAUCET_TOKEN_BY_SYMBOL[symbol],
           chainId: network.id,
         }),
       });
@@ -70,12 +74,12 @@ export function TopUpModal({ walletAddress, currency, onClose }: Props) {
           ✕
         </button>
         <div className="flex items-center gap-2">
-          <CurrencyLogo currency={currency} size={20} />
-          <p className="font-semibold text-base">Receive {currency.symbol}</p>
+          {currency && <CurrencyLogo currency={currency} size={20} />}
+          <p className="font-semibold text-base">Receive {symbol}</p>
         </div>
         <p className="text-xs text-center opacity-80">
-          Send <span className="font-semibold">{currency.symbol}</span> on{" "}
-          <span className="font-semibold">{network.name}</span> to this address.
+          Send <span className="font-semibold">{symbol}</span> on <span className="font-semibold">{network.name}</span>{" "}
+          to this address.
         </p>
         <div className="p-3 bg-base-100 rounded-2xl shadow-inner">
           <QRCodeSVG
@@ -107,15 +111,22 @@ export function TopUpModal({ walletAddress, currency, onClose }: Props) {
           <span>
             <strong>Network:</strong> {network.name}
           </span>
-          <span className="break-all">
-            <strong>{currency.symbol} contract:</strong> {currency.address}
-          </span>
+          {currency && (
+            <span className="break-all">
+              <strong>{currency.symbol} contract:</strong> {currency.address}
+            </span>
+          )}
+          {native && (
+            <span>
+              <strong>Asset:</strong> native {symbol}
+            </span>
+          )}
         </div>
         {faucetSupported && (
           <div className="w-full flex flex-col gap-2 border-t border-base-300 pt-3">
             <p className="text-xs">On testnet you can request a small amount of test tokens.</p>
             <button className="btn btn-primary btn-sm" disabled={faucetPending} onClick={requestFaucet}>
-              {faucetPending ? <span className="loading loading-spinner loading-xs" /> : `Get test ${currency.symbol}`}
+              {faucetPending ? <span className="loading loading-spinner loading-xs" /> : `Get test ${symbol}`}
             </button>
           </div>
         )}

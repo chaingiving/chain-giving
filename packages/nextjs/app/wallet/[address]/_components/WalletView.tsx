@@ -5,9 +5,8 @@ import Link from "next/link";
 import { TopUpModal } from "./TopUpModal";
 import { Address as AddressDisplay } from "@scaffold-ui/components";
 import { Address, erc20Abi, formatUnits, isAddress, isAddressEqual, parseUnits } from "viem";
-import { useAccount, useReadContract, useSwitchChain, useWriteContract } from "wagmi";
-import { ArrowDownOnSquareIcon, ArrowsRightLeftIcon, QrCodeIcon } from "@heroicons/react/24/outline";
-import { AccountQRCodeModal } from "~~/components/AccountQRCodeModal";
+import { useAccount, useBalance, useReadContract, useSwitchChain, useWriteContract } from "wagmi";
+import { ArrowDownOnSquareIcon, ArrowsRightLeftIcon } from "@heroicons/react/24/outline";
 import { AddressInputWithQr } from "~~/components/AddressInputWithQr";
 import { AuthProviderInfo, SignOutButton } from "~~/components/AuthSession";
 import { CurrencyLogo } from "~~/components/CurrencyLogo";
@@ -477,6 +476,55 @@ function CurrencyBalanceRow({
   );
 }
 
+// ── Native asset (ETH) row ──────────────────────────────────────────────────
+
+function NativeAssetRow({ walletAddress, isOwnWallet }: { walletAddress: Address; isOwnWallet: boolean }) {
+  const [showTopUp, setShowTopUp] = useState(false);
+  const { chainId } = useAccount();
+  const { targetNetwork } = useTargetNetwork();
+  const effectiveChainId = chainId ?? targetNetwork.id;
+  const { data } = useBalance({
+    address: walletAddress,
+    chainId: effectiveChainId,
+    query: { refetchInterval: 5000 },
+  });
+
+  const symbol = data?.symbol ?? targetNetwork.nativeCurrency?.symbol ?? "ETH";
+  const decimals = data?.decimals ?? targetNetwork.nativeCurrency?.decimals ?? 18;
+  const value = data?.value ?? 0n;
+
+  if (!isOwnWallet && value === 0n) return null;
+
+  return (
+    <div className="border border-base-300 rounded-lg p-3 sm:p-4 flex flex-col gap-3 min-w-0">
+      <div className="flex flex-wrap items-center gap-2 sm:gap-3 min-w-0">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/currencies/eth.svg" alt={symbol} width={28} height={28} className="inline-block align-middle" />
+        <div className="flex flex-col min-w-0">
+          <span className="font-semibold text-base">{symbol}</span>
+          <span className="text-xs opacity-60 truncate">Native coin</span>
+        </div>
+        <span className="ml-auto font-mono font-bold text-lg break-all">{formatUnits(value, decimals)}</span>
+        {isOwnWallet && (
+          <div className="flex gap-2 w-full sm:w-auto">
+            <button
+              className="btn btn-sm btn-outline gap-1 flex-1 sm:flex-none"
+              onClick={() => setShowTopUp(true)}
+              title={`How to top up ${symbol}`}
+            >
+              <ArrowDownOnSquareIcon className="h-4 w-4" />
+              Receive
+            </button>
+          </div>
+        )}
+      </div>
+      {showTopUp && (
+        <TopUpModal walletAddress={walletAddress} native={{ symbol }} onClose={() => setShowTopUp(false)} />
+      )}
+    </div>
+  );
+}
+
 // ── Donation currencies section ──────────────────────────────────────────────
 
 function DonationCurrencyBalances({ walletAddress, isOwnWallet }: { walletAddress: Address; isOwnWallet: boolean }) {
@@ -538,7 +586,6 @@ function NetworkBadge() {
 
 export const WalletView = ({ address }: { address: Address }) => {
   const { address: connectedAddress } = useAccount();
-  const [showQR, setShowQR] = useState(false);
 
   const isOwnWallet = connectedAddress ? isAddressEqual(connectedAddress, address) : false;
   const addressLink = useBlockExplorerLink(address);
@@ -569,9 +616,6 @@ export const WalletView = ({ address }: { address: Address }) => {
             <span className="sm:hidden inline-flex">
               <AddressDisplay address={address} format="short" blockExplorerAddressLink={addressLink} />
             </span>
-            <button className="btn btn-ghost btn-sm" title="Show QR code" onClick={() => setShowQR(true)}>
-              <QrCodeIcon className="h-5 w-5" />
-            </button>
             {isOwnWallet && (
               <div className="ml-auto flex flex-wrap items-center gap-2">
                 <AuthProviderInfo />
@@ -579,11 +623,6 @@ export const WalletView = ({ address }: { address: Address }) => {
               </div>
             )}
           </div>
-
-          <div className="divider" />
-
-          <h3 className="card-title">Supported Currencies</h3>
-          <DonationCurrencyBalances walletAddress={address} isOwnWallet={isOwnWallet} />
 
           <div className="divider" />
 
@@ -605,10 +644,16 @@ export const WalletView = ({ address }: { address: Address }) => {
               </p>
             </div>
           )}
+
+          <div className="divider" />
+
+          <h3 className="card-title">Supported Currencies</h3>
+          <div className="flex flex-col gap-2">
+            <NativeAssetRow walletAddress={address} isOwnWallet={isOwnWallet} />
+            <DonationCurrencyBalances walletAddress={address} isOwnWallet={isOwnWallet} />
+          </div>
         </div>
       </div>
-
-      {showQR && <AccountQRCodeModal address={address} onClose={() => setShowQR(false)} />}
     </div>
   );
 };

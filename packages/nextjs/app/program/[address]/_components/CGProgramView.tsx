@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import Link from "next/link";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { useAppKit } from "@reown/appkit/react";
@@ -8,9 +8,13 @@ import { Address as AddressDisplay } from "@scaffold-ui/components";
 import { Address, erc20Abi, formatUnits, isAddress, isAddressEqual, parseUnits, zeroAddress } from "viem";
 import { useAccount, usePublicClient, useReadContract, useWriteContract } from "wagmi";
 import {
+  ArrowsPointingOutIcon,
   CreditCardIcon,
   EnvelopeIcon,
+  HashtagIcon,
   InformationCircleIcon,
+  LockClosedIcon,
+  SparklesIcon,
   TrashIcon,
   WalletIcon,
 } from "@heroicons/react/24/outline";
@@ -599,8 +603,14 @@ function CrowdfundingSection({
         directTransfers={directTransfers}
       />
 
-      <div className="mt-3">
-        <progress className="progress progress-primary w-full" value={Math.min(progress, 100)} max="100" />
+      <div className="mt-3 relative h-6 rounded-full bg-base-300 overflow-hidden">
+        <div
+          className="h-full bg-primary transition-[width] duration-500"
+          style={{ width: `${Math.min(progress, 100)}%` }}
+        />
+        <span className="absolute inset-0 flex items-center justify-center text-xs font-bold text-white mix-blend-difference pointer-events-none">
+          {progress.toFixed(1)}%
+        </span>
       </div>
 
       {connectedAddress && userContribution !== undefined && userContribution > 0n && (
@@ -2041,6 +2051,38 @@ function OwnerActions({
   );
 }
 
+function ChoiceCard({
+  active,
+  onClick,
+  icon,
+  title,
+  description,
+}: {
+  active: boolean;
+  onClick: () => void;
+  icon: ReactNode;
+  title: string;
+  description: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`text-left p-4 rounded-xl border-2 transition-all flex gap-3 items-start ${
+        active
+          ? "border-primary bg-primary/10 shadow-md ring-1 ring-primary"
+          : "border-base-300 bg-base-100 shadow-sm hover:border-primary/40 hover:shadow"
+      }`}
+    >
+      <span className={active ? "text-primary shrink-0" : "opacity-70 shrink-0"}>{icon}</span>
+      <div className="flex flex-col gap-0.5 min-w-0">
+        <span className="font-semibold">{title}</span>
+        <span className="text-xs opacity-70">{description}</span>
+      </div>
+    </button>
+  );
+}
+
 function CreateTokenTypeForm({
   programAddress,
   orgAddress,
@@ -2052,27 +2094,47 @@ function CreateTokenTypeForm({
 }) {
   const [name, setName] = useState("");
   const [symbol, setSymbol] = useState("");
-  const [maxSupply, setMaxSupply] = useState("");
+  const [availability, setAvailability] = useState<"unlimited" | "limited">("unlimited");
+  const [limitedKind, setLimitedKind] = useState<"unique" | "capped">("unique");
+  const [cap, setCap] = useState("");
   const [uri, setUri] = useState("");
   const [transferable, setTransferable] = useState(true);
   const [burnable, setBurnable] = useState(true);
   const write = useCGProgramWrite(programAddress, orgAddress);
+
+  const resetForm = () => {
+    setName("");
+    setSymbol("");
+    setAvailability("unlimited");
+    setLimitedKind("unique");
+    setCap("");
+    setUri("");
+    setTransferable(true);
+    setBurnable(true);
+  };
 
   const handleCreate = async () => {
     if (!name || !symbol) {
       notification.error("Name and symbol are required");
       return;
     }
-    const supply = maxSupply ? BigInt(maxSupply) : 0n;
+    let supply: bigint;
+    if (availability === "unlimited") {
+      supply = 0n;
+    } else if (limitedKind === "unique") {
+      supply = 1n;
+    } else {
+      const n = Number(cap);
+      if (!cap || !Number.isInteger(n) || n < 2) {
+        notification.error("Maximum supply must be a whole number ≥ 2");
+        return;
+      }
+      supply = BigInt(n);
+    }
     const success = await write("defineTokenType", [name, symbol, supply, uri, transferable, burnable]);
     if (success) {
       onDone();
-      setName("");
-      setSymbol("");
-      setMaxSupply("");
-      setUri("");
-      setTransferable(true);
-      setBurnable(true);
+      resetForm();
     }
   };
 
@@ -2109,21 +2171,70 @@ function CreateTokenTypeForm({
             placeholder="VOUCHER"
           />
         </div>
-        <div>
+        <div className="sm:col-span-2">
           <label className="label">
-            <span className="label-text">
-              Max Supply{" "}
-              <span className="opacity-60 text-xs">(0 = unlimited / fungible, 1 = unique NFT, N = capped)</span>
-            </span>
+            <span className="label-text">Availability</span>
           </label>
-          <input
-            type="number"
-            className="input input-bordered w-full"
-            value={maxSupply}
-            onChange={e => setMaxSupply(e.target.value)}
-            placeholder="0"
-            min="0"
-          />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-start">
+            <ChoiceCard
+              active={availability === "unlimited"}
+              onClick={() => setAvailability("unlimited")}
+              icon={<ArrowsPointingOutIcon className="h-6 w-6" />}
+              title="Unlimited"
+              description="No cap on how many tokens of this type can exist. Holders can hold any amount."
+            />
+            {availability === "limited" ? (
+              <div className="rounded-xl border-2 border-primary bg-primary/10 shadow-md ring-1 ring-primary p-4 flex flex-col gap-3">
+                <div className="flex gap-3 items-start">
+                  <span className="text-primary shrink-0">
+                    <LockClosedIcon className="h-6 w-6" />
+                  </span>
+                  <div className="flex flex-col gap-0.5 min-w-0">
+                    <span className="font-semibold">Limited</span>
+                    <span className="text-xs opacity-70">Restrict how many tokens of this type can ever exist.</span>
+                  </div>
+                </div>
+                <div className="flex flex-col gap-2">
+                  <ChoiceCard
+                    active={limitedKind === "unique"}
+                    onClick={() => setLimitedKind("unique")}
+                    icon={<SparklesIcon className="h-5 w-5" />}
+                    title="Unique (1 of 1)"
+                    description="Exactly one token will ever exist — a one-of-a-kind certificate."
+                  />
+                  <ChoiceCard
+                    active={limitedKind === "capped"}
+                    onClick={() => setLimitedKind("capped")}
+                    icon={<HashtagIcon className="h-5 w-5" />}
+                    title="Capped"
+                    description="A fixed maximum of tokens. Once reached, no more can be minted."
+                  />
+                  {limitedKind === "capped" && (
+                    <div className="flex flex-col gap-1">
+                      <label className="text-xs opacity-70">Maximum supply</label>
+                      <input
+                        type="number"
+                        className="input input-bordered w-full sm:max-w-xs"
+                        value={cap}
+                        onChange={e => setCap(e.target.value)}
+                        placeholder="100"
+                        min="2"
+                        step="1"
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <ChoiceCard
+                active={false}
+                onClick={() => setAvailability("limited")}
+                icon={<LockClosedIcon className="h-6 w-6" />}
+                title="Limited"
+                description="Restrict how many tokens of this type can ever exist."
+              />
+            )}
+          </div>
         </div>
         <div>
           <label className="label">

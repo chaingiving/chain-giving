@@ -261,7 +261,7 @@ const Home: NextPage = () => {
           <aside className="md:w-72 lg:w-80 md:shrink-0">
             <div className="card bg-base-100 shadow-xl border border-base-300 rounded-3xl px-6 py-6 flex flex-col items-center gap-4 md:sticky md:top-4">
               <p className="my-2 font-medium">Your Account</p>
-              <div className="p-3 bg-base-100 rounded-2xl shadow-inner">
+              <div className="cg-qr-pulse p-3 bg-base-100 rounded-2xl shadow-inner">
                 <QRCodeSVG
                   value={connectedAddress}
                   size={160}
@@ -275,6 +275,20 @@ const Home: NextPage = () => {
                     excavate: true,
                   }}
                 />
+                <style>{`
+                  .cg-qr-pulse svg image {
+                    transform-box: fill-box;
+                    transform-origin: center;
+                    animation: cg-qr-pulse 2.6s ease-in-out infinite;
+                  }
+                  @keyframes cg-qr-pulse {
+                    0%, 100% { transform: scale(1); }
+                    50% { transform: scale(1.06); }
+                  }
+                  @media (prefers-reduced-motion: reduce) {
+                    .cg-qr-pulse svg image { animation: none; }
+                  }
+                `}</style>
               </div>
               <Address
                 address={connectedAddress}

@@ -36,6 +36,14 @@ const cgCrowdfundingAbi = [
   },
   { name: "cancelContribution", type: "function", stateMutability: "nonpayable", inputs: [], outputs: [] },
   { name: "refund", type: "function", stateMutability: "nonpayable", inputs: [], outputs: [] },
+  {
+    type: "event",
+    name: "ContributionReceived",
+    inputs: [
+      { name: "donor", type: "address", indexed: true },
+      { name: "amount", type: "uint256", indexed: false },
+    ],
+  },
 ] as const;
 
 const PROGRAM_STATES = ["Active", "Executing", "Completed", "Cancelled"] as const;
@@ -494,7 +502,6 @@ function CrowdfundingSection({
   }
 
   const cfState = CROWDFUNDING_STATES[crowdfundingInfo.state] ?? "Unknown";
-  const deadline = new Date(Number(crowdfundingInfo.deadline) * 1000);
   const isCfActive = crowdfundingInfo.state === 0;
   const isCfCancelled = crowdfundingInfo.state === 2;
   // totalRaised on the contract returns the live balance while ACTIVE and the frozen amount
@@ -570,45 +577,29 @@ function CrowdfundingSection({
         <h3 className="card-title">Crowdfunding</h3>
         <span className={`badge ${STATE_COLORS[cfState]}`}>{cfState}</span>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
-        <div className="min-w-0">
-          <p className="text-sm opacity-60">Contract Address</p>
+      <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm mt-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="opacity-60 shrink-0">Contract:</span>
           <AddressDisplay address={crowdfundingInfo.addr} blockExplorerAddressLink={cfLink} />
         </div>
-        <div className="min-w-0">
-          <p className="text-sm opacity-60 flex items-center gap-1.5">
-            <CurrencyLogo currency={currency} /> Currency ({symbol})
-          </p>
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="opacity-60 shrink-0">Currency:</span>
+          <CurrencyLogo currency={currency} />
+          <span className="font-medium">{symbol}</span>
           <AddressDisplay address={crowdfundingInfo.currency} />
-        </div>
-        <div className="min-w-0">
-          <p className="text-sm opacity-60">Funding Target</p>
-          <p className="font-mono flex items-center gap-1.5">
-            {formatUnits(crowdfundingInfo.fundingTarget, decimals)} <CurrencyLogo currency={currency} /> {symbol}
-          </p>
-        </div>
-        <div className="min-w-0">
-          <p className="text-sm opacity-60">Total Raised</p>
-          <p className="font-mono flex items-center gap-1.5">
-            {formatUnits(crowdfundingInfo.totalRaised, decimals)} <CurrencyLogo currency={currency} /> {symbol}
-          </p>
-          {isCfActive && directTransfers > 0n && (
-            <p className="text-xs opacity-60 flex items-center gap-1.5">
-              Including {formatUnits(directTransfers, decimals)} in Direct Transfers
-            </p>
-          )}
-        </div>
-        <div className="min-w-0">
-          <p className="text-sm opacity-60">Deadline</p>
-          <p className="font-mono">{deadline.toLocaleString()}</p>
         </div>
       </div>
 
-      <div className="mt-4">
-        <div className="flex justify-between text-sm mb-1">
-          <span>Progress</span>
-          <span>{progress.toFixed(1)}%</span>
-        </div>
+      <CrowdfundingStats
+        crowdfundingInfo={crowdfundingInfo}
+        currency={currency}
+        symbol={symbol}
+        decimals={decimals}
+        isCfActive={isCfActive}
+        directTransfers={directTransfers}
+      />
+
+      <div className="mt-3">
         <progress className="progress progress-primary w-full" value={Math.min(progress, 100)} max="100" />
       </div>
 
@@ -810,6 +801,103 @@ function CrowdfundingSection({
             })()}
         </div>
       )}
+    </div>
+  );
+}
+
+function formatTimeLeft(deadline: bigint, now: number): { primary: string; secondary: string | null } {
+  const left = Number(deadline) - Math.floor(now / 1000);
+  if (left <= 0) return { primary: "ended", secondary: null };
+  const days = Math.floor(left / 86400);
+  const hours = Math.floor((left % 86400) / 3600);
+  const minutes = Math.floor((left % 3600) / 60);
+  if (days > 0) {
+    return { primary: `${days} ${days === 1 ? "day" : "days"}`, secondary: `${hours}h ${minutes}min` };
+  }
+  if (hours > 0) {
+    return { primary: `${hours}h`, secondary: `${minutes}min` };
+  }
+  return { primary: `${minutes}min`, secondary: null };
+}
+
+function CrowdfundingStats({
+  crowdfundingInfo,
+  currency,
+  symbol,
+  decimals,
+  isCfActive,
+  directTransfers,
+}: {
+  crowdfundingInfo: CrowdfundingInfo;
+  currency: DonationCurrency | undefined;
+  symbol: string;
+  decimals: number;
+  isCfActive: boolean;
+  directTransfers: bigint;
+}) {
+  const publicClient = usePublicClient();
+  const [contributorCount, setContributorCount] = useState<number | null>(null);
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 30000);
+    return () => clearInterval(id);
+  }, []);
+
+  useEffect(() => {
+    if (!publicClient) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const events = await publicClient.getContractEvents({
+          address: crowdfundingInfo.addr,
+          abi: cgCrowdfundingAbi,
+          eventName: "ContributionReceived",
+          fromBlock: "earliest",
+        });
+        if (cancelled) return;
+        const donors = new Set(events.map(e => (e.args as { donor?: string }).donor).filter(Boolean));
+        setContributorCount(donors.size);
+      } catch {
+        if (!cancelled) setContributorCount(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [publicClient, crowdfundingInfo.addr, crowdfundingInfo.totalTracked]);
+
+  const timeLeft = formatTimeLeft(crowdfundingInfo.deadline, now);
+
+  return (
+    <div className="flex flex-col sm:flex-row sm:items-start gap-4 sm:gap-8 mt-4 border-l-4 border-[#258597] pl-4 sm:pl-6 justify-center">
+      <div className="flex flex-col items-start">
+        <div className="flex items-center gap-1.5 text-[#258597] font-bold text-2xl sm:text-3xl">
+          <span className="font-mono">{formatUnits(crowdfundingInfo.totalRaised, decimals)}</span>
+          <CurrencyLogo currency={currency} size={24} />
+        </div>
+        <span className="text-xs sm:text-sm opacity-60">
+          raised of {formatUnits(crowdfundingInfo.fundingTarget, decimals)} {symbol} goal
+        </span>
+        {isCfActive && directTransfers > 0n && (
+          <span className="text-xs opacity-60">
+            Including {formatUnits(directTransfers, decimals)} in direct transfers
+          </span>
+        )}
+      </div>
+      <div className="flex flex-col items-start">
+        <span className="font-bold text-2xl sm:text-3xl">{contributorCount ?? "…"}</span>
+        <span className="text-xs sm:text-sm opacity-60">{contributorCount === 1 ? "contributor" : "contributors"}</span>
+      </div>
+      <div className="flex flex-col items-start">
+        <span className="whitespace-nowrap">
+          <span className="font-bold text-2xl sm:text-3xl">{timeLeft.primary}</span>
+          {timeLeft.secondary && (
+            <span className="font-bold text-sm sm:text-base ml-1 opacity-80">{timeLeft.secondary}</span>
+          )}
+        </span>
+        <span className="text-xs sm:text-sm opacity-60">time to go</span>
+      </div>
     </div>
   );
 }

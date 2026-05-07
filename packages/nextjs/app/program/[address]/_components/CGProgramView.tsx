@@ -1,6 +1,6 @@
 "use client";
 
-import { type ReactNode, useEffect, useState } from "react";
+import { type ChangeEvent, type ReactNode, useEffect, useState } from "react";
 import Link from "next/link";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { useAppKit } from "@reown/appkit/react";
@@ -8,6 +8,8 @@ import { Address as AddressDisplay } from "@scaffold-ui/components";
 import { Address, erc20Abi, formatUnits, isAddress, isAddressEqual, parseUnits, zeroAddress } from "viem";
 import { useAccount, usePublicClient, useReadContract, useWriteContract } from "wagmi";
 import {
+  ArrowDownTrayIcon,
+  ArrowUpTrayIcon,
   ArrowsPointingOutIcon,
   CreditCardIcon,
   EnvelopeIcon,
@@ -1604,6 +1606,106 @@ function WarningIcon({ className = "" }: { className?: string }) {
   );
 }
 
+// Common CSV delimiters in the wild: comma (RFC4180), semicolon (Excel in
+// many EU locales), tab (TSV exports), pipe (data feeds).
+const CSV_SEPARATORS = [",", ";", "\t", "|"] as const;
+
+// Counts how many times `sep` appears at the top level of `line`, ignoring
+// any occurrences inside double-quoted regions (with "" as escaped quote).
+function countSeparatorOutsideQuotes(line: string, sep: string): number {
+  let count = 0;
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (c === '"') {
+      if (inQuotes && line[i + 1] === '"') {
+        i++;
+        continue;
+      }
+      inQuotes = !inQuotes;
+    } else if (!inQuotes && c === sep) {
+      count++;
+    }
+  }
+  return count;
+}
+
+// Picks the most plausible separator by sampling the first non-empty lines,
+// preferring whichever yields the highest and most consistent column count.
+function detectCsvSeparator(text: string): string {
+  const sample = text
+    .split(/\r?\n/)
+    .filter(l => l.trim().length > 0)
+    .slice(0, 20);
+  if (sample.length === 0) return ",";
+  let best = ",";
+  let bestScore = -Infinity;
+  for (const sep of CSV_SEPARATORS) {
+    const counts = sample.map(l => countSeparatorOutsideQuotes(l, sep));
+    const total = counts.reduce((a, b) => a + b, 0);
+    if (total === 0) continue;
+    const avg = total / counts.length;
+    const variance = counts.reduce((acc, n) => acc + (n - avg) ** 2, 0) / counts.length;
+    const score = avg - variance; // reward many separators, penalise inconsistent rows
+    if (score > bestScore) {
+      bestScore = score;
+      best = sep;
+    }
+  }
+  return best;
+}
+
+// RFC4180-flavoured parser: handles quoted cells, "" escapes, and CRLF/LF.
+function parseCsv(text: string, sep: string): string[][] {
+  const rows: string[][] = [];
+  let row: string[] = [];
+  let cell = "";
+  let inQuotes = false;
+  let cellHasOpenedQuote = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (inQuotes) {
+      if (c === '"') {
+        if (text[i + 1] === '"') {
+          cell += '"';
+          i++;
+        } else {
+          inQuotes = false;
+        }
+      } else {
+        cell += c;
+      }
+      continue;
+    }
+    if (c === '"' && cell.length === 0 && !cellHasOpenedQuote) {
+      inQuotes = true;
+      cellHasOpenedQuote = true;
+      continue;
+    }
+    if (c === "\r") continue;
+    if (c === "\n") {
+      row.push(cell);
+      cell = "";
+      cellHasOpenedQuote = false;
+      rows.push(row);
+      row = [];
+      continue;
+    }
+    if (c === sep) {
+      row.push(cell);
+      cell = "";
+      cellHasOpenedQuote = false;
+      continue;
+    }
+    cell += c;
+  }
+  if (cell.length > 0 || row.length > 0) {
+    row.push(cell);
+    rows.push(row);
+  }
+  return rows.filter(r => r.some(c => c.trim().length > 0));
+}
+
 function BeneficiariesTableEditor({
   entries,
   onChange,
@@ -1623,8 +1725,72 @@ function BeneficiariesTableEditor({
 
   const removeRow = (index: number) => onChange(entries.filter((_, i) => i !== index));
 
+  const handleDownload = () => {
+    const header = hideAmount ? "address" : "address,amount";
+    const rows = entries
+      .filter(e => e.address || e.amount)
+      .map(e => (hideAmount ? e.address : `${e.address},${e.amount}`));
+    const csv = [header, ...rows].join("\n") + "\n";
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "beneficiaries.csv";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleUpload = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      // Strip a leading UTF-8 BOM (Excel-style exports).
+      const text = String(reader.result ?? "").replace(/^﻿/, "");
+      const sep = detectCsvSeparator(text);
+      const rows = parseCsv(text, sep);
+      if (rows.length === 0) {
+        notification.error("CSV is empty");
+        return;
+      }
+      const firstCell = rows[0][0]?.trim().toLowerCase() ?? "";
+      const dataRows = firstCell.startsWith("0x") ? rows : rows.slice(1);
+      if (dataRows.length === 0) {
+        notification.error("No beneficiary rows found in CSV");
+        return;
+      }
+      const parsed: BeneficiaryEntry[] = dataRows.map(cells => ({
+        id: crypto.randomUUID(),
+        address: (cells[0] ?? "").trim(),
+        amount: hideAmount ? "1" : (cells[1] ?? "").trim(),
+      }));
+      onChange(parsed);
+      const sepName = sep === "\t" ? "tab" : sep === "," ? "comma" : sep === ";" ? "semicolon" : "pipe";
+      notification.success(
+        `Loaded ${parsed.length} beneficiar${parsed.length === 1 ? "y" : "ies"} from CSV (${sepName}-separated)`,
+      );
+    };
+    reader.readAsText(file);
+  };
+
+  const hasContent = entries.some(e => e.address || e.amount);
+
   return (
     <>
+      <div className="flex flex-wrap gap-2 mb-2">
+        <label className="btn btn-xs btn-outline gap-1 cursor-pointer">
+          <ArrowUpTrayIcon className="h-3.5 w-3.5" />
+          Upload CSV
+          <input type="file" accept=".csv,text/csv" className="hidden" onChange={handleUpload} />
+        </label>
+        <button type="button" className="btn btn-xs btn-outline gap-1" onClick={handleDownload} disabled={!hasContent}>
+          <ArrowDownTrayIcon className="h-3.5 w-3.5" />
+          Download CSV
+        </button>
+      </div>
       <div className="overflow-x-auto">
         <table className="table table-sm">
           <thead>

@@ -350,21 +350,20 @@ function TokenSection({
   return (
     <>
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h3 className="card-title">Token Contract (ERC-1155)</h3>
+        <div className="flex flex-wrap items-center gap-2 min-w-0">
+          <h3 className="card-title">Token Contract (ERC-1155)</h3>
+          <AddressDisplay address={tokenAddress} blockExplorerAddressLink={tokenLink} />
+        </div>
         <a href={`/token/${tokenAddress}`} className="btn btn-sm btn-outline">
           View &amp; Spend Tokens
         </a>
       </div>
-      <div>
-        <p className="text-sm opacity-60">Token Address</p>
-        <AddressDisplay address={tokenAddress} blockExplorerAddressLink={tokenLink} />
-      </div>
 
       <div className="flex items-center justify-between mt-2">
-        <p className="text-sm opacity-60">Token Types ({tokenTypes.length})</p>
+        <h3 className="card-title">Token Types ({tokenTypes.length})</h3>
         {isOwner && isActive && !showCreateForm && (
           <button className="btn btn-sm btn-secondary" onClick={() => setShowCreateForm(true)}>
-            + Create Token Type
+            Create Token Type
           </button>
         )}
       </div>
@@ -1243,7 +1242,7 @@ function DistributionsSection({
         <h3 className="card-title">Distributions ({distributions.length})</h3>
         {isOwner && isActive && !showNewForm && tokenTypes.length > 0 && (
           <button className="btn btn-sm btn-secondary" onClick={() => setShowNewForm(true)}>
-            + New Distribution
+            New Distribution
           </button>
         )}
       </div>
@@ -1409,14 +1408,15 @@ function DistributionItem({
 
   return (
     <div className="border border-base-300 rounded-xl p-4">
-      <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+        <div className="flex flex-wrap items-center gap-2 min-w-0">
           <span className="font-semibold">Distribution #{index}</span>
           {tokenType && (
             <span className="badge badge-outline badge-sm">
               {tokenType.name} ({tokenType.symbol})
             </span>
           )}
+          <AddressDisplay address={dist.addr} blockExplorerAddressLink={distLink} />
         </div>
         <div className="flex items-center gap-2">
           <span className={`badge ${STATE_COLORS[distState] ?? "badge-ghost"}`}>{distState}</span>
@@ -1434,18 +1434,12 @@ function DistributionItem({
           )}
         </div>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
-        <div>
-          <p className="opacity-60">Contract Address</p>
-          <AddressDisplay address={dist.addr} blockExplorerAddressLink={distLink} />
+      {tokenType?.maxSupply !== 1n && (
+        <div className="text-sm">
+          <span className="opacity-60">Total required:</span>{" "}
+          <span className="font-mono">{dist.totalRequired.toString()} tokens</span>
         </div>
-        {tokenType?.maxSupply !== 1n && (
-          <div>
-            <p className="opacity-60">Total Required</p>
-            <p className="font-mono">{dist.totalRequired.toString()} tokens</p>
-          </div>
-        )}
-      </div>
+      )}
 
       {dist.beneficiaries.length > 0 && editMode !== "set" && editMode !== "remove" && (
         <div className="mt-3">

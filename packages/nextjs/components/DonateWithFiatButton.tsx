@@ -62,8 +62,9 @@ export const DonateWithFiatButton = ({ asset, targetAddress, disabled }: Props) 
 
     setLoading(true);
     try {
+      let userAddress: Address;
       try {
-        await ensureSignedIn();
+        userAddress = await ensureSignedIn();
       } catch (err) {
         notification.error(err instanceof Error ? err.message : "Wallet sign-in required");
         popup.close();
@@ -87,6 +88,7 @@ export const DonateWithFiatButton = ({ asset, targetAddress, disabled }: Props) 
         defaultAsset: asset,
         defaultNetwork: isSandbox ? "base-sepolia" : "base",
         fiatCurrency: FIAT_BY_ASSET[asset],
+        partnerUserRef: `cg-${userAddress}`,
       });
       // Coinbase Onramp rejects redirectUrl unless the origin is allowlisted in
       // the CDP portal. Set NEXT_PUBLIC_ONRAMP_REDIRECT_ORIGIN to the registered

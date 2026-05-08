@@ -1,5 +1,16 @@
 import type { NextConfig } from "next";
+import { execSync } from "node:child_process";
 import path from "node:path";
+
+const appVersion = (() => {
+  try {
+    return execSync("git describe --tags --always", { stdio: ["ignore", "pipe", "ignore"] })
+      .toString()
+      .trim();
+  } catch {
+    return "";
+  }
+})();
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
@@ -9,6 +20,9 @@ const nextConfig: NextConfig = {
   },
   typescript: {
     ignoreBuildErrors: process.env.NEXT_PUBLIC_IGNORE_BUILD_ERROR === "true",
+  },
+  env: {
+    NEXT_PUBLIC_APP_VERSION: appVersion,
   },
   webpack: config => {
     config.resolve.fallback = { fs: false, net: false, tls: false };

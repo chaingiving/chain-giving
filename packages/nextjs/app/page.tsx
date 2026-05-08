@@ -352,6 +352,21 @@ const Home: NextPage = () => {
           </main>
         </div>
       )}
+
+      <footer className="mt-12 pt-6 border-t border-base-300 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs opacity-60">
+        <span>
+          © 2026 Chain.Giving. Help:{" "}
+          <a href="mailto:contact@chain.giving" className="link">
+            contact@chain.giving
+          </a>
+        </span>
+        {process.env.NEXT_PUBLIC_APP_VERSION && (
+          <span className="inline-flex flex-col items-stretch leading-none rounded border border-base-300 overflow-hidden text-[9px]">
+            <span className="px-1.5 py-0.5 bg-base-300 uppercase tracking-wide text-center">Version</span>
+            <span className="px-1.5 py-0.5 font-mono text-center">{process.env.NEXT_PUBLIC_APP_VERSION}</span>
+          </span>
+        )}
+      </footer>
     </div>
   );
 };

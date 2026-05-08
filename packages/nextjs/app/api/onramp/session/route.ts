@@ -4,6 +4,7 @@ import { randomBytes } from "crypto";
 import { getIronSession } from "iron-session";
 import { SignJWT, importJWK } from "jose";
 import { isAddress } from "viem";
+import { assertSameOrigin } from "~~/utils/origin";
 import { rateLimit } from "~~/utils/rateLimit";
 import { type SiweSessionData, getSessionOptions } from "~~/utils/siwe";
 
@@ -51,6 +52,9 @@ async function mintCdpJwt(): Promise<string> {
 }
 
 export async function POST(req: NextRequest) {
+  const originErr = assertSameOrigin(req);
+  if (originErr) return originErr;
+
   const session = await getIronSession<SiweSessionData>(await cookies(), getSessionOptions());
   if (!session.isLoggedIn || !session.address) {
     return NextResponse.json({ error: "Sign in with your wallet first" }, { status: 401 });

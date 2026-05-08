@@ -4,6 +4,7 @@ import { getIronSession } from "iron-session";
 import { type Chain, createPublicClient, getAddress, http } from "viem";
 import { baseSepolia, hardhat, mainnet, sepolia } from "viem/chains";
 import { parseSiweMessage, verifySiweMessage } from "viem/siwe";
+import { assertSameOrigin } from "~~/utils/origin";
 import { type SiweSessionData, getSessionOptions } from "~~/utils/siwe";
 
 export const runtime = "nodejs";
@@ -16,6 +17,9 @@ const SUPPORTED_CHAINS: Record<number, Chain> = {
 };
 
 export async function POST(req: NextRequest) {
+  const originErr = assertSameOrigin(req);
+  if (originErr) return originErr;
+
   const session = await getIronSession<SiweSessionData>(await cookies(), getSessionOptions());
 
   let body: { message?: unknown; signature?: unknown };

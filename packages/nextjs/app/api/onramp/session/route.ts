@@ -45,6 +45,7 @@ async function mintCdpJwt(): Promise<string> {
     .setProtectedHeader({ alg: "EdDSA", kid: keyId, typ: "JWT", nonce })
     .setIssuer("cdp")
     .setSubject(keyId)
+    .setAudience(["cdp_service"])
     .setIssuedAt()
     .setNotBefore(Math.floor(Date.now() / 1000))
     .setExpirationTime("2m")

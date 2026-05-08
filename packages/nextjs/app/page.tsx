@@ -8,6 +8,7 @@ import { QRCodeSVG } from "qrcode.react";
 import { type Address as ViemAddress, isAddressEqual, zeroAddress } from "viem";
 import { useAccount, useReadContract } from "wagmi";
 import { BuildingOffice2Icon, GiftIcon, WalletIcon } from "@heroicons/react/24/outline";
+import { AuthProviderInfo, SignOutButton } from "~~/components/AuthSession";
 import { ChainGivingHeader } from "~~/components/ChainGivingHeader";
 import { EmbeddedWalletButton } from "~~/components/ConnectButton";
 import { ProgramCard } from "~~/components/ProgramCard";
@@ -218,21 +219,49 @@ const Home: NextPage = () => {
       <ChainGivingHeader />
 
       {!connectedAddress ? (
-        <div className="card bg-base-100 shadow-md border border-base-300 rounded-3xl px-6 py-10 mt-8 flex flex-col items-center gap-5">
-          <p className="opacity-70 text-center">
-            Sign in to see your account and activity. No need to create an account.
-          </p>
-          <div className="flex flex-wrap gap-3 justify-center">
-            <EmbeddedWalletButton size="md" />
-            <RainbowKitCustomConnectButton size="md" />
+        <div className="mt-8 flex flex-col gap-8">
+          <div className="card bg-base-100 shadow-md border border-base-300 rounded-3xl px-6 py-10 flex flex-col items-center gap-5">
+            <p className="opacity-70 text-center">
+              Sign in to see your account and activity. No need to create an account.
+            </p>
+            <div className="flex flex-wrap gap-3 justify-center">
+              <EmbeddedWalletButton size="md" />
+              <RainbowKitCustomConnectButton size="md" />
+            </div>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Link
+              href="/organizations"
+              className="card bg-base-100 shadow-md border border-base-300 rounded-3xl px-6 py-8 hover:shadow-lg transition-shadow"
+            >
+              <div className="flex items-center gap-3">
+                <BuildingOffice2Icon className="h-8 w-8" />
+                <div>
+                  <h2 className="text-xl font-bold">Browse Organizations</h2>
+                  <p className="text-sm opacity-70">See who running programs</p>
+                </div>
+              </div>
+            </Link>
+            <Link
+              href="/programs"
+              className="card bg-base-100 shadow-md border border-base-300 rounded-3xl px-6 py-8 hover:shadow-lg transition-shadow"
+            >
+              <div className="flex items-center gap-3">
+                <GiftIcon className="h-8 w-8" />
+                <div>
+                  <h2 className="text-xl font-bold">Browse Programs</h2>
+                  <p className="text-sm opacity-70">Explore active crowdfundings</p>
+                </div>
+              </div>
+            </Link>
           </div>
         </div>
       ) : (
-        <div className="flex flex-col lg:flex-row gap-6 mt-8">
-          <aside className="lg:w-80 lg:shrink-0">
-            <div className="card bg-base-100 shadow-xl border border-base-300 rounded-3xl px-6 py-6 flex flex-col items-center gap-4 lg:sticky lg:top-4">
+        <div className="flex flex-col md:flex-row gap-6 mt-8">
+          <aside className="md:w-72 lg:w-80 md:shrink-0">
+            <div className="card bg-base-100 shadow-xl border border-base-300 rounded-3xl px-6 py-6 flex flex-col items-center gap-4 md:sticky md:top-4">
               <p className="my-2 font-medium">Your Account</p>
-              <div className="p-3 bg-base-100 rounded-2xl shadow-inner">
+              <div className="cg-qr-pulse p-3 bg-base-100 rounded-2xl shadow-inner">
                 <QRCodeSVG
                   value={connectedAddress}
                   size={160}
@@ -246,16 +275,34 @@ const Home: NextPage = () => {
                     excavate: true,
                   }}
                 />
+                <style>{`
+                  .cg-qr-pulse svg image {
+                    transform-box: fill-box;
+                    transform-origin: center;
+                    animation: cg-qr-pulse 2.6s ease-in-out infinite;
+                  }
+                  @keyframes cg-qr-pulse {
+                    0%, 100% { transform: scale(1); }
+                    50% { transform: scale(1.06); }
+                  }
+                  @media (prefers-reduced-motion: reduce) {
+                    .cg-qr-pulse svg image { animation: none; }
+                  }
+                `}</style>
               </div>
               <Address
                 address={connectedAddress}
                 chain={targetNetwork}
                 blockExplorerAddressLink={getBlockExplorerAddressLink(targetNetwork, connectedAddress)}
               />
-              <Link href={`/wallet/${connectedAddress}`} className="btn btn-sm btn-outline gap-2">
-                <WalletIcon className="h-4 w-4" />
-                View Wallet
-              </Link>
+              <AuthProviderInfo className="justify-center" />
+              <div className="flex flex-wrap items-center justify-center gap-2">
+                <Link href={`/wallet/${connectedAddress}`} className="btn btn-sm btn-outline gap-2">
+                  <WalletIcon className="h-4 w-4" />
+                  View Wallet
+                </Link>
+                <SignOutButton size="sm" />
+              </div>
             </div>
           </aside>
 
@@ -305,6 +352,21 @@ const Home: NextPage = () => {
           </main>
         </div>
       )}
+
+      <footer className="mt-12 pt-6 border-t border-base-300 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs opacity-60">
+        <span>
+          © 2026 Chain.Giving. Help:{" "}
+          <a href="mailto:contact@chain.giving" className="link">
+            contact@chain.giving
+          </a>
+        </span>
+        {process.env.NEXT_PUBLIC_APP_VERSION && (
+          <span className="inline-flex flex-col items-stretch leading-none rounded border border-base-300 overflow-hidden text-[9px]">
+            <span className="px-1.5 py-0.5 bg-base-300 uppercase tracking-wide text-center">Version</span>
+            <span className="px-1.5 py-0.5 font-mono text-center">{process.env.NEXT_PUBLIC_APP_VERSION}</span>
+          </span>
+        )}
+      </footer>
     </div>
   );
 };

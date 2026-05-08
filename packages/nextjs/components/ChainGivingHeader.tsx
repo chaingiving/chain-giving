@@ -39,10 +39,10 @@ export const ChainGivingHeader = ({ className }: Props) => (
         transform-origin: center;
         animation:
           cg-pop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) 0.2s both,
-          cg-pulse 2.8s ease-in-out 0.9s infinite;
+          cg-pulse 2.6s ease-in-out 0.9s infinite;
       }
       @keyframes cg-pop { from { opacity: 0; transform: scale(0.3) rotate(-15deg); } to { opacity: 1; transform: scale(1) rotate(0deg); } }
-      @keyframes cg-pulse { 0%, 60%, 100% { transform: scale(1); } 30% { transform: scale(1.25); } }
+      @keyframes cg-pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.06); } }
       @media (prefers-reduced-motion: reduce) { .cg-word, .cg-icon { animation: none; opacity: 1; transform: none; } }
     `}</style>
   </div>

@@ -1,17 +1,33 @@
 "use client";
 
-import { useState } from "react";
-import { Address as AddressDisplay, Balance } from "@scaffold-ui/components";
+import { type ChangeEvent, type ReactNode, useEffect, useState } from "react";
+import Link from "next/link";
+import { ConnectButton } from "@rainbow-me/rainbowkit";
+import { useAppKit } from "@reown/appkit/react";
+import { Address as AddressDisplay } from "@scaffold-ui/components";
 import { Address, erc20Abi, formatUnits, isAddress, isAddressEqual, parseUnits, zeroAddress } from "viem";
 import { useAccount, usePublicClient, useReadContract, useWriteContract } from "wagmi";
-import { CreditCardIcon, TrashIcon } from "@heroicons/react/24/outline";
+import {
+  ArrowDownTrayIcon,
+  ArrowUpTrayIcon,
+  ArrowsPointingOutIcon,
+  CreditCardIcon,
+  EnvelopeIcon,
+  HashtagIcon,
+  InformationCircleIcon,
+  LockClosedIcon,
+  SparklesIcon,
+  TrashIcon,
+  WalletIcon,
+} from "@heroicons/react/24/outline";
 import { AddressInputWithQr } from "~~/components/AddressInputWithQr";
 import { CurrencyLogo } from "~~/components/CurrencyLogo";
 import { DonateWithFiatButton } from "~~/components/DonateWithFiatButton";
 import { OrgGasSponsorshipBadge } from "~~/components/OrgGasSponsorshipBadge";
+import { cgOrganizationAbi } from "~~/contracts/cgOrganizationAbi";
 import { cgProgramAbi } from "~~/contracts/cgProgramAbi";
 import { DonationCurrency, findCurrency, getDonationCurrencies } from "~~/contracts/donationCurrencies";
-import { useBlockExplorerLink } from "~~/hooks/scaffold-eth";
+import { useBlockExplorerLink, useTargetNetwork } from "~~/hooks/scaffold-eth";
 import { useProgramOrganization } from "~~/hooks/useProgramOrganization";
 import { useSponsoredWrite } from "~~/hooks/useSponsoredWrite";
 import { getParsedError, notification } from "~~/utils/scaffold-eth";
@@ -26,6 +42,14 @@ const cgCrowdfundingAbi = [
   },
   { name: "cancelContribution", type: "function", stateMutability: "nonpayable", inputs: [], outputs: [] },
   { name: "refund", type: "function", stateMutability: "nonpayable", inputs: [], outputs: [] },
+  {
+    type: "event",
+    name: "ContributionReceived",
+    inputs: [
+      { name: "donor", type: "address", indexed: true },
+      { name: "amount", type: "uint256", indexed: false },
+    ],
+  },
 ] as const;
 
 const PROGRAM_STATES = ["Active", "Executing", "Completed", "Cancelled"] as const;
@@ -256,53 +280,50 @@ function ProgramSection({
     <>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="card-title text-3xl">{name || "CGProgram"}</h2>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           {orgAddress && <OrgGasSponsorshipBadge orgAddress={orgAddress} />}
+          {lockDistributions && (
+            <span
+              className="tooltip tooltip-bottom"
+              data-tip="When locked, all distributions must be marked as Ready before the crowdfunding can accept contributions. This guarantees contributors know exactly how funds will be allocated."
+            >
+              <span className="badge badge-warning badge-lg cursor-help">Distributions Locked</span>
+            </span>
+          )}
           <span className={`badge ${STATE_COLORS[programState]} badge-lg`}>{programState}</span>
         </div>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <p className="text-sm opacity-60">Program Address</p>
+      <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm">
+        {orgAddress && <ProgramOrganizationLink orgAddress={orgAddress} />}
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="opacity-60 shrink-0">Address:</span>
           <AddressDisplay address={address} blockExplorerAddressLink={addressLink} />
         </div>
-        <div>
-          <p className="text-sm opacity-60">Program Owner</p>
-          <div className="flex items-center gap-2">
-            {owner && <AddressDisplay address={owner} blockExplorerAddressLink={ownerLink} />}
-            {isOwner && <span className="badge badge-info badge-sm">You</span>}
-          </div>
-        </div>
-        <div>
-          <p className="text-sm opacity-60">Contract Balance</p>
-          <Balance address={address} />
-        </div>
-        <div>
-          <p className="text-sm flex items-center gap-1">
-            <span className="opacity-60">Distributions Locked</span>
-            <span
-              className="tooltip tooltip-bottom"
-              data-tip="When locked, all distributions must marked as Ready before the crowdfunding can accept contributions. This guarantees contributors know exactly how funds will be allocated."
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-                className="w-4 h-4 stroke-current cursor-help"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
-              </svg>
-            </span>
-          </p>
-          <p className="font-mono">{lockDistributions ? "Yes" : "No"}</p>
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="opacity-60 shrink-0">Owner:</span>
+          {owner && <AddressDisplay address={owner} blockExplorerAddressLink={ownerLink} />}
+          {isOwner && <span className="badge badge-info badge-sm">You</span>}
         </div>
       </div>
     </>
+  );
+}
+
+function ProgramOrganizationLink({ orgAddress }: { orgAddress: Address }) {
+  const { data: orgName } = useReadContract({
+    address: orgAddress,
+    abi: cgOrganizationAbi,
+    functionName: "name",
+    query: { refetchInterval: 30000 },
+  });
+
+  return (
+    <div className="flex items-center gap-2 min-w-0">
+      <span className="opacity-60 shrink-0">Organization:</span>
+      <Link href={`/organization/${orgAddress}`} className="link link-primary font-medium">
+        {(orgName as string | undefined) ?? "View organization"}
+      </Link>
+    </div>
   );
 }
 
@@ -329,21 +350,20 @@ function TokenSection({
   return (
     <>
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h3 className="card-title">Token Contract (ERC-1155)</h3>
+        <div className="flex flex-wrap items-center gap-2 min-w-0">
+          <h3 className="card-title">Token Contract (ERC-1155)</h3>
+          <AddressDisplay address={tokenAddress} blockExplorerAddressLink={tokenLink} />
+        </div>
         <a href={`/token/${tokenAddress}`} className="btn btn-sm btn-outline">
           View &amp; Spend Tokens
         </a>
       </div>
-      <div>
-        <p className="text-sm opacity-60">Token Address</p>
-        <AddressDisplay address={tokenAddress} blockExplorerAddressLink={tokenLink} />
-      </div>
 
       <div className="flex items-center justify-between mt-2">
-        <p className="text-sm opacity-60">Token Types ({tokenTypes.length})</p>
+        <h3 className="card-title">Token Types ({tokenTypes.length})</h3>
         {isOwner && isActive && !showCreateForm && (
           <button className="btn btn-sm btn-secondary" onClick={() => setShowCreateForm(true)}>
-            + Create Token Type
+            Create Token Type
           </button>
         )}
       </div>
@@ -411,16 +431,21 @@ function CrowdfundingSection({
   orgAddress: Address | undefined;
 }) {
   const [donateAmount, setDonateAmount] = useState("");
-  const [donateMode, setDonateMode] = useState<"crypto" | "card" | null>(null);
+  const [donateMode, setDonateMode] = useState<"crypto" | "card">("crypto");
   const [isPending, setIsPending] = useState(false);
   const { chainId } = useAccount();
+  const { targetNetwork } = useTargetNetwork();
   const cfLink = useBlockExplorerLink(crowdfundingInfo?.addr);
   const { write: sponsoredWrite } = useSponsoredWrite(orgAddress);
   const { writeContractAsync: writeToken } = useWriteContract();
 
   const cfAddr = crowdfundingInfo?.addr;
   const isValidCf = cfAddr && !isAddressEqual(cfAddr, zeroAddress);
-  const currency = findCurrency(chainId, crowdfundingInfo?.currency);
+  // When the wallet is disconnected, useAccount().chainId is undefined; fall
+  // back to the target network so we can still resolve the donation currency
+  // and render an enabled donate form for visitors before they sign in.
+  const effectiveChainId = chainId ?? targetNetwork.id;
+  const currency = findCurrency(effectiveChainId, crowdfundingInfo?.currency);
   const symbol = currency?.symbol ?? "tokens";
   const decimals = currency?.decimals ?? 18;
 
@@ -482,7 +507,6 @@ function CrowdfundingSection({
   }
 
   const cfState = CROWDFUNDING_STATES[crowdfundingInfo.state] ?? "Unknown";
-  const deadline = new Date(Number(crowdfundingInfo.deadline) * 1000);
   const isCfActive = crowdfundingInfo.state === 0;
   const isCfCancelled = crowdfundingInfo.state === 2;
   // totalRaised on the contract returns the live balance while ACTIVE and the frozen amount
@@ -501,7 +525,11 @@ function CrowdfundingSection({
   const unknownCurrency = !currency;
 
   const handleDonate = async () => {
-    if (!donateAmount || isPending || !currency) return;
+    if (!donateAmount || isPending || !connectedAddress) return;
+    if (!currency) {
+      notification.error("Donation currency is not in the recognized list for this network.");
+      return;
+    }
     let amountWei: bigint;
     try {
       amountWei = parseUnits(donateAmount, decimals);
@@ -540,7 +568,6 @@ function CrowdfundingSection({
       });
       if (success) {
         setDonateAmount("");
-        setDonateMode(null);
         refetchUserContribution();
         refetchAllowance();
       }
@@ -555,46 +582,36 @@ function CrowdfundingSection({
         <h3 className="card-title">Crowdfunding</h3>
         <span className={`badge ${STATE_COLORS[cfState]}`}>{cfState}</span>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
-        <div className="min-w-0">
-          <p className="text-sm opacity-60">Contract Address</p>
+      <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm mt-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="opacity-60 shrink-0">Contract:</span>
           <AddressDisplay address={crowdfundingInfo.addr} blockExplorerAddressLink={cfLink} />
         </div>
-        <div className="min-w-0">
-          <p className="text-sm opacity-60 flex items-center gap-1.5">
-            <CurrencyLogo currency={currency} /> Currency ({symbol})
-          </p>
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="opacity-60 shrink-0">Currency:</span>
+          <CurrencyLogo currency={currency} />
+          <span className="font-medium">{symbol}</span>
           <AddressDisplay address={crowdfundingInfo.currency} />
-        </div>
-        <div className="min-w-0">
-          <p className="text-sm opacity-60">Funding Target</p>
-          <p className="font-mono flex items-center gap-1.5">
-            {formatUnits(crowdfundingInfo.fundingTarget, decimals)} <CurrencyLogo currency={currency} /> {symbol}
-          </p>
-        </div>
-        <div className="min-w-0">
-          <p className="text-sm opacity-60">Total Raised</p>
-          <p className="font-mono flex items-center gap-1.5">
-            {formatUnits(crowdfundingInfo.totalRaised, decimals)} <CurrencyLogo currency={currency} /> {symbol}
-          </p>
-          {isCfActive && directTransfers > 0n && (
-            <p className="text-xs opacity-60 flex items-center gap-1.5">
-              Including {formatUnits(directTransfers, decimals)} in Direct Transfers
-            </p>
-          )}
-        </div>
-        <div className="min-w-0">
-          <p className="text-sm opacity-60">Deadline</p>
-          <p className="font-mono">{deadline.toLocaleString()}</p>
         </div>
       </div>
 
-      <div className="mt-4">
-        <div className="flex justify-between text-sm mb-1">
-          <span>Progress</span>
-          <span>{progress.toFixed(1)}%</span>
-        </div>
-        <progress className="progress progress-primary w-full" value={Math.min(progress, 100)} max="100" />
+      <CrowdfundingStats
+        crowdfundingInfo={crowdfundingInfo}
+        currency={currency}
+        symbol={symbol}
+        decimals={decimals}
+        isCfActive={isCfActive}
+        directTransfers={directTransfers}
+      />
+
+      <div className="mt-3 relative h-6 rounded-full bg-base-300 overflow-hidden">
+        <div
+          className="h-full bg-primary transition-[width] duration-500"
+          style={{ width: `${Math.min(progress, 100)}%` }}
+        />
+        <span className="absolute inset-0 flex items-center justify-center text-xs font-bold text-white mix-blend-difference pointer-events-none">
+          {progress.toFixed(1)}%
+        </span>
       </div>
 
       {connectedAddress && userContribution !== undefined && userContribution > 0n && (
@@ -653,111 +670,277 @@ function CrowdfundingSection({
               </span>
             </div>
           )}
-          {unknownCurrency && (
+          {connectedAddress && unknownCurrency && (
             <div role="alert" className="alert alert-warning mb-3 py-2 text-sm">
               <WarningIcon />
               <span>Donation currency is not in the recognized list for this network. Donations are disabled.</span>
             </div>
           )}
-          <div className="flex flex-wrap gap-2 justify-center">
-            <button
-              className="btn btn-primary"
-              onClick={() => setDonateMode(m => (m === "crypto" ? null : "crypto"))}
-              disabled={donateLocked || unknownCurrency}
-            >
-              <CurrencyLogo currency={currency} /> Donate with crypto
-            </button>
-            {!unknownCurrency && (currency?.symbol === "USDC" || currency?.symbol === "EURC") && (
-              <button
-                className="btn btn-error"
-                onClick={() => setDonateMode(m => (m === "card" ? null : "card"))}
-                disabled={donateLocked}
-              >
-                <CreditCardIcon className="h-4 w-4" />
-                Donate with card
-              </button>
-            )}
-          </div>
-
-          {donateMode && (
-            <div className="mt-3 flex flex-col gap-3 p-4 bg-base-200 rounded-lg text-center items-center">
-              <h3 className="text-2xl font-bold flex items-center gap-2 justify-center">
-                Donate <CurrencyLogo currency={currency} size={24} /> {symbol}
-              </h3>
-              {donateMode === "crypto" && (
-                <div className="text-base max-w-full">
-                  <p>Benefit from on-chain tracking. Your donation is:</p>
-                  <ul className="list-disc list-inside text-left">
-                    <li>Cancellable until the program ends</li>
-                    <li>Refundable if the program is cancelled</li>
-                  </ul>
-                </div>
-              )}
-              {donateMode === "card" && (
-                <div className="flex flex-col max-w-full">
-                  <p className="text-base">
-                    A third-party provider (Coinbase) will charge your card and send the equivalent crypto to the
-                    program.
-                  </p>
-                  <p className="text-base font-semibold flex items-start gap-1 justify-center">
-                    <WarningIcon />
-                    <span>Card donations cannot be cancelled or refunded through Chain.Giving.</span>
-                  </p>
-                </div>
-              )}
-              <div className="flex flex-wrap gap-2 items-center justify-center">
-                {donateMode === "crypto" && (
-                  <div className="flex w-40 input input-bordered input-md items-center pr-1 gap-1">
-                    <input
-                      type="number"
-                      min="0"
-                      step="any"
-                      className="flex-1 bg-transparent outline-none min-w-0 text-center"
-                      placeholder={`Amount (${symbol})`}
-                      value={donateAmount}
-                      onChange={e => setDonateAmount(e.target.value)}
-                      disabled={unknownCurrency}
-                    />
-                    {userBalance !== undefined && (userBalance as bigint) > 0n && (
+          {!unknownCurrency &&
+            (() => {
+              const showCardTab = currency?.symbol === "USDC" || currency?.symbol === "EURC";
+              const tabBase =
+                "py-4 text-lg font-bold flex items-center justify-center gap-2 transition-colors focus-visible:outline-none";
+              const tabActive = "text-blue-700 dark:text-blue-300 border-b-2 border-current -mb-px";
+              const tabInactive = "text-gray-600 dark:text-gray-400 hover:bg-base-300/60";
+              return (
+                <div className="mt-3 w-full max-w-md mx-auto bg-base-200 rounded-lg overflow-hidden">
+                  <h3 className="text-2xl font-bold flex items-center gap-2 justify-center py-3 px-4 m-0 text-blue-700 dark:text-blue-300">
+                    Donate <CurrencyLogo currency={currency} size={24} /> {symbol}
+                  </h3>
+                  <div
+                    role="tablist"
+                    className={`grid ${showCardTab ? "grid-cols-2" : "grid-cols-1"} border-b border-base-300`}
+                  >
+                    <button
+                      role="tab"
+                      type="button"
+                      className={`${tabBase} ${donateMode === "crypto" ? tabActive : tabInactive}`}
+                      onClick={() => setDonateMode("crypto")}
+                    >
+                      <CurrencyLogo currency={currency} size={20} /> Pay with crypto
+                    </button>
+                    {showCardTab && (
                       <button
-                        className="btn btn-ghost btn-xs text-xs px-1 h-5 min-h-0 opacity-60 hover:opacity-100"
-                        onClick={() => setDonateAmount(formatUnits(userBalance as bigint, decimals))}
-                        title="Use full balance"
+                        role="tab"
+                        type="button"
+                        className={`${tabBase} ${donateMode === "card" ? tabActive : tabInactive}`}
+                        onClick={() => setDonateMode("card")}
                       >
-                        Max
+                        <CreditCardIcon className="h-5 w-5" />
+                        Pay with card
                       </button>
                     )}
                   </div>
-                )}
-                {donateMode === "crypto" ? (
-                  <button
-                    className="btn btn-md btn-primary"
-                    onClick={handleDonate}
-                    disabled={!donateAmount || donateLocked || isPending || unknownCurrency}
-                  >
-                    {isPending ? <span className="loading loading-spinner loading-xs" /> : "Donate"}
-                  </button>
-                ) : currency?.symbol === "USDC" || currency?.symbol === "EURC" ? (
-                  <DonateWithFiatButton
-                    asset={currency.symbol}
-                    targetAddress={crowdfundingInfo.addr}
-                    disabled={donateLocked}
-                  />
-                ) : null}
-                <button
-                  className="btn btn-md btn-outline btn-ghost"
-                  disabled={isPending}
-                  onClick={() => setDonateMode(null)}
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          )}
+
+                  <div className="flex flex-col gap-3 p-4 text-center items-center">
+                    {donateMode === "crypto" && (
+                      <div className="flex flex-col text-base max-w-full">
+                        <p>Benefit from on-chain tracking. Your donation is:</p>
+                        <ul className="list-disc list-inside text-left w-fit mx-auto">
+                          <li>Cancellable until the program ends</li>
+                          <li>Refundable if the program is cancelled</li>
+                        </ul>
+                        {!connectedAddress && (
+                          <div
+                            role="alert"
+                            className="alert py-2 text-sm text-left mt-2 text-blue-700 dark:text-blue-300"
+                          >
+                            <InformationCircleIcon className="h-5 w-5 shrink-0" />
+                            <div>To pay with crypto, sign in or connect a wallet first.</div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    {donateMode === "card" && (
+                      <div className="flex flex-col max-w-full">
+                        <p className="text-base">
+                          A third-party provider (Coinbase) will charge your card and send the equivalent crypto to the
+                          program.
+                        </p>
+                        <div role="alert" className="alert alert-warning py-2 text-sm text-left">
+                          <WarningIcon />
+                          <span>Card donations cannot be cancelled or refunded through Chain.Giving.</span>
+                        </div>
+                      </div>
+                    )}
+                    <div className="flex flex-wrap gap-2 items-center justify-center">
+                      {donateMode === "crypto" && connectedAddress && (
+                        <div className="flex w-40 input input-bordered input-md items-center pr-1 gap-1">
+                          <input
+                            type="number"
+                            min="0"
+                            step="any"
+                            className="flex-1 bg-transparent outline-none min-w-0 text-center text-sm placeholder:text-xs"
+                            placeholder={`Amount (${symbol})`}
+                            value={donateAmount}
+                            onChange={e => setDonateAmount(e.target.value)}
+                          />
+                          {userBalance !== undefined && (userBalance as bigint) > 0n && (
+                            <button
+                              className="btn btn-ghost btn-xs text-xs px-1 h-5 min-h-0 opacity-60 hover:opacity-100"
+                              onClick={() => setDonateAmount(formatUnits(userBalance as bigint, decimals))}
+                              title="Use full balance"
+                            >
+                              Max
+                            </button>
+                          )}
+                        </div>
+                      )}
+                      {donateMode === "crypto" ? (
+                        connectedAddress ? (
+                          <button
+                            className="btn btn-md btn-primary"
+                            onClick={handleDonate}
+                            disabled={!donateAmount || donateLocked || isPending}
+                          >
+                            {isPending ? <span className="loading loading-spinner loading-xs" /> : "Donate"}
+                          </button>
+                        ) : (
+                          <SignInActions />
+                        )
+                      ) : currency?.symbol === "USDC" || currency?.symbol === "EURC" ? (
+                        <DonateWithFiatButton
+                          asset={currency.symbol}
+                          targetAddress={crowdfundingInfo.addr}
+                          disabled={donateLocked}
+                        />
+                      ) : null}
+                    </div>
+                    {donateMode === "crypto" && connectedAddress && (
+                      <div className="flex flex-wrap items-center justify-center gap-2 text-xs opacity-80">
+                        <span className="flex items-center gap-1">
+                          In your wallet:
+                          <span className="font-mono font-semibold flex items-center gap-1">
+                            {userBalance !== undefined ? formatUnits(userBalance as bigint, decimals) : "…"}
+                            <CurrencyLogo currency={currency} size={12} />
+                            {symbol}
+                          </span>
+                        </span>
+                        <Link
+                          href={`/wallet/${connectedAddress}`}
+                          className="btn btn-xs btn-ghost btn-link no-underline px-1 gap-1"
+                        >
+                          <WalletIcon className="h-3.5 w-3.5" />
+                          Go to wallet
+                        </Link>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
         </div>
       )}
     </div>
   );
+}
+
+function formatTimeLeft(deadline: bigint, now: number): { primary: string; secondary: string | null } {
+  const left = Number(deadline) - Math.floor(now / 1000);
+  if (left <= 0) return { primary: "ended", secondary: null };
+  const days = Math.floor(left / 86400);
+  const hours = Math.floor((left % 86400) / 3600);
+  const minutes = Math.floor((left % 3600) / 60);
+  if (days > 0) {
+    return { primary: `${days} ${days === 1 ? "day" : "days"}`, secondary: `${hours}h ${minutes}min` };
+  }
+  if (hours > 0) {
+    return { primary: `${hours}h`, secondary: `${minutes}min` };
+  }
+  return { primary: `${minutes}min`, secondary: null };
+}
+
+function CrowdfundingStats({
+  crowdfundingInfo,
+  currency,
+  symbol,
+  decimals,
+  isCfActive,
+  directTransfers,
+}: {
+  crowdfundingInfo: CrowdfundingInfo;
+  currency: DonationCurrency | undefined;
+  symbol: string;
+  decimals: number;
+  isCfActive: boolean;
+  directTransfers: bigint;
+}) {
+  const publicClient = usePublicClient();
+  const [contributorCount, setContributorCount] = useState<number | null>(null);
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 30000);
+    return () => clearInterval(id);
+  }, []);
+
+  useEffect(() => {
+    if (!publicClient) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const events = await publicClient.getContractEvents({
+          address: crowdfundingInfo.addr,
+          abi: cgCrowdfundingAbi,
+          eventName: "ContributionReceived",
+          fromBlock: "earliest",
+        });
+        if (cancelled) return;
+        const donors = new Set(events.map(e => (e.args as { donor?: string }).donor).filter(Boolean));
+        setContributorCount(donors.size);
+      } catch {
+        if (!cancelled) setContributorCount(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [publicClient, crowdfundingInfo.addr, crowdfundingInfo.totalTracked]);
+
+  const timeLeft = formatTimeLeft(crowdfundingInfo.deadline, now);
+
+  return (
+    <div className="flex flex-col sm:flex-row sm:items-start gap-4 sm:gap-8 mt-4 border-l-4 border-[#0c53bf] dark:border-[#93bbfb] pl-4 sm:pl-6 justify-center">
+      <div className="flex flex-col items-start">
+        <div className="flex items-center gap-1.5 text-[#0c53bf] dark:text-[#93bbfb] font-bold text-2xl sm:text-3xl">
+          <span className="font-mono">{formatUnits(crowdfundingInfo.totalRaised, decimals)}</span>
+          <CurrencyLogo currency={currency} size={24} />
+        </div>
+        <span className="text-xs sm:text-sm opacity-60">
+          raised of {formatUnits(crowdfundingInfo.fundingTarget, decimals)} {symbol} goal
+        </span>
+        {isCfActive && directTransfers > 0n && (
+          <span className="text-xs opacity-60">
+            Including {formatUnits(directTransfers, decimals)} in direct transfers
+          </span>
+        )}
+      </div>
+      <div className="flex flex-col items-start">
+        <span className="font-bold text-2xl sm:text-3xl">{contributorCount ?? "…"}</span>
+        <span className="text-xs sm:text-sm opacity-60">{contributorCount === 1 ? "contributor" : "contributors"}</span>
+      </div>
+      <div className="flex flex-col items-start">
+        <span className="whitespace-nowrap">
+          <span className="font-bold text-2xl sm:text-3xl">{timeLeft.primary}</span>
+          {timeLeft.secondary && (
+            <span className="font-bold text-sm sm:text-base ml-1 opacity-80">{timeLeft.secondary}</span>
+          )}
+        </span>
+        <span className="text-xs sm:text-sm opacity-60">time to go</span>
+      </div>
+    </div>
+  );
+}
+
+function SignInActionsInner() {
+  const { open } = useAppKit();
+  return (
+    <ConnectButton.Custom>
+      {({ openConnectModal, mounted }) => (
+        <>
+          <button className="btn btn-md btn-error gap-2" type="button" onClick={() => open()}>
+            <EnvelopeIcon className="h-4 w-4" />
+            Sign in with Email
+          </button>
+          <button className="btn btn-md btn-primary gap-2" type="button" onClick={openConnectModal} disabled={!mounted}>
+            <WalletIcon className="h-4 w-4" />
+            Connect Wallet
+          </button>
+        </>
+      )}
+    </ConnectButton.Custom>
+  );
+}
+
+// useAppKit reads global state populated by createAppKit, which only runs in
+// the browser (see services/web3/wagmiConfig.tsx). Defer until mount so SSG
+// never invokes it.
+function SignInActions() {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  if (!mounted) return null;
+  return <SignInActionsInner />;
 }
 
 function DirectTransfersPanel({
@@ -1059,7 +1242,7 @@ function DistributionsSection({
         <h3 className="card-title">Distributions ({distributions.length})</h3>
         {isOwner && isActive && !showNewForm && tokenTypes.length > 0 && (
           <button className="btn btn-sm btn-secondary" onClick={() => setShowNewForm(true)}>
-            + New Distribution
+            New Distribution
           </button>
         )}
       </div>
@@ -1225,14 +1408,15 @@ function DistributionItem({
 
   return (
     <div className="border border-base-300 rounded-xl p-4">
-      <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+        <div className="flex flex-wrap items-center gap-2 min-w-0">
           <span className="font-semibold">Distribution #{index}</span>
           {tokenType && (
             <span className="badge badge-outline badge-sm">
               {tokenType.name} ({tokenType.symbol})
             </span>
           )}
+          <AddressDisplay address={dist.addr} blockExplorerAddressLink={distLink} />
         </div>
         <div className="flex items-center gap-2">
           <span className={`badge ${STATE_COLORS[distState] ?? "badge-ghost"}`}>{distState}</span>
@@ -1250,18 +1434,12 @@ function DistributionItem({
           )}
         </div>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
-        <div>
-          <p className="opacity-60">Contract Address</p>
-          <AddressDisplay address={dist.addr} blockExplorerAddressLink={distLink} />
+      {tokenType?.maxSupply !== 1n && (
+        <div className="text-sm">
+          <span className="opacity-60">Total required:</span>{" "}
+          <span className="font-mono">{dist.totalRequired.toString()} tokens</span>
         </div>
-        {tokenType?.maxSupply !== 1n && (
-          <div>
-            <p className="opacity-60">Total Required</p>
-            <p className="font-mono">{dist.totalRequired.toString()} tokens</p>
-          </div>
-        )}
-      </div>
+      )}
 
       {dist.beneficiaries.length > 0 && editMode !== "set" && editMode !== "remove" && (
         <div className="mt-3">
@@ -1403,11 +1581,11 @@ function BeneficiaryRow({ address, amount }: { address: Address; amount: bigint 
   );
 }
 
-function WarningIcon() {
+function WarningIcon({ className = "" }: { className?: string }) {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
-      className="h-5 w-5 shrink-0"
+      className={`h-5 w-5 shrink-0 ${className}`}
       fill="none"
       viewBox="0 0 24 24"
       stroke="currentColor"
@@ -1420,6 +1598,106 @@ function WarningIcon() {
       />
     </svg>
   );
+}
+
+// Common CSV delimiters in the wild: comma (RFC4180), semicolon (Excel in
+// many EU locales), tab (TSV exports), pipe (data feeds).
+const CSV_SEPARATORS = [",", ";", "\t", "|"] as const;
+
+// Counts how many times `sep` appears at the top level of `line`, ignoring
+// any occurrences inside double-quoted regions (with "" as escaped quote).
+function countSeparatorOutsideQuotes(line: string, sep: string): number {
+  let count = 0;
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (c === '"') {
+      if (inQuotes && line[i + 1] === '"') {
+        i++;
+        continue;
+      }
+      inQuotes = !inQuotes;
+    } else if (!inQuotes && c === sep) {
+      count++;
+    }
+  }
+  return count;
+}
+
+// Picks the most plausible separator by sampling the first non-empty lines,
+// preferring whichever yields the highest and most consistent column count.
+function detectCsvSeparator(text: string): string {
+  const sample = text
+    .split(/\r?\n/)
+    .filter(l => l.trim().length > 0)
+    .slice(0, 20);
+  if (sample.length === 0) return ",";
+  let best = ",";
+  let bestScore = -Infinity;
+  for (const sep of CSV_SEPARATORS) {
+    const counts = sample.map(l => countSeparatorOutsideQuotes(l, sep));
+    const total = counts.reduce((a, b) => a + b, 0);
+    if (total === 0) continue;
+    const avg = total / counts.length;
+    const variance = counts.reduce((acc, n) => acc + (n - avg) ** 2, 0) / counts.length;
+    const score = avg - variance; // reward many separators, penalise inconsistent rows
+    if (score > bestScore) {
+      bestScore = score;
+      best = sep;
+    }
+  }
+  return best;
+}
+
+// RFC4180-flavoured parser: handles quoted cells, "" escapes, and CRLF/LF.
+function parseCsv(text: string, sep: string): string[][] {
+  const rows: string[][] = [];
+  let row: string[] = [];
+  let cell = "";
+  let inQuotes = false;
+  let cellHasOpenedQuote = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (inQuotes) {
+      if (c === '"') {
+        if (text[i + 1] === '"') {
+          cell += '"';
+          i++;
+        } else {
+          inQuotes = false;
+        }
+      } else {
+        cell += c;
+      }
+      continue;
+    }
+    if (c === '"' && cell.length === 0 && !cellHasOpenedQuote) {
+      inQuotes = true;
+      cellHasOpenedQuote = true;
+      continue;
+    }
+    if (c === "\r") continue;
+    if (c === "\n") {
+      row.push(cell);
+      cell = "";
+      cellHasOpenedQuote = false;
+      rows.push(row);
+      row = [];
+      continue;
+    }
+    if (c === sep) {
+      row.push(cell);
+      cell = "";
+      cellHasOpenedQuote = false;
+      continue;
+    }
+    cell += c;
+  }
+  if (cell.length > 0 || row.length > 0) {
+    row.push(cell);
+    rows.push(row);
+  }
+  return rows.filter(r => r.some(c => c.trim().length > 0));
 }
 
 function BeneficiariesTableEditor({
@@ -1441,8 +1719,72 @@ function BeneficiariesTableEditor({
 
   const removeRow = (index: number) => onChange(entries.filter((_, i) => i !== index));
 
+  const handleDownload = () => {
+    const header = hideAmount ? "address" : "address,amount";
+    const rows = entries
+      .filter(e => e.address || e.amount)
+      .map(e => (hideAmount ? e.address : `${e.address},${e.amount}`));
+    const csv = [header, ...rows].join("\n") + "\n";
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "beneficiaries.csv";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleUpload = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      // Strip a leading UTF-8 BOM (Excel-style exports).
+      const text = String(reader.result ?? "").replace(/^﻿/, "");
+      const sep = detectCsvSeparator(text);
+      const rows = parseCsv(text, sep);
+      if (rows.length === 0) {
+        notification.error("CSV is empty");
+        return;
+      }
+      const firstCell = rows[0][0]?.trim().toLowerCase() ?? "";
+      const dataRows = firstCell.startsWith("0x") ? rows : rows.slice(1);
+      if (dataRows.length === 0) {
+        notification.error("No beneficiary rows found in CSV");
+        return;
+      }
+      const parsed: BeneficiaryEntry[] = dataRows.map(cells => ({
+        id: crypto.randomUUID(),
+        address: (cells[0] ?? "").trim(),
+        amount: hideAmount ? "1" : (cells[1] ?? "").trim(),
+      }));
+      onChange(parsed);
+      const sepName = sep === "\t" ? "tab" : sep === "," ? "comma" : sep === ";" ? "semicolon" : "pipe";
+      notification.success(
+        `Loaded ${parsed.length} beneficiar${parsed.length === 1 ? "y" : "ies"} from CSV (${sepName}-separated)`,
+      );
+    };
+    reader.readAsText(file);
+  };
+
+  const hasContent = entries.some(e => e.address || e.amount);
+
   return (
     <>
+      <div className="flex flex-wrap gap-2 mb-2">
+        <label className="btn btn-xs btn-outline gap-1 cursor-pointer">
+          <ArrowUpTrayIcon className="h-3.5 w-3.5" />
+          Upload CSV
+          <input type="file" accept=".csv,text/csv" className="hidden" onChange={handleUpload} />
+        </label>
+        <button type="button" className="btn btn-xs btn-outline gap-1" onClick={handleDownload} disabled={!hasContent}>
+          <ArrowDownTrayIcon className="h-3.5 w-3.5" />
+          Download CSV
+        </button>
+      </div>
       <div className="overflow-x-auto">
         <table className="table table-sm">
           <thead>
@@ -1869,6 +2211,38 @@ function OwnerActions({
   );
 }
 
+function ChoiceCard({
+  active,
+  onClick,
+  icon,
+  title,
+  description,
+}: {
+  active: boolean;
+  onClick: () => void;
+  icon: ReactNode;
+  title: string;
+  description: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`text-left p-4 rounded-xl border-2 transition-all flex gap-3 items-start ${
+        active
+          ? "border-primary bg-primary/10 shadow-md ring-1 ring-primary"
+          : "border-base-300 bg-base-100 shadow-sm hover:border-primary/40 hover:shadow"
+      }`}
+    >
+      <span className={active ? "text-primary shrink-0" : "opacity-70 shrink-0"}>{icon}</span>
+      <div className="flex flex-col gap-0.5 min-w-0">
+        <span className="font-semibold">{title}</span>
+        <span className="text-xs opacity-70">{description}</span>
+      </div>
+    </button>
+  );
+}
+
 function CreateTokenTypeForm({
   programAddress,
   orgAddress,
@@ -1880,27 +2254,47 @@ function CreateTokenTypeForm({
 }) {
   const [name, setName] = useState("");
   const [symbol, setSymbol] = useState("");
-  const [maxSupply, setMaxSupply] = useState("");
+  const [availability, setAvailability] = useState<"unlimited" | "limited">("unlimited");
+  const [limitedKind, setLimitedKind] = useState<"unique" | "capped">("unique");
+  const [cap, setCap] = useState("");
   const [uri, setUri] = useState("");
   const [transferable, setTransferable] = useState(true);
   const [burnable, setBurnable] = useState(true);
   const write = useCGProgramWrite(programAddress, orgAddress);
+
+  const resetForm = () => {
+    setName("");
+    setSymbol("");
+    setAvailability("unlimited");
+    setLimitedKind("unique");
+    setCap("");
+    setUri("");
+    setTransferable(true);
+    setBurnable(true);
+  };
 
   const handleCreate = async () => {
     if (!name || !symbol) {
       notification.error("Name and symbol are required");
       return;
     }
-    const supply = maxSupply ? BigInt(maxSupply) : 0n;
+    let supply: bigint;
+    if (availability === "unlimited") {
+      supply = 0n;
+    } else if (limitedKind === "unique") {
+      supply = 1n;
+    } else {
+      const n = Number(cap);
+      if (!cap || !Number.isInteger(n) || n < 2) {
+        notification.error("Maximum supply must be a whole number ≥ 2");
+        return;
+      }
+      supply = BigInt(n);
+    }
     const success = await write("defineTokenType", [name, symbol, supply, uri, transferable, burnable]);
     if (success) {
       onDone();
-      setName("");
-      setSymbol("");
-      setMaxSupply("");
-      setUri("");
-      setTransferable(true);
-      setBurnable(true);
+      resetForm();
     }
   };
 
@@ -1937,21 +2331,70 @@ function CreateTokenTypeForm({
             placeholder="VOUCHER"
           />
         </div>
-        <div>
+        <div className="sm:col-span-2">
           <label className="label">
-            <span className="label-text">
-              Max Supply{" "}
-              <span className="opacity-60 text-xs">(0 = unlimited / fungible, 1 = unique NFT, N = capped)</span>
-            </span>
+            <span className="label-text">Availability</span>
           </label>
-          <input
-            type="number"
-            className="input input-bordered w-full"
-            value={maxSupply}
-            onChange={e => setMaxSupply(e.target.value)}
-            placeholder="0"
-            min="0"
-          />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-start">
+            <ChoiceCard
+              active={availability === "unlimited"}
+              onClick={() => setAvailability("unlimited")}
+              icon={<ArrowsPointingOutIcon className="h-6 w-6" />}
+              title="Unlimited"
+              description="No cap on how many tokens of this type can exist. Holders can hold any amount."
+            />
+            {availability === "limited" ? (
+              <div className="rounded-xl border-2 border-primary bg-primary/10 shadow-md ring-1 ring-primary p-4 flex flex-col gap-3">
+                <div className="flex gap-3 items-start">
+                  <span className="text-primary shrink-0">
+                    <LockClosedIcon className="h-6 w-6" />
+                  </span>
+                  <div className="flex flex-col gap-0.5 min-w-0">
+                    <span className="font-semibold">Limited</span>
+                    <span className="text-xs opacity-70">Restrict how many tokens of this type can ever exist.</span>
+                  </div>
+                </div>
+                <div className="flex flex-col gap-2">
+                  <ChoiceCard
+                    active={limitedKind === "unique"}
+                    onClick={() => setLimitedKind("unique")}
+                    icon={<SparklesIcon className="h-5 w-5" />}
+                    title="Unique (1 of 1)"
+                    description="Exactly one token will ever exist — a one-of-a-kind certificate."
+                  />
+                  <ChoiceCard
+                    active={limitedKind === "capped"}
+                    onClick={() => setLimitedKind("capped")}
+                    icon={<HashtagIcon className="h-5 w-5" />}
+                    title="Capped"
+                    description="A fixed maximum of tokens. Once reached, no more can be minted."
+                  />
+                  {limitedKind === "capped" && (
+                    <div className="flex flex-col gap-1">
+                      <label className="text-xs opacity-70">Maximum supply</label>
+                      <input
+                        type="number"
+                        className="input input-bordered w-full sm:max-w-xs"
+                        value={cap}
+                        onChange={e => setCap(e.target.value)}
+                        placeholder="100"
+                        min="2"
+                        step="1"
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <ChoiceCard
+                active={false}
+                onClick={() => setAvailability("limited")}
+                icon={<LockClosedIcon className="h-6 w-6" />}
+                title="Limited"
+                description="Restrict how many tokens of this type can ever exist."
+              />
+            )}
+          </div>
         </div>
         <div>
           <label className="label">

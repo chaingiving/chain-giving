@@ -733,11 +733,17 @@ function CrowdfundingSection({
                       </div>
                     )}
                     {donateMode === "card" && (
-                      <div className="flex flex-col max-w-full">
+                      <div className="flex flex-col gap-2 max-w-full">
                         <p className="text-base">
                           A third-party provider (Coinbase) will charge your card and send the equivalent crypto to the
                           program.
                         </p>
+                        {!connectedAddress && (
+                          <div role="alert" className="alert py-2 text-sm text-left text-blue-700 dark:text-blue-300">
+                            <InformationCircleIcon className="h-5 w-5 shrink-0" />
+                            <div>To pay with card, sign in with your email or any available option first.</div>
+                          </div>
+                        )}
                         <div role="alert" className="alert alert-warning py-2 text-sm text-left">
                           <WarningIcon />
                           <span>Card donations cannot be cancelled or refunded through Chain.Giving.</span>
@@ -921,7 +927,7 @@ function SignInActionsInner() {
         <>
           <button className="btn btn-md btn-error gap-2" type="button" onClick={() => open()}>
             <EnvelopeIcon className="h-4 w-4" />
-            Sign in with Email
+            Sign in
           </button>
           <button className="btn btn-md btn-primary gap-2" type="button" onClick={openConnectModal} disabled={!mounted}>
             <WalletIcon className="h-4 w-4" />

@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useAppKit } from "@reown/appkit/react";
 import { Address } from "viem";
-import { CreditCardIcon } from "@heroicons/react/24/outline";
+import { useAccount } from "wagmi";
+import { CreditCardIcon, EnvelopeIcon } from "@heroicons/react/24/outline";
 import { useSiweAuth } from "~~/hooks/useSiweAuth";
 import { notification } from "~~/utils/scaffold-eth";
 
@@ -28,6 +30,8 @@ type Props = {
 export const DonateWithFiatButton = ({ asset, targetAddress, disabled }: Props) => {
   const [loading, setLoading] = useState(false);
   const { ensureSignedIn } = useSiweAuth();
+  const { isConnected } = useAccount();
+  const { open: openConnectModal } = useAppKit();
   const popupRef = useRef<Window | null>(null);
   const closePollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const messageHandlerRef = useRef<((e: MessageEvent) => void) | null>(null);
@@ -45,6 +49,15 @@ export const DonateWithFiatButton = ({ asset, targetAddress, disabled }: Props) 
   };
 
   useEffect(() => cleanup, []);
+
+  if (!isConnected) {
+    return (
+      <button className="btn btn-error gap-2" onClick={() => openConnectModal()} type="button" disabled={disabled}>
+        <EnvelopeIcon className="h-4 w-4" />
+        Sign in
+      </button>
+    );
+  }
 
   const handleClick = async () => {
     if (loading) return;

@@ -15,6 +15,23 @@ import { getBlockExplorerAddressLink, notification } from "~~/utils/scaffold-eth
 const FAUCET_CHAIN_IDS = new Set<number>([84532]);
 const FAUCET_TOKEN_BY_SYMBOL: Record<string, string> = { USDC: "usdc", EURC: "eurc", ETH: "eth" };
 
+// Mirrors the backend rate-limit window so the UI cooldown matches.
+const FAUCET_COOLDOWN_MS = 60 * 60 * 1000;
+const cooldownKey = (walletAddress: string, token: string) => `cg-faucet:${walletAddress.toLowerCase()}:${token}`;
+
+function readCooldown(walletAddress: string, token: string): number {
+  if (typeof window === "undefined") return 0;
+  const raw = window.localStorage.getItem(cooldownKey(walletAddress, token));
+  if (!raw) return 0;
+  const until = Number(raw);
+  return Number.isFinite(until) && until > Date.now() ? until : 0;
+}
+
+function writeCooldown(walletAddress: string, token: string, until: number) {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(cooldownKey(walletAddress, token), String(until));
+}
+
 type Props = {
   walletAddress: Address;
   /** ERC-20 currency. Omit when `native` is true. */
@@ -33,6 +50,21 @@ export function TopUpModal({ walletAddress, currency, native, onClose }: Props) 
 
   const symbol = native ? native.symbol : (currency?.symbol ?? "");
   const faucetSupported = FAUCET_CHAIN_IDS.has(network.id) && FAUCET_TOKEN_BY_SYMBOL[symbol] !== undefined;
+  const faucetToken = FAUCET_TOKEN_BY_SYMBOL[symbol];
+
+  const [cooldownUntil, setCooldownUntil] = useState(() =>
+    faucetSupported && faucetToken ? readCooldown(walletAddress, faucetToken) : 0,
+  );
+  const [, forceTick] = useState(0);
+
+  useEffect(() => {
+    if (!cooldownUntil) return;
+    const timeout = window.setTimeout(() => {
+      setCooldownUntil(0);
+      forceTick(t => t + 1);
+    }, cooldownUntil - Date.now());
+    return () => window.clearTimeout(timeout);
+  }, [cooldownUntil]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -43,6 +75,7 @@ export function TopUpModal({ walletAddress, currency, native, onClose }: Props) 
   }, [onClose]);
 
   const requestFaucet = async () => {
+    if (!faucetToken) return;
     setFaucetPending(true);
     try {
       try {
@@ -57,15 +90,24 @@ export function TopUpModal({ walletAddress, currency, native, onClose }: Props) 
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           address: walletAddress,
-          token: FAUCET_TOKEN_BY_SYMBOL[symbol],
+          token: faucetToken,
           chainId: network.id,
         }),
       });
       const data = (await res.json().catch(() => ({}))) as { error?: string; transactionHash?: string };
       if (!res.ok) {
+        if (res.status === 429) {
+          const retryAfter = Number(res.headers.get("Retry-After")) || FAUCET_COOLDOWN_MS / 1000;
+          const until = Date.now() + retryAfter * 1000;
+          writeCooldown(walletAddress, faucetToken, until);
+          setCooldownUntil(until);
+        }
         notification.error(data.error || "Faucet request failed");
         return;
       }
+      const until = Date.now() + FAUCET_COOLDOWN_MS;
+      writeCooldown(walletAddress, faucetToken, until);
+      setCooldownUntil(until);
       notification.success(
         data.transactionHash ? `Faucet sent! tx ${data.transactionHash.slice(0, 10)}…` : "Faucet request submitted",
       );
@@ -134,8 +176,18 @@ export function TopUpModal({ walletAddress, currency, native, onClose }: Props) 
         {faucetSupported && (
           <div className="w-full flex flex-col gap-2 border-t border-base-300 pt-3">
             <p className="text-xs">On testnet you can request a small amount of test tokens.</p>
-            <button className="btn btn-primary btn-sm" disabled={faucetPending} onClick={requestFaucet}>
-              {faucetPending ? <span className="loading loading-spinner loading-xs" /> : `Get test ${symbol}`}
+            <button
+              className="btn btn-primary btn-sm"
+              disabled={faucetPending || cooldownUntil > Date.now()}
+              onClick={requestFaucet}
+            >
+              {faucetPending ? (
+                <span className="loading loading-spinner loading-xs" />
+              ) : cooldownUntil > Date.now() ? (
+                `Available in ${formatCooldown(cooldownUntil - Date.now())}`
+              ) : (
+                `Get test ${symbol}`
+              )}
             </button>
           </div>
         )}
@@ -143,4 +195,11 @@ export function TopUpModal({ walletAddress, currency, native, onClose }: Props) 
       <div className="modal-backdrop" onClick={onClose} />
     </div>
   );
+}
+
+function formatCooldown(ms: number): string {
+  const totalSeconds = Math.max(1, Math.ceil(ms / 1000));
+  const minutes = Math.ceil(totalSeconds / 60);
+  if (minutes >= 60) return `${Math.ceil(minutes / 60)}h`;
+  return `${minutes}m`;
 }

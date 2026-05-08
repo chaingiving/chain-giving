@@ -85,11 +85,13 @@ const UserProgramCard = ({
   programAddress,
   userAddress,
   orgName,
+  isOwner,
   onVisibilityChange,
 }: {
   programAddress: ViemAddress;
   userAddress: ViemAddress;
   orgName?: string;
+  isOwner: boolean;
   onVisibilityChange: VisibilityReporter;
 }) => {
   const { data: cfInfo } = useReadContract({
@@ -119,7 +121,7 @@ const UserProgramCard = ({
 
   const hasContribution = typeof contributed === "bigint" && contributed > 0n;
   const isBeneficiary = !!distInfos?.some(d => d.beneficiaries.some(b => isAddressEqual(b, userAddress)));
-  const isVisible = hasContribution || isBeneficiary;
+  const isVisible = isOwner || hasContribution || isBeneficiary;
 
   useEffect(() => {
     onVisibilityChange(programAddress, isVisible);
@@ -132,6 +134,7 @@ const UserProgramCard = ({
     <div className="flex flex-col gap-1.5">
       <ProgramCard address={programAddress} orgName={orgName} />
       <div className="flex flex-wrap gap-1 pl-1">
+        {isOwner && <span className="badge badge-warning badge-sm">Owner</span>}
         {hasContribution && <span className="badge badge-success badge-sm">Contributor</span>}
         {isBeneficiary && <span className="badge badge-primary badge-sm">Beneficiary</span>}
       </div>
@@ -155,6 +158,13 @@ const OrgPrograms = ({
     query: { refetchInterval: 30000 },
   });
 
+  const { data: orgOwner } = useReadContract({
+    address: orgAddress,
+    abi: cgOrganizationAbi,
+    functionName: "owner",
+    query: { refetchInterval: 30000 },
+  });
+
   const { data: programAddresses } = useReadContract({
     address: orgAddress,
     abi: cgOrganizationAbi,
@@ -162,6 +172,8 @@ const OrgPrograms = ({
     args: [0n, 100n],
     query: { refetchInterval: 5000 },
   });
+
+  const isOrgOwner = !!orgOwner && isAddressEqual(orgOwner, userAddress);
 
   if (!programAddresses || programAddresses.length === 0) return null;
 
@@ -173,6 +185,7 @@ const OrgPrograms = ({
           programAddress={addr}
           userAddress={userAddress}
           orgName={orgName ?? undefined}
+          isOwner={isOrgOwner}
           onVisibilityChange={onVisibilityChange}
         />
       ))}

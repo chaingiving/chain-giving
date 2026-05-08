@@ -52,13 +52,14 @@ if (typeof window !== "undefined") {
     adapters: [wagmiAdapter],
     projectId: scaffoldConfig.walletConnectProjectId,
     networks: enabledChains as any,
-    /* Note Features are overwritten by those set on dashboard.reown.com
     features: {
       email: true,
-      socials: ["google", "apple", "github", "discord", "facebook"],
+      socials: ["google", "apple", "facebook", "discord", "github"],
+      connectMethodsOrder: ["email", "social", "wallet"],
       emailShowWallets: false,
+      collapseWallets: true,
+      allWallets: false,
     },
-    */
   });
 }
 

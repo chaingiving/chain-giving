@@ -7,7 +7,7 @@ import type { NextPage } from "next";
 import { QRCodeSVG } from "qrcode.react";
 import { type Address as ViemAddress, isAddressEqual } from "viem";
 import { useAccount, useReadContract } from "wagmi";
-import { BuildingOffice2Icon, GiftIcon, WalletIcon } from "@heroicons/react/24/outline";
+import { HeartIcon, UserGroupIcon, WalletIcon } from "@heroicons/react/24/outline";
 import { AuthProviderInfo, SignOutButton } from "~~/components/AuthSession";
 import { ChainGivingHeader } from "~~/components/ChainGivingHeader";
 import { EmbeddedWalletButton } from "~~/components/ConnectButton";
@@ -193,7 +193,7 @@ const Home: NextPage = () => {
               className="card bg-base-100 shadow-md border border-base-300 rounded-3xl px-6 py-8 hover:shadow-lg transition-shadow"
             >
               <div className="flex items-center gap-3">
-                <BuildingOffice2Icon className="h-8 w-8" />
+                <UserGroupIcon className="h-8 w-8" />
                 <div>
                   <h2 className="text-xl font-bold">Browse Organizations</h2>
                   <p className="text-sm opacity-70">See who running programs</p>
@@ -205,7 +205,7 @@ const Home: NextPage = () => {
               className="card bg-base-100 shadow-md border border-base-300 rounded-3xl px-6 py-8 hover:shadow-lg transition-shadow"
             >
               <div className="flex items-center gap-3">
-                <GiftIcon className="h-8 w-8" />
+                <HeartIcon className="h-8 w-8" />
                 <div>
                   <h2 className="text-xl font-bold">Browse Programs</h2>
                   <p className="text-sm opacity-70">Explore active crowdfundings</p>
@@ -267,7 +267,7 @@ const Home: NextPage = () => {
           <main className="flex-1 flex flex-col gap-8 min-w-0">
             <section className={visibleOwnedOrgs.size === 0 ? "hidden" : undefined}>
               <h2 className="flex items-center gap-2 text-xl font-bold mb-3">
-                <BuildingOffice2Icon className="h-5 w-5" />
+                <UserGroupIcon className="h-5 w-5" />
                 Your Organizations
               </h2>
               <div className="grid gap-3 sm:grid-cols-2">
@@ -284,7 +284,7 @@ const Home: NextPage = () => {
 
             <section>
               <h2 className="flex items-center gap-2 text-xl font-bold mb-3">
-                <GiftIcon className="h-5 w-5" />
+                <HeartIcon className="h-5 w-5" />
                 Your Programs
               </h2>
               <div className={`grid gap-3 ${visiblePrograms.size === 0 ? "hidden" : ""}`}>

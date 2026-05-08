@@ -57,7 +57,7 @@ const CROWDFUNDING_STATES = ["Active", "Withdrawn", "Cancelled"] as const;
 const DISTRIBUTION_STATES = ["Draft", "Ready", "Distributed"] as const;
 
 const STATE_COLORS: Record<string, string> = {
-  Active: "badge-success",
+  Active: "badge-cg",
   Executing: "badge-warning",
   Completed: "badge-info",
   Cancelled: "badge-error",

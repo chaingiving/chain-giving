@@ -5,28 +5,18 @@ import Link from "next/link";
 import { Address } from "@scaffold-ui/components";
 import type { NextPage } from "next";
 import { QRCodeSVG } from "qrcode.react";
-import { type Address as ViemAddress, isAddressEqual, zeroAddress } from "viem";
+import { type Address as ViemAddress, isAddressEqual } from "viem";
 import { useAccount, useReadContract } from "wagmi";
 import { BuildingOffice2Icon, GiftIcon, WalletIcon } from "@heroicons/react/24/outline";
 import { AuthProviderInfo, SignOutButton } from "~~/components/AuthSession";
 import { ChainGivingHeader } from "~~/components/ChainGivingHeader";
 import { EmbeddedWalletButton } from "~~/components/ConnectButton";
 import { ProgramCard } from "~~/components/ProgramCard";
+import { ProgramRoleBadges, useProgramRoles } from "~~/components/ProgramRoleBadges";
 import { RainbowKitCustomConnectButton } from "~~/components/scaffold-eth";
 import { cgOrganizationAbi } from "~~/contracts/cgOrganizationAbi";
-import { cgProgramAbi } from "~~/contracts/cgProgramAbi";
 import { useScaffoldReadContract, useTargetNetwork } from "~~/hooks/scaffold-eth";
 import { getBlockExplorerAddressLink } from "~~/utils/scaffold-eth";
-
-const crowdfundingContributionsAbi = [
-  {
-    inputs: [{ name: "", type: "address" }],
-    name: "contributions",
-    outputs: [{ name: "", type: "uint256" }],
-    stateMutability: "view",
-    type: "function",
-  },
-] as const;
 
 type VisibilityReporter = (address: ViemAddress, visible: boolean) => void;
 
@@ -83,63 +73,27 @@ const OwnedOrgCard = ({
 
 const UserProgramCard = ({
   programAddress,
+  orgAddress,
   userAddress,
   orgName,
-  isOwner,
   onVisibilityChange,
 }: {
   programAddress: ViemAddress;
+  orgAddress: ViemAddress;
   userAddress: ViemAddress;
   orgName?: string;
-  isOwner: boolean;
   onVisibilityChange: VisibilityReporter;
 }) => {
-  const { data: cfInfo } = useReadContract({
-    address: programAddress,
-    abi: cgProgramAbi,
-    functionName: "getCrowdfundingInfo",
-    query: { refetchInterval: 30000 },
-  });
-
-  const cfAddress = cfInfo?.addr;
-  const hasCrowdfunding = !!cfAddress && !isAddressEqual(cfAddress, zeroAddress);
-
-  const { data: contributed } = useReadContract({
-    address: cfAddress,
-    abi: crowdfundingContributionsAbi,
-    functionName: "contributions",
-    args: [userAddress],
-    query: { enabled: hasCrowdfunding, refetchInterval: 30000 },
-  });
-
-  const { data: distInfos } = useReadContract({
-    address: programAddress,
-    abi: cgProgramAbi,
-    functionName: "getAllDistributionsInfo",
-    query: { refetchInterval: 30000 },
-  });
-
-  const hasContribution = typeof contributed === "bigint" && contributed > 0n;
-  const isBeneficiary = !!distInfos?.some(d => d.beneficiaries.some(b => isAddressEqual(b, userAddress)));
-  const isVisible = isOwner || hasContribution || isBeneficiary;
+  const roles = useProgramRoles({ programAddress, orgAddress, userAddress });
 
   useEffect(() => {
-    onVisibilityChange(programAddress, isVisible);
+    onVisibilityChange(programAddress, roles.anyRole);
     return () => onVisibilityChange(programAddress, false);
-  }, [programAddress, isVisible, onVisibilityChange]);
+  }, [programAddress, roles.anyRole, onVisibilityChange]);
 
-  if (!isVisible) return null;
+  if (!roles.anyRole) return null;
 
-  return (
-    <div className="flex flex-col gap-1.5">
-      <ProgramCard address={programAddress} orgName={orgName} />
-      <div className="flex flex-wrap gap-1 pl-1">
-        {isOwner && <span className="badge badge-warning badge-sm">Owner</span>}
-        {hasContribution && <span className="badge badge-success badge-sm">Contributor</span>}
-        {isBeneficiary && <span className="badge badge-primary badge-sm">Beneficiary</span>}
-      </div>
-    </div>
-  );
+  return <ProgramCard address={programAddress} orgName={orgName} roleBadges={<ProgramRoleBadges roles={roles} />} />;
 };
 
 const OrgPrograms = ({
@@ -158,13 +112,6 @@ const OrgPrograms = ({
     query: { refetchInterval: 30000 },
   });
 
-  const { data: orgOwner } = useReadContract({
-    address: orgAddress,
-    abi: cgOrganizationAbi,
-    functionName: "owner",
-    query: { refetchInterval: 30000 },
-  });
-
   const { data: programAddresses } = useReadContract({
     address: orgAddress,
     abi: cgOrganizationAbi,
@@ -172,8 +119,6 @@ const OrgPrograms = ({
     args: [0n, 100n],
     query: { refetchInterval: 5000 },
   });
-
-  const isOrgOwner = !!orgOwner && isAddressEqual(orgOwner, userAddress);
 
   if (!programAddresses || programAddresses.length === 0) return null;
 
@@ -183,9 +128,9 @@ const OrgPrograms = ({
         <UserProgramCard
           key={addr}
           programAddress={addr}
+          orgAddress={orgAddress}
           userAddress={userAddress}
           orgName={orgName ?? undefined}
-          isOwner={isOrgOwner}
           onVisibilityChange={onVisibilityChange}
         />
       ))}

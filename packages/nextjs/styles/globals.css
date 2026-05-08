@@ -125,3 +125,9 @@
 .link:hover {
   opacity: 80%;
 }
+
+.badge-cg {
+  background-color: #87b6d4;
+  border-color: #87b6d4;
+  color: #ffffff;
+}

@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Address } from "viem";
 import { CreditCardIcon } from "@heroicons/react/24/outline";
+import { useSiweAuth } from "~~/hooks/useSiweAuth";
 import { notification } from "~~/utils/scaffold-eth";
 
 const SANDBOX_ORIGIN = "https://pay-sandbox.coinbase.com";
@@ -26,6 +27,7 @@ type Props = {
 
 export const DonateWithFiatButton = ({ asset, targetAddress, disabled }: Props) => {
   const [loading, setLoading] = useState(false);
+  const { ensureSignedIn } = useSiweAuth();
   const popupRef = useRef<Window | null>(null);
   const closePollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const messageHandlerRef = useRef<((e: MessageEvent) => void) | null>(null);
@@ -60,8 +62,17 @@ export const DonateWithFiatButton = ({ asset, targetAddress, disabled }: Props) 
 
     setLoading(true);
     try {
+      try {
+        await ensureSignedIn();
+      } catch (err) {
+        notification.error(err instanceof Error ? err.message : "Wallet sign-in required");
+        popup.close();
+        cleanup();
+        return;
+      }
       const res = await fetch("/api/onramp/session", {
         method: "POST",
+        credentials: "same-origin",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ asset, address: targetAddress }),
       });

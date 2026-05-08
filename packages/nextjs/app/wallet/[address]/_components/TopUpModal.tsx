@@ -8,6 +8,7 @@ import { useAccount } from "wagmi";
 import { CurrencyLogo } from "~~/components/CurrencyLogo";
 import { DonationCurrency } from "~~/contracts/donationCurrencies";
 import { useTargetNetwork } from "~~/hooks/scaffold-eth";
+import { useSiweAuth } from "~~/hooks/useSiweAuth";
 import { getBlockExplorerAddressLink, notification } from "~~/utils/scaffold-eth";
 
 // CDP faucet supports these chains; keep in sync with app/api/faucet/route.ts.
@@ -28,6 +29,7 @@ export function TopUpModal({ walletAddress, currency, native, onClose }: Props) 
   const { targetNetwork } = useTargetNetwork();
   const network = chain ?? targetNetwork;
   const [faucetPending, setFaucetPending] = useState(false);
+  const { ensureSignedIn } = useSiweAuth();
 
   const symbol = native ? native.symbol : (currency?.symbol ?? "");
   const faucetSupported = FAUCET_CHAIN_IDS.has(network.id) && FAUCET_TOKEN_BY_SYMBOL[symbol] !== undefined;
@@ -43,8 +45,15 @@ export function TopUpModal({ walletAddress, currency, native, onClose }: Props) 
   const requestFaucet = async () => {
     setFaucetPending(true);
     try {
+      try {
+        await ensureSignedIn();
+      } catch (err) {
+        notification.error(err instanceof Error ? err.message : "Wallet sign-in required");
+        return;
+      }
       const res = await fetch("/api/faucet", {
         method: "POST",
+        credentials: "same-origin",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           address: walletAddress,

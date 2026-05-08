@@ -1,7 +1,11 @@
+import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 import { randomBytes } from "crypto";
+import { getIronSession } from "iron-session";
 import { SignJWT, importJWK } from "jose";
 import { isAddress } from "viem";
+import { rateLimit } from "~~/utils/rateLimit";
+import { type SiweSessionData, getSessionOptions } from "~~/utils/siwe";
 
 export const runtime = "nodejs";
 
@@ -47,6 +51,11 @@ async function mintCdpJwt(): Promise<string> {
 }
 
 export async function POST(req: NextRequest) {
+  const session = await getIronSession<SiweSessionData>(await cookies(), getSessionOptions());
+  if (!session.isLoggedIn || !session.address) {
+    return NextResponse.json({ error: "Sign in with your wallet first" }, { status: 401 });
+  }
+
   let body: { asset?: unknown; address?: unknown };
   try {
     body = await req.json();
@@ -61,6 +70,14 @@ export async function POST(req: NextRequest) {
   }
   if (typeof address !== "string" || !isAddress(address)) {
     return NextResponse.json({ error: "address must be a valid 0x address" }, { status: 400 });
+  }
+
+  const limit = rateLimit(`onramp:${session.address}`, 5, 10 * 60 * 1000);
+  if (!limit.ok) {
+    return NextResponse.json(
+      { error: "Too many onramp requests. Please wait and try again." },
+      { status: 429, headers: { "Retry-After": Math.ceil(limit.retryAfterMs / 1000).toString() } },
+    );
   }
 
   let jwt: string;

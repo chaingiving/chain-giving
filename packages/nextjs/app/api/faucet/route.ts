@@ -1,7 +1,11 @@
+import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 import { randomBytes } from "crypto";
+import { getIronSession } from "iron-session";
 import { SignJWT, importJWK } from "jose";
-import { isAddress } from "viem";
+import { getAddress, isAddress } from "viem";
+import { rateLimit } from "~~/utils/rateLimit";
+import { type SiweSessionData, getSessionOptions } from "~~/utils/siwe";
 
 export const runtime = "nodejs";
 
@@ -54,6 +58,11 @@ async function mintCdpJwt(method: "POST", host: string, path: string): Promise<s
 }
 
 export async function POST(req: NextRequest) {
+  const session = await getIronSession<SiweSessionData>(await cookies(), getSessionOptions());
+  if (!session.isLoggedIn || !session.address) {
+    return NextResponse.json({ error: "Sign in with your wallet first" }, { status: 401 });
+  }
+
   let body: { address?: unknown; token?: unknown; chainId?: unknown };
   try {
     body = await req.json();
@@ -66,6 +75,9 @@ export async function POST(req: NextRequest) {
   if (typeof address !== "string" || !isAddress(address)) {
     return NextResponse.json({ error: "address must be a valid 0x address" }, { status: 400 });
   }
+  if (getAddress(address) !== session.address) {
+    return NextResponse.json({ error: "Address does not match the signed-in wallet" }, { status: 403 });
+  }
   if (typeof token !== "string" || !(SUPPORTED_TOKENS as readonly string[]).includes(token.toLowerCase())) {
     return NextResponse.json({ error: `token must be one of: ${SUPPORTED_TOKENS.join(", ")}` }, { status: 400 });
   }
@@ -75,6 +87,14 @@ export async function POST(req: NextRequest) {
 
   const network = FAUCET_NETWORKS[chainId];
   const normalizedToken = token.toLowerCase() as Token;
+
+  const limit = rateLimit(`faucet:${session.address}:${normalizedToken}`, 1, 60 * 60 * 1000);
+  if (!limit.ok) {
+    return NextResponse.json(
+      { error: `Faucet limit reached for ${normalizedToken.toUpperCase()}. Try again in an hour.` },
+      { status: 429, headers: { "Retry-After": Math.ceil(limit.retryAfterMs / 1000).toString() } },
+    );
+  }
 
   let jwt: string;
   try {

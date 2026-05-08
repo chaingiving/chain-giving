@@ -85,7 +85,6 @@ export const DonateWithFiatButton = ({ asset, targetAddress, disabled }: Props) 
         params.set("redirectUrl", `${redirectOrigin}/thank-you`);
       }
       const onrampUrl = `${origin}${SELECT_ASSET_PATH}?${params}`;
-      console.log("[DonateWithFiatButton] opening onramp URL:", onrampUrl);
       popup.location.href = onrampUrl;
 
       const onMessage = (e: MessageEvent) => {

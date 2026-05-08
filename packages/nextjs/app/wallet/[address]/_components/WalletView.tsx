@@ -5,7 +5,7 @@ import Link from "next/link";
 import { TopUpModal } from "./TopUpModal";
 import { Address as AddressDisplay } from "@scaffold-ui/components";
 import { Address, erc20Abi, formatUnits, isAddress, isAddressEqual, parseUnits } from "viem";
-import { useAccount, useBalance, useReadContract, useSwitchChain, useWriteContract } from "wagmi";
+import { useAccount, useBalance, useReadContract, useSendTransaction, useSwitchChain, useWriteContract } from "wagmi";
 import { ArrowDownOnSquareIcon, ArrowsRightLeftIcon } from "@heroicons/react/24/outline";
 import { AddressInputWithQr } from "~~/components/AddressInputWithQr";
 import { AuthProviderInfo, SignOutButton } from "~~/components/AuthSession";
@@ -480,10 +480,15 @@ function CurrencyBalanceRow({
 
 function NativeAssetRow({ walletAddress, isOwnWallet }: { walletAddress: Address; isOwnWallet: boolean }) {
   const [showTopUp, setShowTopUp] = useState(false);
+  const [showTransfer, setShowTransfer] = useState(false);
+  const [transferTo, setTransferTo] = useState("");
+  const [transferAmount, setTransferAmount] = useState("");
+  const [isPending, setIsPending] = useState(false);
   const { chainId } = useAccount();
   const { targetNetwork } = useTargetNetwork();
+  const { sendTransactionAsync } = useSendTransaction();
   const effectiveChainId = chainId ?? targetNetwork.id;
-  const { data } = useBalance({
+  const { data, refetch: refetchBalance } = useBalance({
     address: walletAddress,
     chainId: effectiveChainId,
     query: { refetchInterval: 5000 },
@@ -494,6 +499,40 @@ function NativeAssetRow({ walletAddress, isOwnWallet }: { walletAddress: Address
   const value = data?.value ?? 0n;
 
   if (!isOwnWallet && value === 0n) return null;
+
+  const handleTransfer = async () => {
+    if (!isAddress(transferTo)) {
+      notification.error("Invalid recipient address");
+      return;
+    }
+    let amountWei: bigint;
+    try {
+      amountWei = parseUnits(transferAmount, decimals);
+    } catch {
+      notification.error("Invalid amount");
+      return;
+    }
+    if (amountWei <= 0n) {
+      notification.error("Amount must be positive");
+      return;
+    }
+    if (amountWei > value) {
+      notification.error("Amount exceeds balance");
+      return;
+    }
+    setIsPending(true);
+    try {
+      await sendTransactionAsync({ to: transferTo as Address, value: amountWei });
+      setTransferTo("");
+      setTransferAmount("");
+      setShowTransfer(false);
+      refetchBalance();
+    } catch (e) {
+      notification.error(getParsedError(e));
+    } finally {
+      setIsPending(false);
+    }
+  };
 
   return (
     <div className="border border-base-300 rounded-lg p-3 sm:p-4 flex flex-col gap-3 min-w-0">
@@ -517,9 +556,50 @@ function NativeAssetRow({ walletAddress, isOwnWallet }: { walletAddress: Address
               <ArrowDownOnSquareIcon className="h-4 w-4" />
               Receive
             </button>
+            <button
+              className="btn btn-sm btn-outline flex-1 sm:flex-none"
+              onClick={() => setShowTransfer(v => !v)}
+              disabled={value === 0n}
+            >
+              Transfer
+            </button>
           </div>
         )}
       </div>
+
+      {showTransfer && (
+        <div className="flex flex-col gap-2 p-3 bg-base-200 rounded-lg">
+          <p className="text-sm font-medium flex items-center gap-1.5">Transfer {symbol}</p>
+          <AddressInputWithQr value={transferTo} onChange={setTransferTo} placeholder="Recipient address" />
+          <div className="flex flex-wrap gap-2 items-center">
+            <div className="flex flex-1 min-w-[10rem] input input-bordered input-sm items-center pr-1 gap-1">
+              <input
+                type="number"
+                min="0"
+                step="any"
+                className="flex-1 bg-transparent outline-none min-w-0"
+                placeholder={`Amount (${symbol})`}
+                value={transferAmount}
+                onChange={e => setTransferAmount(e.target.value)}
+              />
+              <button
+                className="btn btn-ghost btn-xs text-xs px-1 h-5 min-h-0 opacity-60 hover:opacity-100"
+                onClick={() => setTransferAmount(formatUnits(value, decimals))}
+                title="Use full balance"
+              >
+                Max
+              </button>
+            </div>
+            <button className="btn btn-sm btn-primary" disabled={isPending} onClick={handleTransfer}>
+              {isPending ? <span className="loading loading-spinner loading-xs" /> : "Send"}
+            </button>
+            <button className="btn btn-sm btn-ghost" disabled={isPending} onClick={() => setShowTransfer(false)}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
       {showTopUp && (
         <TopUpModal walletAddress={walletAddress} native={{ symbol }} onClose={() => setShowTopUp(false)} />
       )}

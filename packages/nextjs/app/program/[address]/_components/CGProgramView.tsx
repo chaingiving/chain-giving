@@ -881,9 +881,9 @@ function CrowdfundingStats({
   const timeLeft = formatTimeLeft(crowdfundingInfo.deadline, now);
 
   return (
-    <div className="flex flex-col sm:flex-row sm:items-start gap-4 sm:gap-8 mt-4 border-l-4 border-[#258597] pl-4 sm:pl-6 justify-center">
+    <div className="flex flex-col sm:flex-row sm:items-start gap-4 sm:gap-8 mt-4 border-l-4 border-[#0c53bf] dark:border-[#93bbfb] pl-4 sm:pl-6 justify-center">
       <div className="flex flex-col items-start">
-        <div className="flex items-center gap-1.5 text-[#258597] font-bold text-2xl sm:text-3xl">
+        <div className="flex items-center gap-1.5 text-[#0c53bf] dark:text-[#93bbfb] font-bold text-2xl sm:text-3xl">
           <span className="font-mono">{formatUnits(crowdfundingInfo.totalRaised, decimals)}</span>
           <CurrencyLogo currency={currency} size={24} />
         </div>

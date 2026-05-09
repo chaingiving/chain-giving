@@ -99,7 +99,7 @@ type DistributionInfo = {
   amounts: bigint[];
 };
 
-type BeneficiaryEntry = {
+type UserEntry = {
   id: string;
   address: string;
   amount: string;
@@ -130,10 +130,10 @@ function useCGProgramWrite(programAddress: Address, orgAddress: Address | undefi
   };
 }
 
-function validateBeneficiaries(entries: BeneficiaryEntry[]): { addresses: Address[]; amounts: bigint[] } | null {
+function validateUsers(entries: UserEntry[]): { addresses: Address[]; amounts: bigint[] } | null {
   const nonEmpty = entries.filter(e => e.address || e.amount);
   if (nonEmpty.length === 0) {
-    notification.error("Add at least one beneficiary");
+    notification.error("Add at least one user");
     return null;
   }
   for (let i = 0; i < nonEmpty.length; i++) {
@@ -1308,7 +1308,7 @@ function NewDistributionForm({
   onDone: () => void;
   orgAddress: Address | undefined;
 }) {
-  const [entries, setEntries] = useState<BeneficiaryEntry[]>([{ id: crypto.randomUUID(), address: "", amount: "" }]);
+  const [entries, setEntries] = useState<UserEntry[]>([{ id: crypto.randomUUID(), address: "", amount: "" }]);
   const [selectedTokenId, setSelectedTokenId] = useState<bigint>(tokenTypes[0]?.tokenId ?? 0n);
   const [isPending, setIsPending] = useState(false);
   const write = useCGProgramWrite(programAddress, orgAddress);
@@ -1318,7 +1318,7 @@ function NewDistributionForm({
 
   const handleCreate = async () => {
     const finalEntries = isNft ? entries.map(e => ({ ...e, amount: "1" })) : entries;
-    const validated = validateBeneficiaries(finalEntries);
+    const validated = validateUsers(finalEntries);
     if (!validated) return;
 
     setIsPending(true);
@@ -1326,7 +1326,7 @@ function NewDistributionForm({
       const created = await write("createDistribution", [selectedTokenId]);
       if (!created) return;
       await write("setBeneficiaries", [BigInt(nextIndex), validated.addresses, validated.amounts]);
-      notification.success("Distribution created with beneficiaries");
+      notification.success("Distribution created with users");
       onDone();
     } finally {
       setIsPending(false);
@@ -1360,7 +1360,7 @@ function NewDistributionForm({
         </select>
       </div>
 
-      <BeneficiariesTableEditor entries={entries} onChange={setEntries} hideAmount={isNft} />
+      <UsersTableEditor entries={entries} onChange={setEntries} hideAmount={isNft} />
       <div className="mt-3">
         <button className="btn btn-primary btn-sm" onClick={handleCreate} disabled={isPending}>
           {isPending ? <span className="loading loading-spinner loading-xs" /> : "Create Distribution"}
@@ -1449,8 +1449,8 @@ function DistributionItem({
 
       {dist.beneficiaries.length > 0 && editMode !== "set" && editMode !== "remove" && (
         <div className="mt-3">
-          <p className="text-sm opacity-60 mb-1">Beneficiaries ({dist.beneficiaryCount.toString()})</p>
-          <BeneficiariesReadTable beneficiaries={dist.beneficiaries} amounts={dist.amounts} />
+          <p className="text-sm opacity-60 mb-1">Users ({dist.beneficiaryCount.toString()})</p>
+          <UsersReadTable users={dist.beneficiaries} amounts={dist.amounts} />
         </div>
       )}
 
@@ -1472,7 +1472,7 @@ function DistributionItem({
                         Replace All
                       </button>
                       <button className="btn btn-sm btn-accent" onClick={() => setShowLockConfirm(true)}>
-                        Confirm and Lock Beneficiary List
+                        Confirm and Lock User List
                       </button>
                     </>
                   )}
@@ -1480,17 +1480,17 @@ function DistributionItem({
               )}
             </div>
           ) : editMode === "set" ? (
-            <EditBeneficiariesForm
+            <EditUsersForm
               programAddress={programAddress}
               distributionIndex={index}
               tokenType={tokenType}
-              existingBeneficiaries={dist.beneficiaries}
+              existingUsers={dist.beneficiaries}
               existingAmounts={dist.amounts}
               onClose={() => setEditMode("none")}
               orgAddress={orgAddress}
             />
           ) : editMode === "add" ? (
-            <AddBeneficiariesForm
+            <AddUsersForm
               programAddress={programAddress}
               distributionIndex={index}
               tokenType={tokenType}
@@ -1498,10 +1498,10 @@ function DistributionItem({
               orgAddress={orgAddress}
             />
           ) : editMode === "remove" ? (
-            <RemoveBeneficiariesPanel
+            <RemoveUsersPanel
               programAddress={programAddress}
               distributionIndex={index}
-              beneficiaries={dist.beneficiaries}
+              users={dist.beneficiaries}
               amounts={dist.amounts}
               onClose={() => setEditMode("none")}
               orgAddress={orgAddress}
@@ -1514,9 +1514,9 @@ function DistributionItem({
       {showLockConfirm && (
         <div className="modal modal-open">
           <div className="modal-box">
-            <h3 className="font-bold text-lg">Lock Beneficiary List</h3>
+            <h3 className="font-bold text-lg">Lock User List</h3>
             <p className="py-4">
-              This will permanently lock the beneficiary list for Distribution #{index}. This action cannot be undone.
+              This will permanently lock the user list for Distribution #{index}. This action cannot be undone.
             </p>
             <div className="modal-action">
               <button className="btn btn-ghost" onClick={() => setShowLockConfirm(false)}>
@@ -1555,7 +1555,7 @@ function DistributionItem({
   );
 }
 
-function BeneficiariesReadTable({ beneficiaries, amounts }: { beneficiaries: Address[]; amounts: bigint[] }) {
+function UsersReadTable({ users, amounts }: { users: Address[]; amounts: bigint[] }) {
   return (
     <div className="overflow-x-auto">
       <table className="table table-xs">
@@ -1566,8 +1566,8 @@ function BeneficiariesReadTable({ beneficiaries, amounts }: { beneficiaries: Add
           </tr>
         </thead>
         <tbody>
-          {beneficiaries.map((b, j) => (
-            <BeneficiaryRow key={b} address={b} amount={amounts[j]} />
+          {users.map((b, j) => (
+            <UserRow key={b} address={b} amount={amounts[j]} />
           ))}
         </tbody>
       </table>
@@ -1575,7 +1575,7 @@ function BeneficiariesReadTable({ beneficiaries, amounts }: { beneficiaries: Add
   );
 }
 
-function BeneficiaryRow({ address, amount }: { address: Address; amount: bigint }) {
+function UserRow({ address, amount }: { address: Address; amount: bigint }) {
   const link = useBlockExplorerLink(address);
   return (
     <tr>
@@ -1706,16 +1706,16 @@ function parseCsv(text: string, sep: string): string[][] {
   return rows.filter(r => r.some(c => c.trim().length > 0));
 }
 
-function BeneficiariesTableEditor({
+function UsersTableEditor({
   entries,
   onChange,
   hideAmount = false,
 }: {
-  entries: BeneficiaryEntry[];
-  onChange: (entries: BeneficiaryEntry[]) => void;
+  entries: UserEntry[];
+  onChange: (entries: UserEntry[]) => void;
   hideAmount?: boolean;
 }) {
-  const updateEntry = (index: number, field: keyof BeneficiaryEntry, value: string) => {
+  const updateEntry = (index: number, field: keyof UserEntry, value: string) => {
     const updated = [...entries];
     updated[index] = { ...updated[index], [field]: value };
     onChange(updated);
@@ -1735,7 +1735,7 @@ function BeneficiariesTableEditor({
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "beneficiaries.csv";
+    a.download = "users.csv";
     document.body.appendChild(a);
     a.click();
     a.remove();
@@ -1759,10 +1759,10 @@ function BeneficiariesTableEditor({
       const firstCell = rows[0][0]?.trim().toLowerCase() ?? "";
       const dataRows = firstCell.startsWith("0x") ? rows : rows.slice(1);
       if (dataRows.length === 0) {
-        notification.error("No beneficiary rows found in CSV");
+        notification.error("No user rows found in CSV");
         return;
       }
-      const parsed: BeneficiaryEntry[] = dataRows.map(cells => ({
+      const parsed: UserEntry[] = dataRows.map(cells => ({
         id: crypto.randomUUID(),
         address: (cells[0] ?? "").trim(),
         amount: hideAmount ? "1" : (cells[1] ?? "").trim(),
@@ -1770,7 +1770,7 @@ function BeneficiariesTableEditor({
       onChange(parsed);
       const sepName = sep === "\t" ? "tab" : sep === "," ? "comma" : sep === ";" ? "semicolon" : "pipe";
       notification.success(
-        `Loaded ${parsed.length} beneficiar${parsed.length === 1 ? "y" : "ies"} from CSV (${sepName}-separated)`,
+        `Loaded ${parsed.length} user${parsed.length === 1 ? "" : "s"} from CSV (${sepName}-separated)`,
       );
     };
     reader.readAsText(file);
@@ -1844,11 +1844,11 @@ function BeneficiariesTableEditor({
   );
 }
 
-function EditBeneficiariesForm({
+function EditUsersForm({
   programAddress,
   distributionIndex,
   tokenType,
-  existingBeneficiaries,
+  existingUsers,
   existingAmounts,
   onClose,
   orgAddress,
@@ -1856,14 +1856,14 @@ function EditBeneficiariesForm({
   programAddress: Address;
   distributionIndex: number;
   tokenType: TokenTypeInfo | undefined;
-  existingBeneficiaries: Address[];
+  existingUsers: Address[];
   existingAmounts: bigint[];
   onClose: () => void;
   orgAddress: Address | undefined;
 }) {
-  const [entries, setEntries] = useState<BeneficiaryEntry[]>(() =>
-    existingBeneficiaries.length > 0
-      ? existingBeneficiaries.map((addr, i) => ({
+  const [entries, setEntries] = useState<UserEntry[]>(() =>
+    existingUsers.length > 0
+      ? existingUsers.map((addr, i) => ({
           id: crypto.randomUUID(),
           address: addr,
           amount: existingAmounts[i]?.toString() ?? "1",
@@ -1875,7 +1875,7 @@ function EditBeneficiariesForm({
 
   const handleSet = async () => {
     const finalEntries = isNft ? entries.map(e => ({ ...e, amount: "1" })) : entries;
-    const validated = validateBeneficiaries(finalEntries);
+    const validated = validateUsers(finalEntries);
     if (!validated) return;
 
     const success = await write("setBeneficiaries", [
@@ -1888,8 +1888,8 @@ function EditBeneficiariesForm({
 
   return (
     <div className="flex flex-col gap-2 w-full border border-base-300 rounded-lg p-3">
-      <p className="text-sm font-medium opacity-70">Replace entire beneficiary list</p>
-      <BeneficiariesTableEditor entries={entries} onChange={setEntries} hideAmount={isNft} />
+      <p className="text-sm font-medium opacity-70">Replace entire user list</p>
+      <UsersTableEditor entries={entries} onChange={setEntries} hideAmount={isNft} />
       <div className="flex gap-2">
         <button className="btn btn-sm btn-primary" onClick={handleSet}>
           Confirm
@@ -1902,7 +1902,7 @@ function EditBeneficiariesForm({
   );
 }
 
-function AddBeneficiariesForm({
+function AddUsersForm({
   programAddress,
   distributionIndex,
   tokenType,
@@ -1915,13 +1915,13 @@ function AddBeneficiariesForm({
   onClose: () => void;
   orgAddress: Address | undefined;
 }) {
-  const [entries, setEntries] = useState<BeneficiaryEntry[]>([{ id: crypto.randomUUID(), address: "", amount: "" }]);
+  const [entries, setEntries] = useState<UserEntry[]>([{ id: crypto.randomUUID(), address: "", amount: "" }]);
   const write = useCGProgramWrite(programAddress, orgAddress);
   const isNft = tokenType?.maxSupply === 1n;
 
   const handleAdd = async () => {
     const finalEntries = isNft ? entries.map(e => ({ ...e, amount: "1" })) : entries;
-    const validated = validateBeneficiaries(finalEntries);
+    const validated = validateUsers(finalEntries);
     if (!validated) return;
 
     const success = await write("addBeneficiaries", [
@@ -1934,8 +1934,8 @@ function AddBeneficiariesForm({
 
   return (
     <div className="flex flex-col gap-2 w-full border border-base-300 rounded-lg p-3">
-      <p className="text-sm font-medium">Add Beneficiaries</p>
-      <BeneficiariesTableEditor entries={entries} onChange={setEntries} hideAmount={isNft} />
+      <p className="text-sm font-medium">Add Users</p>
+      <UsersTableEditor entries={entries} onChange={setEntries} hideAmount={isNft} />
       <div className="flex gap-2">
         <button className="btn btn-sm btn-primary" onClick={handleAdd}>
           Confirm
@@ -1948,17 +1948,17 @@ function AddBeneficiariesForm({
   );
 }
 
-function RemoveBeneficiariesPanel({
+function RemoveUsersPanel({
   programAddress,
   distributionIndex,
-  beneficiaries,
+  users,
   amounts,
   onClose,
   orgAddress,
 }: {
   programAddress: Address;
   distributionIndex: number;
-  beneficiaries: Address[];
+  users: Address[];
   amounts: bigint[];
   onClose: () => void;
   orgAddress: Address | undefined;
@@ -1973,7 +1973,7 @@ function RemoveBeneficiariesPanel({
     setSelected(next);
   };
 
-  const toggleAll = (checked: boolean) => setSelected(checked ? new Set(beneficiaries) : new Set());
+  const toggleAll = (checked: boolean) => setSelected(checked ? new Set(users) : new Set());
 
   const handleRemove = async () => {
     if (selected.size === 0) return;
@@ -1983,7 +1983,7 @@ function RemoveBeneficiariesPanel({
 
   return (
     <div className="flex flex-col gap-2 w-full border border-error/30 rounded-lg p-3">
-      <p className="text-sm font-medium">Select beneficiaries to remove</p>
+      <p className="text-sm font-medium">Select users to remove</p>
       <div className="overflow-x-auto">
         <table className="table table-xs">
           <thead>
@@ -1992,7 +1992,7 @@ function RemoveBeneficiariesPanel({
                 <input
                   type="checkbox"
                   className="checkbox checkbox-xs"
-                  checked={selected.size === beneficiaries.length && beneficiaries.length > 0}
+                  checked={selected.size === users.length && users.length > 0}
                   onChange={e => toggleAll(e.target.checked)}
                 />
               </th>
@@ -2001,7 +2001,7 @@ function RemoveBeneficiariesPanel({
             </tr>
           </thead>
           <tbody>
-            {beneficiaries.map((b, j) => (
+            {users.map((b, j) => (
               <RemovableRow
                 key={b}
                 address={b}
@@ -2116,7 +2116,7 @@ function OwnerActions({
           className="tooltip tooltip-bottom"
           data-tip={
             canExecute
-              ? "Withdraw crowdfunded funds to the owner and distribute tokens to all beneficiaries."
+              ? "Withdraw crowdfunded funds to the owner and distribute tokens to all users."
               : executeDisabledReason
           }
         >

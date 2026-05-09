@@ -18,7 +18,7 @@ const crowdfundingContributionsAbi = [
 export type ProgramRoles = {
   isOwner: boolean;
   hasContribution: boolean;
-  isBeneficiary: boolean;
+  isUser: boolean;
   anyRole: boolean;
 };
 
@@ -67,10 +67,9 @@ export const useProgramRoles = ({
 
   const isOwner = !!userAddress && !!orgOwner && isAddressEqual(orgOwner, userAddress);
   const hasContribution = typeof contributed === "bigint" && contributed > 0n;
-  const isBeneficiary =
-    !!userAddress && !!distInfos?.some(d => d.beneficiaries.some(b => isAddressEqual(b, userAddress)));
+  const isUser = !!userAddress && !!distInfos?.some(d => d.beneficiaries.some(b => isAddressEqual(b, userAddress)));
 
-  return { isOwner, hasContribution, isBeneficiary, anyRole: isOwner || hasContribution || isBeneficiary };
+  return { isOwner, hasContribution, isUser, anyRole: isOwner || hasContribution || isUser };
 };
 
 export const ProgramRoleBadges = ({ roles }: { roles: ProgramRoles }) => {
@@ -79,7 +78,7 @@ export const ProgramRoleBadges = ({ roles }: { roles: ProgramRoles }) => {
     <>
       {roles.isOwner && <span className="badge badge-warning badge-sm">Owner</span>}
       {roles.hasContribution && <span className="badge badge-success badge-sm">Contributor</span>}
-      {roles.isBeneficiary && <span className="badge badge-primary badge-sm">Beneficiary</span>}
+      {roles.isUser && <span className="badge badge-primary badge-sm">User</span>}
     </>
   );
 };

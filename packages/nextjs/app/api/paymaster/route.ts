@@ -24,6 +24,16 @@ type JsonRpcRequest = {
   params: unknown[];
 };
 
+// ERC-7677 paymaster endpoints are called cross-origin by wallet UIs (e.g.
+// Reown / WalletConnect's secure.walletconnect.org iframe), so the route must
+// advertise CORS to clear preflight.
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type",
+  "Access-Control-Max-Age": "86400",
+} as const;
+
 function getPaymasterAddress(chainId: number): Address | undefined {
   const contracts = (deployedContracts as Record<number, any>)[chainId];
   return contracts?.CGPaymaster?.address as Address | undefined;
@@ -36,7 +46,11 @@ function buildPaymasterAndData(paymasterAddr: Address, orgAddr: Address): Hex {
 }
 
 function jsonRpcError(id: number | string | null, code: number, message: string) {
-  return NextResponse.json({ jsonrpc: "2.0", id, error: { code, message } });
+  return NextResponse.json({ jsonrpc: "2.0", id, error: { code, message } }, { headers: CORS_HEADERS });
+}
+
+export async function OPTIONS() {
+  return new NextResponse(null, { status: 204, headers: CORS_HEADERS });
 }
 
 export async function POST(req: NextRequest) {
@@ -46,7 +60,7 @@ export async function POST(req: NextRequest) {
   } catch {
     return NextResponse.json(
       { jsonrpc: "2.0", id: null, error: { code: -32700, message: "Parse error" } },
-      { status: 400 },
+      { status: 400, headers: CORS_HEADERS },
     );
   }
 
@@ -87,26 +101,32 @@ export async function POST(req: NextRequest) {
     case "pm_getPaymasterStubData": {
       // Return stub data for gas estimation. The wallet uses this to estimate
       // gas before requesting the final paymaster data.
-      return NextResponse.json({
-        jsonrpc: "2.0",
-        id,
-        result: {
-          paymasterAndData,
+      return NextResponse.json(
+        {
+          jsonrpc: "2.0",
+          id,
+          result: {
+            paymasterAndData,
+          },
         },
-      });
+        { headers: CORS_HEADERS },
+      );
     }
 
     case "pm_getPaymasterData": {
       // Return final paymaster data for the actual UserOperation.
       // For CGPaymaster, stub and final data are identical since there is
       // no off-chain signature required.
-      return NextResponse.json({
-        jsonrpc: "2.0",
-        id,
-        result: {
-          paymasterAndData,
+      return NextResponse.json(
+        {
+          jsonrpc: "2.0",
+          id,
+          result: {
+            paymasterAndData,
+          },
         },
-      });
+        { headers: CORS_HEADERS },
+      );
     }
 
     default:

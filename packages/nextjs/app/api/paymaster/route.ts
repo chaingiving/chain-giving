@@ -49,6 +49,12 @@ function buildPaymasterAndData(paymasterAddr: Address, orgAddr: Address): Hex {
   return `${paymasterAddr}${orgAddr.slice(2)}` as Hex;
 }
 
+// EntryPoint v0.7 canonical address (case-insensitive compare).
+const ENTRYPOINT_V07 = "0x0000000071727de22e5e9d8baf0edac6f37da032";
+function isEntryPointV07(addr: unknown): boolean {
+  return typeof addr === "string" && addr.toLowerCase() === ENTRYPOINT_V07;
+}
+
 function jsonRpcError(id: number | string | null, code: number, message: string) {
   return NextResponse.json({ jsonrpc: "2.0", id, error: { code, message } }, { headers: CORS_HEADERS });
 }
@@ -117,23 +123,32 @@ export async function POST(req: NextRequest) {
   }
 
   const paymasterAndData = buildPaymasterAndData(paymasterAddress, orgAddress as Address);
+  const v07 = isEntryPointV07(entryPointAddr);
+
+  // CGPaymaster needs no off-chain signature, so stub and final data are
+  // identical. Setting `isFinal: true` on the stub response tells the wallet
+  // it can submit using the stub directly and skip pm_getPaymasterData —
+  // some smart-wallet stacks (Reown / Magic) never call the second method
+  // and would otherwise drop the paymaster from the final UserOp.
+  const orgDataHex = `0x${orgAddress.slice(2)}` as Hex;
+  // For paymaster-side gas, hold a generous margin: validate is a single
+  // SLOAD + SSTORE on CGPaymaster, postOp is a SSTORE refund, both well
+  // under 100k. v0.7 separates these into explicit fields.
+  const v07Result = {
+    paymaster: paymasterAddress,
+    paymasterData: orgDataHex,
+    paymasterVerificationGasLimit: "0x186a0", // 100_000
+    paymasterPostOpGasLimit: "0x186a0", // 100_000
+    isFinal: true,
+  };
+  const v06Result = { paymasterAndData, isFinal: true };
+  const result = v07 ? v07Result : v06Result;
 
   switch (method) {
     case "pm_getPaymasterStubData":
     case "pm_getPaymasterData": {
-      // For CGPaymaster, stub and final data are identical since there is no
-      // off-chain signature required.
-      console.log("[paymaster] response", { method, id, paymasterAndData, orgAddress, paymasterAddress });
-      return NextResponse.json(
-        {
-          jsonrpc: "2.0",
-          id,
-          result: {
-            paymasterAndData,
-          },
-        },
-        { headers: CORS_HEADERS },
-      );
+      console.log("[paymaster] response", { method, id, version: v07 ? "v0.7" : "v0.6", result });
+      return NextResponse.json({ jsonrpc: "2.0", id, result }, { headers: CORS_HEADERS });
     }
 
     default:

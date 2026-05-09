@@ -70,6 +70,20 @@ export async function POST(req: NextRequest) {
 
   const { jsonrpc, id, method, params } = body as JsonRpcRequest;
 
+  const queryString = req.nextUrl.search;
+  const entryPointAddr = params?.[1];
+  const rawChainIdParam = params?.[2];
+  const ctx = params?.[3];
+  console.log("[paymaster] request", {
+    method,
+    id,
+    query: queryString,
+    entryPoint: entryPointAddr,
+    chainId: rawChainIdParam,
+    context: ctx,
+    origin: req.headers.get("origin"),
+  });
+
   if (jsonrpc !== "2.0" || id == null || typeof method !== "string" || !Array.isArray(params)) {
     return NextResponse.json(
       { jsonrpc: "2.0", id: (body as any)?.id ?? null, error: { code: -32600, message: "Invalid JSON-RPC request" } },
@@ -105,25 +119,11 @@ export async function POST(req: NextRequest) {
   const paymasterAndData = buildPaymasterAndData(paymasterAddress, orgAddress as Address);
 
   switch (method) {
-    case "pm_getPaymasterStubData": {
-      // Return stub data for gas estimation. The wallet uses this to estimate
-      // gas before requesting the final paymaster data.
-      return NextResponse.json(
-        {
-          jsonrpc: "2.0",
-          id,
-          result: {
-            paymasterAndData,
-          },
-        },
-        { headers: CORS_HEADERS },
-      );
-    }
-
+    case "pm_getPaymasterStubData":
     case "pm_getPaymasterData": {
-      // Return final paymaster data for the actual UserOperation.
-      // For CGPaymaster, stub and final data are identical since there is
-      // no off-chain signature required.
+      // For CGPaymaster, stub and final data are identical since there is no
+      // off-chain signature required.
+      console.log("[paymaster] response", { method, id, paymasterAndData, orgAddress, paymasterAddress });
       return NextResponse.json(
         {
           jsonrpc: "2.0",
@@ -137,6 +137,7 @@ export async function POST(req: NextRequest) {
     }
 
     default:
+      console.log("[paymaster] unknown method", { method, id });
       return jsonRpcError(id, -32601, `Unknown method: ${method}`);
   }
 }

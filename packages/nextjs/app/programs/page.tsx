@@ -1,12 +1,28 @@
 "use client";
 
 import { Address } from "viem";
-import { useReadContract } from "wagmi";
+import { useAccount, useReadContract } from "wagmi";
 import { ProgramCard } from "~~/components/ProgramCard";
+import { ProgramRoleBadges, useProgramRoles } from "~~/components/ProgramRoleBadges";
 import { cgOrganizationAbi } from "~~/contracts/cgOrganizationAbi";
 import { useScaffoldReadContract } from "~~/hooks/scaffold-eth";
 
-const OrgPrograms = ({ orgAddress }: { orgAddress: Address }) => {
+const ProgramRow = ({
+  programAddress,
+  orgAddress,
+  orgName,
+  userAddress,
+}: {
+  programAddress: Address;
+  orgAddress: Address;
+  orgName?: string;
+  userAddress?: Address;
+}) => {
+  const roles = useProgramRoles({ programAddress, orgAddress, userAddress });
+  return <ProgramCard address={programAddress} orgName={orgName} roleBadges={<ProgramRoleBadges roles={roles} />} />;
+};
+
+const OrgPrograms = ({ orgAddress, userAddress }: { orgAddress: Address; userAddress?: Address }) => {
   const { data: orgName } = useReadContract({
     address: orgAddress,
     abi: cgOrganizationAbi,
@@ -27,13 +43,21 @@ const OrgPrograms = ({ orgAddress }: { orgAddress: Address }) => {
   return (
     <>
       {programAddresses.map(addr => (
-        <ProgramCard key={addr} address={addr} orgName={orgName ?? undefined} />
+        <ProgramRow
+          key={addr}
+          programAddress={addr}
+          orgAddress={orgAddress}
+          orgName={orgName ?? undefined}
+          userAddress={userAddress}
+        />
       ))}
     </>
   );
 };
 
 const ProgramsPage = () => {
+  const { address: connectedAddress } = useAccount();
+
   const { data: orgCount } = useScaffoldReadContract({
     contractName: "CGRegistry",
     functionName: "organizationCount",
@@ -59,7 +83,9 @@ const ProgramsPage = () => {
         </div>
       ) : (
         <div className="grid gap-4">
-          {orgAddresses?.map((orgAddr: string) => <OrgPrograms key={orgAddr} orgAddress={orgAddr} />)}
+          {orgAddresses?.map((orgAddr: Address) => (
+            <OrgPrograms key={orgAddr} orgAddress={orgAddr} userAddress={connectedAddress} />
+          ))}
         </div>
       )}
     </div>

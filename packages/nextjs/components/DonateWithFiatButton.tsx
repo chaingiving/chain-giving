@@ -1,8 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useAppKit } from "@reown/appkit/react";
 import { Address } from "viem";
-import { CreditCardIcon } from "@heroicons/react/24/outline";
+import { useAccount } from "wagmi";
+import { CreditCardIcon, EnvelopeIcon } from "@heroicons/react/24/outline";
+import { useSiweAuth } from "~~/hooks/useSiweAuth";
 import { notification } from "~~/utils/scaffold-eth";
 
 const SANDBOX_ORIGIN = "https://pay-sandbox.coinbase.com";
@@ -26,6 +29,9 @@ type Props = {
 
 export const DonateWithFiatButton = ({ asset, targetAddress, disabled }: Props) => {
   const [loading, setLoading] = useState(false);
+  const { ensureSignedIn } = useSiweAuth();
+  const { isConnected } = useAccount();
+  const { open: openConnectModal } = useAppKit();
   const popupRef = useRef<Window | null>(null);
   const closePollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const messageHandlerRef = useRef<((e: MessageEvent) => void) | null>(null);
@@ -44,6 +50,15 @@ export const DonateWithFiatButton = ({ asset, targetAddress, disabled }: Props) 
 
   useEffect(() => cleanup, []);
 
+  if (!isConnected) {
+    return (
+      <button className="btn btn-error gap-2" onClick={() => openConnectModal()} type="button" disabled={disabled}>
+        <EnvelopeIcon className="h-4 w-4" />
+        Sign in
+      </button>
+    );
+  }
+
   const handleClick = async () => {
     if (loading) return;
 
@@ -60,8 +75,18 @@ export const DonateWithFiatButton = ({ asset, targetAddress, disabled }: Props) 
 
     setLoading(true);
     try {
+      let userAddress: Address;
+      try {
+        userAddress = await ensureSignedIn();
+      } catch (err) {
+        notification.error(err instanceof Error ? err.message : "Wallet sign-in required");
+        popup.close();
+        cleanup();
+        return;
+      }
       const res = await fetch("/api/onramp/session", {
         method: "POST",
+        credentials: "same-origin",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ asset, address: targetAddress }),
       });
@@ -76,6 +101,7 @@ export const DonateWithFiatButton = ({ asset, targetAddress, disabled }: Props) 
         defaultAsset: asset,
         defaultNetwork: isSandbox ? "base-sepolia" : "base",
         fiatCurrency: FIAT_BY_ASSET[asset],
+        partnerUserRef: `cg-${userAddress}`,
       });
       // Coinbase Onramp rejects redirectUrl unless the origin is allowlisted in
       // the CDP portal. Set NEXT_PUBLIC_ONRAMP_REDIRECT_ORIGIN to the registered
@@ -85,7 +111,6 @@ export const DonateWithFiatButton = ({ asset, targetAddress, disabled }: Props) 
         params.set("redirectUrl", `${redirectOrigin}/thank-you`);
       }
       const onrampUrl = `${origin}${SELECT_ASSET_PATH}?${params}`;
-      console.log("[DonateWithFiatButton] opening onramp URL:", onrampUrl);
       popup.location.href = onrampUrl;
 
       const onMessage = (e: MessageEvent) => {

@@ -4141,6 +4141,7 @@ __metadata:
     eslint-config-next: "npm:~15.2.3"
     eslint-config-prettier: "npm:~10.1.1"
     eslint-plugin-prettier: "npm:~5.2.4"
+    iron-session: "npm:^8.0.4"
     jose: "npm:~5.9.6"
     kubo-rpc-client: "npm:~5.0.2"
     next: "npm:~16.2.4"
@@ -8581,6 +8582,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"cookie@npm:^0.7.2":
+  version: 0.7.2
+  resolution: "cookie@npm:0.7.2"
+  checksum: 10/24b286c556420d4ba4e9bc09120c9d3db7d28ace2bd0f8ccee82422ce42322f73c8312441271e5eefafbead725980e5996cc02766dbb89a90ac7f5636ede608f
+  languageName: node
+  linkType: hard
+
 "core-util-is@npm:~1.0.0":
   version: 1.0.3
   resolution: "core-util-is@npm:1.0.3"
@@ -12005,6 +12013,17 @@ __metadata:
     kubo-rpc-client: "npm:^5.0.2"
     multiformats: "npm:^13.3.1"
   checksum: 10/b87c985fab959acb8703677238171f649fe07aa694129a73f9f0b1b344fd03a001f544b7bee86d1370ef747b1915bf57b8fbd470092a315f0077bde518ba14f4
+  languageName: node
+  linkType: hard
+
+"iron-session@npm:^8.0.4":
+  version: 8.0.4
+  resolution: "iron-session@npm:8.0.4"
+  dependencies:
+    cookie: "npm:^0.7.2"
+    iron-webcrypto: "npm:^1.2.1"
+    uncrypto: "npm:^0.1.3"
+  checksum: 10/32690baa6b0d2a32e09b985ead582b3614ad7502784dbf3f955de865e429d84b9a4f45bf7e0ffb6866868f424c9946df7394f3ee463078981e0a48ea29e961f6
   languageName: node
   linkType: hard
 

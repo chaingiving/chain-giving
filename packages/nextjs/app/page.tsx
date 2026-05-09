@@ -5,28 +5,18 @@ import Link from "next/link";
 import { Address } from "@scaffold-ui/components";
 import type { NextPage } from "next";
 import { QRCodeSVG } from "qrcode.react";
-import { type Address as ViemAddress, isAddressEqual, zeroAddress } from "viem";
+import { type Address as ViemAddress, isAddressEqual } from "viem";
 import { useAccount, useReadContract } from "wagmi";
-import { BuildingOffice2Icon, GiftIcon, WalletIcon } from "@heroicons/react/24/outline";
+import { HeartIcon, UserGroupIcon, WalletIcon } from "@heroicons/react/24/outline";
 import { AuthProviderInfo, SignOutButton } from "~~/components/AuthSession";
 import { ChainGivingHeader } from "~~/components/ChainGivingHeader";
 import { EmbeddedWalletButton } from "~~/components/ConnectButton";
 import { ProgramCard } from "~~/components/ProgramCard";
+import { ProgramRoleBadges, useProgramRoles } from "~~/components/ProgramRoleBadges";
 import { RainbowKitCustomConnectButton } from "~~/components/scaffold-eth";
 import { cgOrganizationAbi } from "~~/contracts/cgOrganizationAbi";
-import { cgProgramAbi } from "~~/contracts/cgProgramAbi";
 import { useScaffoldReadContract, useTargetNetwork } from "~~/hooks/scaffold-eth";
 import { getBlockExplorerAddressLink } from "~~/utils/scaffold-eth";
-
-const crowdfundingContributionsAbi = [
-  {
-    inputs: [{ name: "", type: "address" }],
-    name: "contributions",
-    outputs: [{ name: "", type: "uint256" }],
-    stateMutability: "view",
-    type: "function",
-  },
-] as const;
 
 type VisibilityReporter = (address: ViemAddress, visible: boolean) => void;
 
@@ -83,60 +73,27 @@ const OwnedOrgCard = ({
 
 const UserProgramCard = ({
   programAddress,
+  orgAddress,
   userAddress,
   orgName,
   onVisibilityChange,
 }: {
   programAddress: ViemAddress;
+  orgAddress: ViemAddress;
   userAddress: ViemAddress;
   orgName?: string;
   onVisibilityChange: VisibilityReporter;
 }) => {
-  const { data: cfInfo } = useReadContract({
-    address: programAddress,
-    abi: cgProgramAbi,
-    functionName: "getCrowdfundingInfo",
-    query: { refetchInterval: 30000 },
-  });
-
-  const cfAddress = cfInfo?.addr;
-  const hasCrowdfunding = !!cfAddress && !isAddressEqual(cfAddress, zeroAddress);
-
-  const { data: contributed } = useReadContract({
-    address: cfAddress,
-    abi: crowdfundingContributionsAbi,
-    functionName: "contributions",
-    args: [userAddress],
-    query: { enabled: hasCrowdfunding, refetchInterval: 30000 },
-  });
-
-  const { data: distInfos } = useReadContract({
-    address: programAddress,
-    abi: cgProgramAbi,
-    functionName: "getAllDistributionsInfo",
-    query: { refetchInterval: 30000 },
-  });
-
-  const hasContribution = typeof contributed === "bigint" && contributed > 0n;
-  const isBeneficiary = !!distInfos?.some(d => d.beneficiaries.some(b => isAddressEqual(b, userAddress)));
-  const isVisible = hasContribution || isBeneficiary;
+  const roles = useProgramRoles({ programAddress, orgAddress, userAddress });
 
   useEffect(() => {
-    onVisibilityChange(programAddress, isVisible);
+    onVisibilityChange(programAddress, roles.anyRole);
     return () => onVisibilityChange(programAddress, false);
-  }, [programAddress, isVisible, onVisibilityChange]);
+  }, [programAddress, roles.anyRole, onVisibilityChange]);
 
-  if (!isVisible) return null;
+  if (!roles.anyRole) return null;
 
-  return (
-    <div className="flex flex-col gap-1.5">
-      <ProgramCard address={programAddress} orgName={orgName} />
-      <div className="flex flex-wrap gap-1 pl-1">
-        {hasContribution && <span className="badge badge-success badge-sm">Contributor</span>}
-        {isBeneficiary && <span className="badge badge-primary badge-sm">Beneficiary</span>}
-      </div>
-    </div>
-  );
+  return <ProgramCard address={programAddress} orgName={orgName} roleBadges={<ProgramRoleBadges roles={roles} />} />;
 };
 
 const OrgPrograms = ({
@@ -171,6 +128,7 @@ const OrgPrograms = ({
         <UserProgramCard
           key={addr}
           programAddress={addr}
+          orgAddress={orgAddress}
           userAddress={userAddress}
           orgName={orgName ?? undefined}
           onVisibilityChange={onVisibilityChange}
@@ -235,7 +193,7 @@ const Home: NextPage = () => {
               className="card bg-base-100 shadow-md border border-base-300 rounded-3xl px-6 py-8 hover:shadow-lg transition-shadow"
             >
               <div className="flex items-center gap-3">
-                <BuildingOffice2Icon className="h-8 w-8" />
+                <UserGroupIcon className="h-8 w-8" />
                 <div>
                   <h2 className="text-xl font-bold">Browse Organizations</h2>
                   <p className="text-sm opacity-70">See who running programs</p>
@@ -247,7 +205,7 @@ const Home: NextPage = () => {
               className="card bg-base-100 shadow-md border border-base-300 rounded-3xl px-6 py-8 hover:shadow-lg transition-shadow"
             >
               <div className="flex items-center gap-3">
-                <GiftIcon className="h-8 w-8" />
+                <HeartIcon className="h-8 w-8" />
                 <div>
                   <h2 className="text-xl font-bold">Browse Programs</h2>
                   <p className="text-sm opacity-70">Explore active crowdfundings</p>
@@ -309,7 +267,7 @@ const Home: NextPage = () => {
           <main className="flex-1 flex flex-col gap-8 min-w-0">
             <section className={visibleOwnedOrgs.size === 0 ? "hidden" : undefined}>
               <h2 className="flex items-center gap-2 text-xl font-bold mb-3">
-                <BuildingOffice2Icon className="h-5 w-5" />
+                <UserGroupIcon className="h-5 w-5" />
                 Your Organizations
               </h2>
               <div className="grid gap-3 sm:grid-cols-2">
@@ -326,7 +284,7 @@ const Home: NextPage = () => {
 
             <section>
               <h2 className="flex items-center gap-2 text-xl font-bold mb-3">
-                <GiftIcon className="h-5 w-5" />
+                <HeartIcon className="h-5 w-5" />
                 Your Programs
               </h2>
               <div className={`grid gap-3 ${visiblePrograms.size === 0 ? "hidden" : ""}`}>

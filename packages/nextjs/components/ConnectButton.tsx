@@ -24,7 +24,7 @@ const EmbeddedWalletButtonInner = ({ hideOnHome = false, size = "sm" }: Props) =
   return (
     <button className={`btn btn-error ${btnSize} gap-2`} onClick={() => open()} type="button">
       <EnvelopeIcon className="h-4 w-4" />
-      Sign in with Email
+      Sign in
     </button>
   );
 };

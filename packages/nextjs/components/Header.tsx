@@ -9,9 +9,9 @@ import { useAccount } from "wagmi";
 import {
   Bars3Icon,
   BugAntIcon,
-  BuildingOfficeIcon,
-  GiftIcon,
+  HeartIcon,
   InformationCircleIcon,
+  UserGroupIcon,
   WalletIcon,
 } from "@heroicons/react/24/outline";
 import { SwitchTheme } from "~~/components/SwitchTheme";
@@ -33,12 +33,12 @@ export const menuLinks: HeaderMenuLink[] = [
   {
     label: "Organizations",
     href: "/organizations",
-    icon: <BuildingOfficeIcon className="h-4 w-4" />,
+    icon: <UserGroupIcon className="h-4 w-4" />,
   },
   {
     label: "Programs",
     href: "/programs",
-    icon: <GiftIcon className="h-4 w-4" />,
+    icon: <HeartIcon className="h-4 w-4" />,
   },
 ];
 

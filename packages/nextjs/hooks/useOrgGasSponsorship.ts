@@ -44,6 +44,10 @@ export function useOrgGasSponsorship(orgAddress: Address | undefined) {
   const chainCapabilities = walletCapabilities?.[currentChainId];
   const isPaymasterSupported = !!chainCapabilities?.paymasterService?.supported;
 
+  if (typeof window !== "undefined" && walletCapabilities) {
+    console.log("[capabilities]", { chainId: currentChainId, walletCapabilities, isPaymasterSupported });
+  }
+
   // Gas sponsorship is available when:
   // 1. CGPaymaster is deployed
   // 2. The org has a positive gas budget

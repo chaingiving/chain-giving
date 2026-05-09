@@ -40,7 +40,7 @@ export function useSponsoredWrite(orgAddress: Address | undefined) {
         // context alone fails with `Missing or invalid context.orgAddress`.
         const paymasterServiceUrl = `${window.location.origin}/api/paymaster?org=${orgAddress}`;
 
-        await sendCallsAsync({
+        const sendCallsArgs = {
           calls: [
             {
               to: call.address,
@@ -59,7 +59,10 @@ export function useSponsoredWrite(orgAddress: Address | undefined) {
             },
           },
           chainId,
-        } as any);
+        };
+        console.log("[sponsored] sendCalls", sendCallsArgs);
+        const result = await sendCallsAsync(sendCallsArgs as any);
+        console.log("[sponsored] sendCalls result", result);
 
         notification.success("Transaction sponsored by organization gas budget");
         return true;

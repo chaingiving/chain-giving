@@ -35,8 +35,10 @@ export function useSponsoredWrite(orgAddress: Address | undefined) {
   const write = async (call: ContractCall): Promise<boolean> => {
     try {
       if (isSponsorshipAvailable && orgAddress) {
-        // Use EIP-5792 sendCalls with paymasterService capability
-        const paymasterServiceUrl = `${window.location.origin}/api/paymaster`;
+        // Encode the org address in the URL: some wallets (Reown embedded smart
+        // wallets, others) drop EIP-5792 paymasterService.context, so relying on
+        // context alone fails with `Missing or invalid context.orgAddress`.
+        const paymasterServiceUrl = `${window.location.origin}/api/paymaster?org=${orgAddress}`;
 
         await sendCallsAsync({
           calls: [

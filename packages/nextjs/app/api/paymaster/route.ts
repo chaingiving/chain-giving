@@ -13,7 +13,11 @@ import deployedContracts from "~~/contracts/deployedContracts";
  *   [0:20]  paymaster contract address
  *   [20:40] sponsoring organization address
  *
- * The org address is passed via the `context.orgAddress` field from the frontend.
+ * The org address is read from the `?org=0x...` query string (preferred — survives
+ * wallets that drop the EIP-5792 `capabilities.paymasterService.context` field,
+ * such as Reown's embedded smart wallets) and falls back to `context.orgAddress`
+ * for wallets that do propagate context.
+ *
  * The chain ID is extracted from `params[2]` to resolve the correct CGPaymaster deployment.
  */
 
@@ -88,11 +92,14 @@ export async function POST(req: NextRequest) {
     return jsonRpcError(id, -32602, `CGPaymaster not deployed on chain ${chainId}`);
   }
 
+  // Prefer ?org=0x... over context.orgAddress: some wallets (e.g. Reown's
+  // embedded smart wallet) drop EIP-5792 paymasterService.context entirely.
+  const queryOrg = req.nextUrl.searchParams.get("org");
   const context = (params?.[3] as { orgAddress?: string } | undefined) ?? {};
-  const orgAddress = context.orgAddress;
+  const orgAddress = queryOrg ?? context.orgAddress;
 
   if (!orgAddress || !isAddress(orgAddress)) {
-    return jsonRpcError(id, -32602, "Missing or invalid context.orgAddress");
+    return jsonRpcError(id, -32602, "Missing or invalid org address (?org=0x... or context.orgAddress)");
   }
 
   const paymasterAndData = buildPaymasterAndData(paymasterAddress, orgAddress as Address);

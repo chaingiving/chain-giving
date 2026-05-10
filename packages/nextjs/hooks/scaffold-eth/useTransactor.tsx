@@ -53,7 +53,15 @@ export const useTransactor = (_walletClient?: WalletClient): TransactionFunc => 
     let blockExplorerTxURL = "";
     let chainId: number = scaffoldConfig.targetNetworks[0].id;
     try {
-      chainId = await walletClient.getChainId();
+      try {
+        chainId = await walletClient.getChainId();
+      } catch {
+        // Reown's embedded-wallet provider can answer `eth_chainId` with the
+        // CAIP-2 form ("eip155:N"), which makes viem's hexToNumber throw a
+        // BigInt SyntaxError. chainId here is only used to build the explorer
+        // link, so fall back to the configured default rather than aborting
+        // the whole transaction.
+      }
       // Get full transaction from public client
       const publicClient = getPublicClient(wagmiConfig);
       if (!publicClient) {

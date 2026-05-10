@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { TopUpModal } from "./TopUpModal";
 import { Address as AddressDisplay } from "@scaffold-ui/components";
@@ -16,6 +16,7 @@ import { cgTokenAbi } from "~~/contracts/cgTokenAbi";
 import { DonationCurrency, getDonationCurrencies } from "~~/contracts/donationCurrencies";
 import { useBlockExplorerLink, useScaffoldReadContract, useTargetNetwork } from "~~/hooks/scaffold-eth";
 import { useCGTokenWrite } from "~~/hooks/useCGTokenWrite";
+import { useSponsoredGasPreference } from "~~/hooks/useSponsoredGasPreference";
 import { getParsedError, getTargetNetworks, notification } from "~~/utils/scaffold-eth";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -627,6 +628,32 @@ function DonationCurrencyBalances({ walletAddress, isOwnWallet }: { walletAddres
   );
 }
 
+// ── Sponsored-gas opt-out toggle ────────────────────────────────────────────
+
+// Mount-gated to avoid a hydration mismatch: the persisted value lives in
+// localStorage and is only read on the client.
+function SponsoredGasToggle() {
+  const { enabled, setEnabled } = useSponsoredGasPreference();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  if (!mounted) return null;
+
+  return (
+    <label
+      className="cursor-pointer flex items-center gap-2 text-xs"
+      title="When off, you'll pay your own gas for every transaction."
+    >
+      <span className="opacity-70">Sponsored gas</span>
+      <input
+        type="checkbox"
+        className="toggle toggle-primary toggle-xs"
+        checked={enabled}
+        onChange={e => setEnabled(e.target.checked)}
+      />
+    </label>
+  );
+}
+
 // ── Network indicator + switcher ────────────────────────────────────────────
 
 function NetworkBadge() {
@@ -699,8 +726,9 @@ export const WalletView = ({ address }: { address: Address }) => {
               <AddressDisplay address={address} format="short" blockExplorerAddressLink={addressLink} />
             </span>
             {isOwnWallet && (
-              <div className="ml-auto flex flex-wrap items-center gap-2">
+              <div className="ml-auto flex flex-wrap items-center gap-3">
                 <AuthProviderInfo />
+                <SponsoredGasToggle />
                 <SignOutButton size="sm" />
               </div>
             )}

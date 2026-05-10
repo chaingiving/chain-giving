@@ -42,6 +42,21 @@ export const getAlchemyHttpUrl = (chainId: number) => {
     : undefined;
 };
 
+/**
+ * Server-only Alchemy URL. Reads ALCHEMY_API_KEY_SERVER (no NEXT_PUBLIC_ prefix
+ * so it stays out of the client bundle) — typically a key from a second
+ * Alchemy app whose Referrer Whitelist is open, since server-side fetches
+ * carry no browser-origin header and would be rejected by an app-allowlist
+ * key. Falls back to the public Alchemy key when the server key isn't set.
+ */
+export const getServerAlchemyHttpUrl = (chainId: number) => {
+  if (typeof window !== "undefined") return undefined; // never read from client
+  const serverKey = process.env.ALCHEMY_API_KEY_SERVER;
+  if (!serverKey) return getAlchemyHttpUrl(chainId);
+  if (!RPC_CHAIN_NAMES[chainId]) return undefined;
+  return `https://${RPC_CHAIN_NAMES[chainId]}.g.alchemy.com/v2/${serverKey}`;
+};
+
 export const NETWORKS_EXTRA_DATA: Record<string, ChainAttributes> = {
   [chains.hardhat.id]: {
     color: "#b8af0c",

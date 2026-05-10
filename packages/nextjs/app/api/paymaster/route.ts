@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { Address, Hex, createPublicClient, decodeFunctionData, fallback, http, isAddress } from "viem";
 import * as chains from "viem/chains";
 import deployedContracts from "~~/contracts/deployedContracts";
-import { getAlchemyHttpUrl } from "~~/utils/scaffold-eth";
+import { getServerAlchemyHttpUrl } from "~~/utils/scaffold-eth";
 
 // Server-side fallback RPCs per chain. Mirror of PUBLIC_FALLBACK_RPCS in
 // wagmiConfig — when our Alchemy key is rate-limited/down (it returns an
@@ -171,7 +171,7 @@ async function resolveOrgAddress(
     return { error: `Unsupported chain ${chainId}` };
   }
   const transports = [];
-  const alchemy = getAlchemyHttpUrl(chainId);
+  const alchemy = getServerAlchemyHttpUrl(chainId);
   if (alchemy) transports.push(http(alchemy));
   for (const url of SERVER_FALLBACK_RPCS[chainId] ?? []) transports.push(http(url));
   transports.push(http()); // chain-default, last resort

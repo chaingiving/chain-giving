@@ -9,12 +9,14 @@ import { TrashIcon } from "@heroicons/react/24/outline";
 import { AddressInputWithQr } from "~~/components/AddressInputWithQr";
 import { cgOrganizationAbi } from "~~/contracts/cgOrganizationAbi";
 import { useScaffoldReadContract, useScaffoldWriteContract } from "~~/hooks/scaffold-eth";
+import { useRequireUnsponsorable } from "~~/hooks/useRequireUnsponsorable";
 
 const PAGE_SIZE = 10;
 
 const OrgCard = ({ address, canRemove }: { address: Address; canRemove: boolean }) => {
   const { address: connectedAddress } = useAccount();
   const { writeContractAsync: writeRegistry } = useScaffoldWriteContract({ contractName: "CGRegistry" });
+  const { isUnsponsorable, assertCanWrite } = useRequireUnsponsorable();
   const [isRemoving, setIsRemoving] = useState(false);
 
   const { data: name } = useReadContract({
@@ -43,6 +45,7 @@ const OrgCard = ({ address, canRemove }: { address: Address; canRemove: boolean 
   const handleRemove = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    if (!assertCanWrite()) return;
     if (!window.confirm(`Remove organization "${name ?? address}" from the registry?`)) return;
     setIsRemoving(true);
     try {
@@ -63,7 +66,8 @@ const OrgCard = ({ address, canRemove }: { address: Address; canRemove: boolean 
             <button
               className="btn btn-ghost btn-xs text-error"
               onClick={handleRemove}
-              disabled={isRemoving}
+              disabled={isRemoving || isUnsponsorable}
+              title={isUnsponsorable ? "Registry actions require a regular wallet (not the embedded wallet)" : undefined}
               aria-label="Remove organization"
             >
               {isRemoving ? <span className="loading loading-spinner loading-xs" /> : <TrashIcon className="h-4 w-4" />}
@@ -112,6 +116,7 @@ const OrganizationsPage = () => {
   });
 
   const { writeContractAsync: writeRegistry, isPending } = useScaffoldWriteContract({ contractName: "CGRegistry" });
+  const { isUnsponsorable, assertCanWrite } = useRequireUnsponsorable();
 
   const isRegistryOwner = connectedAddress && registryOwner ? isAddressEqual(connectedAddress, registryOwner) : false;
   const totalOrgs = Number(orgCount ?? 0n);
@@ -119,6 +124,7 @@ const OrganizationsPage = () => {
 
   const handleCreateOrg = async () => {
     if (!newOrgName.trim() || !newOrgOwner) return;
+    if (!assertCanWrite()) return;
     try {
       await writeRegistry({ functionName: "createOrganization", args: [newOrgName.trim(), newOrgOwner] });
       setNewOrgName("");
@@ -136,6 +142,12 @@ const OrganizationsPage = () => {
         <div className="card bg-base-200 shadow-md border border-base-300 mb-8">
           <div className="card-body p-6">
             <h2 className="card-title text-lg">Create New Organization</h2>
+            {isUnsponsorable && (
+              <div className="alert alert-warning text-sm">
+                Registry actions can&apos;t be gas-sponsored. Sign out of the embedded wallet and reconnect with a
+                regular wallet (MetaMask, WalletConnect, …) to create or remove organizations.
+              </div>
+            )}
             <div className="flex flex-col gap-3">
               <input
                 type="text"
@@ -154,7 +166,8 @@ const OrganizationsPage = () => {
               <button
                 className="btn btn-primary btn-sm w-fit"
                 onClick={handleCreateOrg}
-                disabled={isPending || !newOrgName.trim() || !newOrgOwner}
+                disabled={isPending || !newOrgName.trim() || !newOrgOwner || isUnsponsorable}
+                title={isUnsponsorable ? "Registry actions require a regular wallet (not the embedded wallet)" : undefined}
               >
                 {isPending ? <span className="loading loading-spinner loading-sm" /> : "Create Organization"}
               </button>

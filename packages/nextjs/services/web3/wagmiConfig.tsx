@@ -1,7 +1,7 @@
 import { wagmiConnectors } from "./wagmiConnectors";
 import { embeddedWalletConnector, getDefaultConfig } from "@openfort/react/wagmi";
 import { Chain, fallback, http } from "viem";
-import { mainnet } from "viem/chains";
+import { base, baseSepolia, mainnet, optimism, optimismSepolia, sepolia } from "viem/chains";
 import { createConfig } from "wagmi";
 import scaffoldConfig, { ScaffoldConfig } from "~~/scaffold.config";
 import { getAlchemyHttpUrl } from "~~/utils/scaffold-eth";
@@ -13,8 +13,23 @@ export const enabledChains = targetNetworks.find((network: Chain) => network.id 
   ? targetNetworks
   : ([...targetNetworks, mainnet] as const);
 
-// RPC priority: rpcOverride → Alchemy → BuidlGuidl mainnet → public default. Public default
-// (e.g. https://sepolia.base.org) is always last because it 503s under any real load.
+// Known-healthy public RPCs per chain. Used as a middle-tier fallback so a
+// rate-limited Alchemy key (429) doesn't cascade all the way to the chain's
+// default public RPC, which on Base Sepolia is sepolia.base.org and 503s
+// under any real load.
+const PUBLIC_FALLBACK_RPCS: Record<number, readonly string[]> = {
+  [mainnet.id]: ["https://mainnet.rpc.buidlguidl.com", "https://ethereum-rpc.publicnode.com"],
+  [sepolia.id]: ["https://ethereum-sepolia-rpc.publicnode.com"],
+  [base.id]: ["https://base-rpc.publicnode.com"],
+  [baseSepolia.id]: ["https://base-sepolia-rpc.publicnode.com"],
+  [optimism.id]: ["https://optimism-rpc.publicnode.com"],
+  [optimismSepolia.id]: ["https://optimism-sepolia-rpc.publicnode.com"],
+};
+
+// RPC priority: rpcOverride → Alchemy → known-healthy public node → chain default.
+// The chain default (e.g. sepolia.base.org) is the last-resort because it 503s
+// under any real load. Without the publicnode middle tier, a 429 from Alchemy
+// dropped us straight to that broken default.
 const transports = Object.fromEntries(
   enabledChains.map(chain => {
     const ordered = [];
@@ -22,7 +37,7 @@ const transports = Object.fromEntries(
     if (rpcOverrideUrl) ordered.push(http(rpcOverrideUrl));
     const alchemyHttpUrl = getAlchemyHttpUrl(chain.id);
     if (alchemyHttpUrl) ordered.push(http(alchemyHttpUrl));
-    if (chain.id === mainnet.id) ordered.push(http("https://mainnet.rpc.buidlguidl.com"));
+    for (const url of PUBLIC_FALLBACK_RPCS[chain.id] ?? []) ordered.push(http(url));
     ordered.push(http()); // chain-default public RPC, last-resort
     return [chain.id, fallback(ordered)];
   }),

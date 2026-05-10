@@ -2,6 +2,7 @@ import { Abi, Address, encodeFunctionData } from "viem";
 import { useAccount, useSendCalls, useWriteContract } from "wagmi";
 import { useTransactor } from "~~/hooks/scaffold-eth";
 import { useOrgGasSponsorship } from "~~/hooks/useOrgGasSponsorship";
+import scaffoldConfig from "~~/scaffold.config";
 import { getParsedError, notification } from "~~/utils/scaffold-eth";
 
 type ContractCall = {
@@ -25,8 +26,15 @@ type ContractCall = {
  */
 export function useSponsoredWrite(orgAddress: Address | undefined) {
   const { chainId } = useAccount();
-  const { isSponsorshipAvailable, isPaymasterSupported, hasBudget, orgBalance, orgBalanceFormatted, isEIP5792Wallet } =
-    useOrgGasSponsorship(orgAddress);
+  const {
+    isSponsorshipAvailable,
+    isPaymasterSupported,
+    hasBudget,
+    orgBalance,
+    orgBalanceFormatted,
+    isEIP5792Wallet,
+    isOpenfortEmbedded,
+  } = useOrgGasSponsorship(orgAddress);
 
   const { sendCallsAsync } = useSendCalls();
   const { writeContractAsync } = useWriteContract();
@@ -35,8 +43,17 @@ export function useSponsoredWrite(orgAddress: Address | undefined) {
   const write = async (call: ContractCall): Promise<boolean> => {
     try {
       if (isSponsorshipAvailable && orgAddress) {
-        // Use EIP-5792 sendCalls with paymasterService capability
-        const paymasterServiceUrl = `${window.location.origin}/api/paymaster`;
+        // Two paymasterService shapes — Openfort embedded wallet's bundler reads
+        // `policy` (a pol_…), every other EIP-5792 wallet reads `url` + `context`.
+        // Both ultimately route to /api/paymaster; the route covers both shapes
+        // (Openfort calls server-side without context, so the route extracts
+        // orgAddress from the userOp callData).
+        const paymasterService = isOpenfortEmbedded
+          ? { policy: scaffoldConfig.openfortFeeSponsorshipId }
+          : {
+              url: `${window.location.origin}/api/paymaster`,
+              context: { orgAddress },
+            };
 
         await sendCallsAsync({
           calls: [
@@ -50,12 +67,7 @@ export function useSponsoredWrite(orgAddress: Address | undefined) {
               value: call.value,
             },
           ],
-          capabilities: {
-            paymasterService: {
-              url: paymasterServiceUrl,
-              context: { orgAddress },
-            },
-          },
+          capabilities: { paymasterService },
           chainId,
         } as any);
 

@@ -9,6 +9,7 @@ export type BaseConfig = {
   burnerWalletMode: "localNetworksOnly" | "allNetworks" | "disabled";
   openfortPublishableKey: string;
   openfortShieldPublishableKey: string;
+  openfortFeeSponsorshipId: string;
 };
 
 export type ScaffoldConfig = BaseConfig;
@@ -45,6 +46,10 @@ const scaffoldConfig = {
   // Openfort credentials, from https://dashboard.openfort.io
   openfortPublishableKey: process.env.NEXT_PUBLIC_OPENFORT_PUBLISHABLE_KEY || "",
   openfortShieldPublishableKey: process.env.NEXT_PUBLIC_OPENFORT_SHIELD_PUBLISHABLE_KEY || "",
+  // Openfort policy id (pol_…) linked to the registered CGPaymaster entity. Required for
+  // sponsored writes from Openfort embedded wallets — they're 4337 smart accounts and
+  // Openfort's bundler reads this via wallet_sendCalls.capabilities.paymasterService.policy.
+  openfortFeeSponsorshipId: process.env.NEXT_PUBLIC_OPENFORT_FEE_SPONSORSHIP_ID || "",
 } as const satisfies ScaffoldConfig;
 
 export default scaffoldConfig;

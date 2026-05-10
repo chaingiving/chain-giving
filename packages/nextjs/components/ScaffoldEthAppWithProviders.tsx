@@ -1,6 +1,6 @@
 "use client";
 
-import { AuthProvider, OpenfortProvider, RecoveryMethod } from "@openfort/react";
+import { AccountTypeEnum, AuthProvider, OpenfortProvider, RecoveryMethod } from "@openfort/react";
 import { OpenfortWagmiBridge } from "@openfort/react/wagmi";
 import { RainbowKitProvider, darkTheme, lightTheme } from "@rainbow-me/rainbowkit";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -59,7 +59,15 @@ export const ScaffoldEthAppWithProviders = ({ children }: { children: React.Reac
             publishableKey={scaffoldConfig.openfortPublishableKey}
             walletConfig={{
               shieldPublishableKey: scaffoldConfig.openfortShieldPublishableKey,
-              ethereum: { rpcUrls: openfortRpcUrls },
+              ethereum: {
+                rpcUrls: openfortRpcUrls,
+                // Smart account is required for our 4337 paymaster integration: an EOA
+                // can't have its UserOps sponsored. The CGPaymaster sponsorship policy
+                // (NEXT_PUBLIC_OPENFORT_FEE_SPONSORSHIP_ID) is only honored when the
+                // wallet is a smart account.
+                accountType: AccountTypeEnum.SMART_ACCOUNT,
+                ethereumFeeSponsorshipId: scaffoldConfig.openfortFeeSponsorshipId || undefined,
+              },
               createEncryptedSessionEndpoint: "/api/openfort/encryption-session",
               connectOnLogin: true,
             }}

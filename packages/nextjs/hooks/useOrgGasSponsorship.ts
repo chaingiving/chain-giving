@@ -1,13 +1,16 @@
 import { Address, formatEther } from "viem";
 import { useAccount, useCapabilities, useReadContract } from "wagmi";
 import { useDeployedContractInfo, useTargetNetwork } from "~~/hooks/scaffold-eth";
+import scaffoldConfig from "~~/scaffold.config";
 
 // Openfort embedded wallet connector id (see @openfort/react/wagmi).
-// Openfort's wallet_sendCalls only honors `capabilities.paymasterService.policy`
-// (their dashboard pol_… IDs), NOT the standard ERC-7677 url+context shape that
-// CGPaymaster speaks. Treat the embedded wallet as paymaster-unsupported so
-// useSponsoredWrite falls back to a plain writeContract instead of producing
-// silently-broken UserOps.
+// Two-track sponsorship:
+//  - External wallets (Coinbase Smart Wallet, MetaMask Smart, …) speak ERC-7677
+//    so we pass the CGPaymaster URL via paymasterService.url + context.
+//  - Openfort embedded wallets are 4337 smart accounts whose wallet_sendCalls
+//    routes through Openfort's bundler. Openfort only reads
+//    capabilities.paymasterService.policy (a pol_…). The policy is created in
+//    the Openfort dashboard and points back at our CGPaymaster URL.
 const OPENFORT_EMBEDDED_CONNECTOR_ID = "xyz.openfort";
 
 /**
@@ -51,17 +54,25 @@ export function useOrgGasSponsorship(orgAddress: Address | undefined) {
   const currentChainId = chainId ?? targetNetwork.id;
   const chainCapabilities = walletCapabilities?.[currentChainId];
   const isOpenfortEmbedded = connector?.id === OPENFORT_EMBEDDED_CONNECTOR_ID;
-  const isPaymasterSupported = !!chainCapabilities?.paymasterService?.supported && !isOpenfortEmbedded;
+  const hasOpenfortPolicy = !!scaffoldConfig.openfortFeeSponsorshipId;
+  // External wallets: rely on EIP-5792 paymasterService capability discovery.
+  // Openfort embedded: capability is reported but the wallet only honors a policy id,
+  // so we gate on the configured policy instead.
+  const isPaymasterSupported = isOpenfortEmbedded
+    ? hasOpenfortPolicy
+    : !!chainCapabilities?.paymasterService?.supported;
 
   // Gas sponsorship is available when:
   // 1. CGPaymaster is deployed
   // 2. The org has a positive gas budget
-  // 3. The wallet supports paymasterService capability
-  // 4. The page is served over HTTPS (wallets reject http:// paymaster URLs)
+  // 3. The wallet supports paymasterService capability (or has an Openfort policy)
+  // 4. For external wallets: the page is served over HTTPS (they reject http:// paymaster URLs).
+  //    Openfort doesn't apply this rule because its bundler — not the wallet — calls our URL.
   const balance = orgBalance as bigint | undefined;
   const hasBudget = balance !== undefined && balance > 0n;
   const isHttps = typeof window !== "undefined" && window.location.protocol === "https:";
-  const isSponsorshipAvailable = !!paymasterInfo?.address && hasBudget && isPaymasterSupported && isHttps;
+  const httpsOk = isOpenfortEmbedded || isHttps;
+  const isSponsorshipAvailable = !!paymasterInfo?.address && hasBudget && isPaymasterSupported && httpsOk;
 
   return {
     /** CGPaymaster contract address */
@@ -80,6 +91,8 @@ export function useOrgGasSponsorship(orgAddress: Address | undefined) {
     isPaymasterSupported,
     /** Whether gas sponsorship is fully available (budget + wallet support) */
     isSponsorshipAvailable,
+    /** True when the connected wallet is the Openfort embedded smart account. */
+    isOpenfortEmbedded,
     /** Loading state */
     isLoading: balanceLoading,
   };

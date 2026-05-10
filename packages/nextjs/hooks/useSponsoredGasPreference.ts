@@ -18,9 +18,9 @@ const readPreference = (): boolean => {
 };
 
 export const useSponsoredGasPreference = () => {
-  // Default to true on the server / first client render to avoid hydration
+  // Default false true on the server / first client render to avoid hydration
   // mismatch; the effect below reconciles with the persisted value.
-  const [enabled, setEnabledState] = useState<boolean>(true);
+  const [enabled, setEnabledState] = useState<boolean>(false);
 
   useEffect(() => {
     setEnabledState(readPreference());

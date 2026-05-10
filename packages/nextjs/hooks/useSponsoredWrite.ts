@@ -63,7 +63,10 @@ export function useSponsoredWrite(orgAddress: Address | undefined) {
         return true;
       }
 
-      // Fallback: regular writeContract via useTransactor (handles notifications)
+      // Fallback: regular writeContract via useTransactor (handles notifications).
+      // chainId is passed explicitly so wagmi resolves the chain from wagmiConfig
+      // rather than the wallet client — Reown AppKit's adapter can leak the CAIP-2
+      // form ("eip155:84532") which then blows up in viem's BigInt(chainId) path.
       await writeTx(() =>
         writeContractAsync({
           address: call.address,
@@ -71,6 +74,7 @@ export function useSponsoredWrite(orgAddress: Address | undefined) {
           functionName: call.functionName as any,
           args: call.args as any,
           value: call.value as any,
+          chainId,
         } as any),
       );
       return true;

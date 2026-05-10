@@ -3,7 +3,7 @@ import { embeddedWalletConnector, getDefaultConfig } from "@openfort/react/wagmi
 import { Chain, fallback, http } from "viem";
 import { mainnet } from "viem/chains";
 import { createConfig } from "wagmi";
-import scaffoldConfig, { DEFAULT_ALCHEMY_API_KEY, ScaffoldConfig } from "~~/scaffold.config";
+import scaffoldConfig, { ScaffoldConfig } from "~~/scaffold.config";
 import { getAlchemyHttpUrl } from "~~/utils/scaffold-eth";
 
 const { targetNetworks } = scaffoldConfig;
@@ -13,23 +13,18 @@ export const enabledChains = targetNetworks.find((network: Chain) => network.id 
   ? targetNetworks
   : ([...targetNetworks, mainnet] as const);
 
+// RPC priority: rpcOverride → Alchemy → BuidlGuidl mainnet → public default. Public default
+// (e.g. https://sepolia.base.org) is always last because it 503s under any real load.
 const transports = Object.fromEntries(
   enabledChains.map(chain => {
-    const mainnetFallback = chain.id === mainnet.id ? [http("https://mainnet.rpc.buidlguidl.com")] : [];
-    let rpcFallbacks = [...mainnetFallback, http()];
+    const ordered = [];
     const rpcOverrideUrl = (scaffoldConfig.rpcOverrides as ScaffoldConfig["rpcOverrides"])?.[chain.id];
-    if (rpcOverrideUrl) {
-      rpcFallbacks = [http(rpcOverrideUrl), ...rpcFallbacks];
-    } else {
-      const alchemyHttpUrl = getAlchemyHttpUrl(chain.id);
-      if (alchemyHttpUrl) {
-        const isUsingDefaultKey = scaffoldConfig.alchemyApiKey === DEFAULT_ALCHEMY_API_KEY;
-        rpcFallbacks = isUsingDefaultKey
-          ? [...rpcFallbacks, http(alchemyHttpUrl)]
-          : [http(alchemyHttpUrl), ...rpcFallbacks];
-      }
-    }
-    return [chain.id, fallback(rpcFallbacks)];
+    if (rpcOverrideUrl) ordered.push(http(rpcOverrideUrl));
+    const alchemyHttpUrl = getAlchemyHttpUrl(chain.id);
+    if (alchemyHttpUrl) ordered.push(http(alchemyHttpUrl));
+    if (chain.id === mainnet.id) ordered.push(http("https://mainnet.rpc.buidlguidl.com"));
+    ordered.push(http()); // chain-default public RPC, last-resort
+    return [chain.id, fallback(ordered)];
   }),
 );
 

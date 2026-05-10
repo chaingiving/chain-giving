@@ -2,8 +2,8 @@
 
 import { type ChangeEvent, type ReactNode, useEffect, useState } from "react";
 import Link from "next/link";
+import { useUI } from "@openfort/react";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
-import { useAppKit } from "@reown/appkit/react";
 import { Address as AddressDisplay } from "@scaffold-ui/components";
 import { Address, erc20Abi, formatUnits, isAddress, isAddressEqual, parseUnits, zeroAddress } from "viem";
 import { useAccount, usePublicClient, useReadContract, useWriteContract } from "wagmi";
@@ -920,7 +920,7 @@ function CrowdfundingStats({
 }
 
 function SignInActionsInner() {
-  const { open } = useAppKit();
+  const { open } = useUI();
   return (
     <ConnectButton.Custom>
       {({ openConnectModal, mounted }) => (
@@ -939,9 +939,8 @@ function SignInActionsInner() {
   );
 }
 
-// useAppKit reads global state populated by createAppKit, which only runs in
-// the browser (see services/web3/wagmiConfig.tsx). Defer until mount so SSG
-// never invokes it.
+// Openfort hooks read client-only state managed inside OpenfortProvider; defer
+// until mount so SSG never invokes them.
 function SignInActions() {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);

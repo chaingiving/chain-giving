@@ -1,45 +1,43 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useAppKitAccount } from "@reown/appkit/react";
-import { useDisconnect } from "wagmi";
+import { useSignOut, useUser } from "@openfort/react";
 import { ArrowRightOnRectangleIcon } from "@heroicons/react/24/outline";
 
 const PROVIDER_LABEL: Record<string, string> = {
   email: "Email",
-  google: "Google",
-  apple: "Apple",
-  github: "GitHub",
-  discord: "Discord",
-  facebook: "Facebook",
-  x: "X",
-  farcaster: "Farcaster",
+  //google: "Google",
+  //apple: "Apple",
+  //facebook: "Facebook",
+  //discord: "Discord",
+  guest: "Guest",
 };
 
-function formatProvider(authProvider: string | undefined) {
-  if (!authProvider) return undefined;
-  return PROVIDER_LABEL[authProvider] ?? authProvider.charAt(0).toUpperCase() + authProvider.slice(1);
+function formatProvider(provider: string | undefined) {
+  if (!provider) return undefined;
+  return PROVIDER_LABEL[provider] ?? provider.charAt(0).toUpperCase() + provider.slice(1);
 }
 
-// Renders provider + user identifier when the connected account is a Reown
+// Renders provider + user identifier when the connected account is an Openfort
 // embedded wallet (email / social login). For raw wallets it returns null.
 function AuthProviderInfoInner({ className = "" }: { className?: string }) {
-  const acct = useAppKitAccount();
-  const info = acct?.embeddedWalletInfo;
-  const provider = formatProvider(info?.authProvider);
+  const { user, linkedAccounts, isAuthenticated } = useUser();
+  if (!isAuthenticated) return null;
+
+  // Pick the first non-wallet linked account as the "Signed in with" source.
+  // Fall back to user.isAnonymous (guest) or user.email when linkedAccounts is empty.
+  const primaryAccount = linkedAccounts?.find(a => a.provider !== "wallet" && a.provider !== "siwe");
+  const u = user as { isAnonymous?: boolean; email?: string | null } | undefined;
+  const inferredProvider = u?.isAnonymous ? "guest" : u?.email ? "email" : undefined;
+  const provider = formatProvider(primaryAccount?.provider ?? inferredProvider);
   if (!provider) return null;
 
-  const user = info?.user as { email?: string; username?: string } | undefined;
-  const identifier = user?.email ?? user?.username;
+  const identifier = u?.isAnonymous ? undefined : (u?.email ?? user?.name);
 
   return (
     <div className={`text-xs opacity-70 flex flex-wrap items-center gap-1 ${className}`}>
       <span>Signed in with {provider}</span>
-      {identifier && (
-        <>
-          <span className="font-mono break-all">{identifier}</span>
-        </>
-      )}
+      {identifier && <span className="font-mono break-all">{identifier}</span>}
     </div>
   );
 }
@@ -57,13 +55,13 @@ type SignOutButtonProps = {
 };
 
 function SignOutButtonInner({ size = "sm", className = "" }: SignOutButtonProps) {
-  const { disconnect, isPending } = useDisconnect();
+  const { signOut, isLoading } = useSignOut();
   return (
     <button
       type="button"
       className={`btn btn-${size} btn-outline btn-error gap-2 ${className}`}
-      onClick={() => disconnect()}
-      disabled={isPending}
+      onClick={() => signOut()}
+      disabled={isLoading}
     >
       <ArrowRightOnRectangleIcon className="h-4 w-4" />
       Sign out
@@ -71,8 +69,8 @@ function SignOutButtonInner({ size = "sm", className = "" }: SignOutButtonProps)
   );
 }
 
-// Mount-gated to keep the wagmi hook (which reads client-only global state)
-// out of the SSR/SSG render path, mirroring the EmbeddedWalletButton pattern.
+// Mount-gated to keep Openfort hooks (which read client-only state) out of the
+// SSR/SSG render path, mirroring the EmbeddedWalletButton pattern.
 export function SignOutButton(props: SignOutButtonProps) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);

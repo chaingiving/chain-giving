@@ -1,5 +1,7 @@
 "use client";
 
+import { AuthProvider, OpenfortProvider, RecoveryMethod } from "@openfort/react";
+import { OpenfortWagmiBridge } from "@openfort/react/wagmi";
 import { RainbowKitProvider, darkTheme, lightTheme } from "@rainbow-me/rainbowkit";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AppProgressBar as ProgressBar } from "next-nprogress-bar";
@@ -8,15 +10,8 @@ import { Toaster } from "react-hot-toast";
 import { WagmiProvider } from "wagmi";
 import { Header } from "~~/components/Header";
 import { BlockieAvatar } from "~~/components/scaffold-eth";
+import scaffoldConfig from "~~/scaffold.config";
 import { wagmiConfig } from "~~/services/web3/wagmiConfig";
-
-// Silence Lit dev-mode warning emitted from @reown/appkit's web components.
-// Must run before any Lit element loads.
-if (typeof globalThis !== "undefined") {
-  const g = globalThis as typeof globalThis & { litIssuedWarnings?: Set<string> };
-  g.litIssuedWarnings ??= new Set();
-  g.litIssuedWarnings.add("dev-mode");
-}
 
 const ScaffoldEthApp = ({ children }: { children: React.ReactNode }) => {
   return (
@@ -43,13 +38,34 @@ export const ScaffoldEthAppWithProviders = ({ children }: { children: React.Reac
   const isDarkMode = resolvedTheme === "dark";
 
   return (
-    <WagmiProvider config={wagmiConfig}>
-      <QueryClientProvider client={queryClient}>
-        <RainbowKitProvider avatar={BlockieAvatar} theme={isDarkMode ? darkTheme() : lightTheme()}>
-          <ProgressBar height="3px" color="#2299dd" />
-          <ScaffoldEthApp>{children}</ScaffoldEthApp>
-        </RainbowKitProvider>
-      </QueryClientProvider>
-    </WagmiProvider>
+    <QueryClientProvider client={queryClient}>
+      <WagmiProvider config={wagmiConfig}>
+        <OpenfortWagmiBridge>
+          <OpenfortProvider
+            publishableKey={scaffoldConfig.openfortPublishableKey}
+            walletConfig={{
+              shieldPublishableKey: scaffoldConfig.openfortShieldPublishableKey,
+              ethereum: {},
+              connectOnLogin: true,
+            }}
+            uiConfig={{
+              theme: "auto",
+              mode: isDarkMode ? "dark" : "light",
+              authProviders: [AuthProvider.EMAIL_OTP, AuthProvider.GUEST],
+              walletRecovery: {
+                // Passkey disabled for now
+                allowedMethods: [RecoveryMethod.PASSWORD],
+                defaultMethod: RecoveryMethod.PASSWORD,
+              },
+            }}
+          >
+            <RainbowKitProvider avatar={BlockieAvatar} theme={isDarkMode ? darkTheme() : lightTheme()}>
+              <ProgressBar height="3px" color="#2299dd" />
+              <ScaffoldEthApp>{children}</ScaffoldEthApp>
+            </RainbowKitProvider>
+          </OpenfortProvider>
+        </OpenfortWagmiBridge>
+      </WagmiProvider>
+    </QueryClientProvider>
   );
 };

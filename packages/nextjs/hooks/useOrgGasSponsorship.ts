@@ -2,12 +2,20 @@ import { Address, formatEther } from "viem";
 import { useAccount, useCapabilities, useReadContract } from "wagmi";
 import { useDeployedContractInfo, useTargetNetwork } from "~~/hooks/scaffold-eth";
 
+// Openfort embedded wallet connector id (see @openfort/react/wagmi).
+// Openfort's wallet_sendCalls only honors `capabilities.paymasterService.policy`
+// (their dashboard pol_… IDs), NOT the standard ERC-7677 url+context shape that
+// CGPaymaster speaks. Treat the embedded wallet as paymaster-unsupported so
+// useSponsoredWrite falls back to a plain writeContract instead of producing
+// silently-broken UserOps.
+const OPENFORT_EMBEDDED_CONNECTOR_ID = "xyz.openfort";
+
 /**
  * Reads gas sponsorship state for an organization from CGPaymaster,
  * and detects whether the connected wallet supports EIP-5792 paymasterService.
  */
 export function useOrgGasSponsorship(orgAddress: Address | undefined) {
-  const { address: connectedAddress, chainId } = useAccount();
+  const { address: connectedAddress, chainId, connector } = useAccount();
   const { targetNetwork } = useTargetNetwork();
   const { data: paymasterInfo } = useDeployedContractInfo({ contractName: "CGPaymaster" });
 
@@ -42,7 +50,8 @@ export function useOrgGasSponsorship(orgAddress: Address | undefined) {
 
   const currentChainId = chainId ?? targetNetwork.id;
   const chainCapabilities = walletCapabilities?.[currentChainId];
-  const isPaymasterSupported = !!chainCapabilities?.paymasterService?.supported;
+  const isOpenfortEmbedded = connector?.id === OPENFORT_EMBEDDED_CONNECTOR_ID;
+  const isPaymasterSupported = !!chainCapabilities?.paymasterService?.supported && !isOpenfortEmbedded;
 
   // Gas sponsorship is available when:
   // 1. CGPaymaster is deployed

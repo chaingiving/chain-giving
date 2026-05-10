@@ -7,6 +7,8 @@ export type BaseConfig = {
   rpcOverrides?: Record<number, string>;
   walletConnectProjectId: string;
   burnerWalletMode: "localNetworksOnly" | "allNetworks" | "disabled";
+  openfortPublishableKey: string;
+  openfortShieldPublishableKey: string;
 };
 
 export type ScaffoldConfig = BaseConfig;
@@ -40,6 +42,9 @@ const scaffoldConfig = {
   // - "allNetworks": show on any configured target networks
   // - "disabled": completely disable
   burnerWalletMode: "localNetworksOnly",
+  // Openfort credentials, from https://dashboard.openfort.io
+  openfortPublishableKey: process.env.NEXT_PUBLIC_OPENFORT_PUBLISHABLE_KEY || "",
+  openfortShieldPublishableKey: process.env.NEXT_PUBLIC_OPENFORT_SHIELD_PUBLISHABLE_KEY || "",
 } as const satisfies ScaffoldConfig;
 
 export default scaffoldConfig;

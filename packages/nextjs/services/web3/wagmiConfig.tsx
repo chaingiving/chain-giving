@@ -1,8 +1,8 @@
 import { wagmiConnectors } from "./wagmiConnectors";
-import { WagmiAdapter } from "@reown/appkit-adapter-wagmi";
-import { createAppKit } from "@reown/appkit/react";
+import { embeddedWalletConnector, getDefaultConfig } from "@openfort/react/wagmi";
 import { Chain, fallback, http } from "viem";
 import { mainnet } from "viem/chains";
+import { createConfig } from "wagmi";
 import scaffoldConfig, { DEFAULT_ALCHEMY_API_KEY, ScaffoldConfig } from "~~/scaffold.config";
 import { getAlchemyHttpUrl } from "~~/utils/scaffold-eth";
 
@@ -13,7 +13,6 @@ export const enabledChains = targetNetworks.find((network: Chain) => network.id 
   ? targetNetworks
   : ([...targetNetworks, mainnet] as const);
 
-// Build per-chain transports with the same RPC fallback logic as before.
 const transports = Object.fromEntries(
   enabledChains.map(chain => {
     const mainnetFallback = chain.id === mainnet.id ? [http("https://mainnet.rpc.buidlguidl.com")] : [];
@@ -34,33 +33,20 @@ const transports = Object.fromEntries(
   }),
 );
 
-// WagmiAdapter replaces createConfig and adds Reown's embedded wallet connector.
-// The RainbowKit connectors are passed through so MetaMask, Ledger, Safe, etc. still work.
-const wagmiAdapter = new WagmiAdapter({
-  networks: enabledChains as any,
-  projectId: scaffoldConfig.walletConnectProjectId,
-  ssr: true,
-  transports,
-  pollingInterval: scaffoldConfig.pollingInterval,
-  connectors: wagmiConnectors(),
-});
-
-// createAppKit instantiates Reown's Lit-based modal web components, which can't
-// run during SSG/SSR. Defer to the client.
-if (typeof window !== "undefined") {
-  createAppKit({
-    adapters: [wagmiAdapter],
-    projectId: scaffoldConfig.walletConnectProjectId,
-    networks: enabledChains as any,
-    features: {
-      email: true,
-      socials: ["google", "apple", "facebook", "discord", "github"],
-      connectMethodsOrder: ["email", "social", "wallet"],
-      emailShowWallets: false,
-      collapseWallets: true,
-      allWallets: false,
-    },
-  });
-}
-
-export const wagmiConfig = wagmiAdapter.wagmiConfig;
+// We hand-build the connector list rather than letting Openfort's getDefaultConfig
+// supply its own. We want:
+//   1. Openfort embedded wallet (for the "Sign in" feature — email/social → smart account)
+//   2. RainbowKit's wallet set (MetaMask, WalletConnect, Ledger, …) for "Connect Wallet"
+// getDefaultConfig keeps any explicit `connectors` prop verbatim, so we MUST include
+// embeddedWalletConnector() ourselves — the OpenfortWagmiBridge looks for it by id.
+export const wagmiConfig = createConfig(
+  getDefaultConfig({
+    appName: "Chain.Giving",
+    chains: enabledChains as any,
+    walletConnectProjectId: scaffoldConfig.walletConnectProjectId,
+    transports,
+    pollingInterval: scaffoldConfig.pollingInterval,
+    ssr: true,
+    connectors: [embeddedWalletConnector(), ...wagmiConnectors()],
+  }),
+);

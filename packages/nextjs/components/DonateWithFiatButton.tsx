@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useAppKit } from "@reown/appkit/react";
+import { useUI } from "@openfort/react";
 import { Address } from "viem";
 import { useAccount } from "wagmi";
 import { CreditCardIcon, EnvelopeIcon } from "@heroicons/react/24/outline";
@@ -31,7 +31,7 @@ export const DonateWithFiatButton = ({ asset, targetAddress, disabled }: Props) 
   const [loading, setLoading] = useState(false);
   const { ensureSignedIn } = useSiweAuth();
   const { isConnected } = useAccount();
-  const { open: openConnectModal } = useAppKit();
+  const { open: openConnectModal } = useUI();
   const popupRef = useRef<Window | null>(null);
   const closePollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const messageHandlerRef = useRef<((e: MessageEvent) => void) | null>(null);

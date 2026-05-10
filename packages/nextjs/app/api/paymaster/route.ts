@@ -1,8 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
-import { Address, Hex, createPublicClient, decodeFunctionData, http, isAddress } from "viem";
+import { Address, Hex, createPublicClient, decodeFunctionData, fallback, http, isAddress } from "viem";
 import * as chains from "viem/chains";
 import deployedContracts from "~~/contracts/deployedContracts";
 import { getAlchemyHttpUrl } from "~~/utils/scaffold-eth";
+
+// Server-side fallback RPCs per chain. Mirror of PUBLIC_FALLBACK_RPCS in
+// wagmiConfig — when our Alchemy key is rate-limited/down (it returns an
+// HTML error page that viem fails to JSON.parse), the publicnode mirror
+// keeps the paymaster resolution working.
+const SERVER_FALLBACK_RPCS: Record<number, readonly string[]> = {
+  [chains.mainnet.id]: ["https://ethereum-rpc.publicnode.com"],
+  [chains.sepolia.id]: ["https://ethereum-sepolia-rpc.publicnode.com"],
+  [chains.base.id]: ["https://base-rpc.publicnode.com"],
+  [chains.baseSepolia.id]: ["https://base-sepolia-rpc.publicnode.com"],
+  [chains.optimism.id]: ["https://optimism-rpc.publicnode.com"],
+  [chains.optimismSepolia.id]: ["https://optimism-sepolia-rpc.publicnode.com"],
+};
 
 /**
  * ERC-7677 Paymaster Service for CGPaymaster.
@@ -157,8 +170,12 @@ async function resolveOrgAddress(
   if (!chain) {
     return { error: `Unsupported chain ${chainId}` };
   }
-  const transport = http(getAlchemyHttpUrl(chainId));
-  const client = createPublicClient({ chain, transport });
+  const transports = [];
+  const alchemy = getAlchemyHttpUrl(chainId);
+  if (alchemy) transports.push(http(alchemy));
+  for (const url of SERVER_FALLBACK_RPCS[chainId] ?? []) transports.push(http(url));
+  transports.push(http()); // chain-default, last resort
+  const client = createPublicClient({ chain, transport: fallback(transports) });
 
   try {
     const isOrg = await client.readContract({

@@ -38,7 +38,7 @@ export const CGOrganizationView = ({ address }: { address: Address }) => {
     address,
     abi: cgOrganizationAbi,
     functionName: "programCount",
-    query: { refetchInterval: 5000 },
+    query: { refetchInterval: 30000 },
   });
 
   const { data: programAddresses } = useReadContract({
@@ -46,7 +46,7 @@ export const CGOrganizationView = ({ address }: { address: Address }) => {
     abi: cgOrganizationAbi,
     functionName: "getPrograms",
     args: [0n, BigInt(100)],
-    query: { refetchInterval: 5000 },
+    query: { refetchInterval: 30000 },
   });
 
   const { data: programStates } = useReadContracts({
@@ -55,7 +55,7 @@ export const CGOrganizationView = ({ address }: { address: Address }) => {
       abi: cgProgramAbi,
       functionName: "state" as const,
     })),
-    query: { enabled: !!programAddresses?.length, refetchInterval: 10000 },
+    query: { enabled: !!programAddresses?.length, refetchInterval: 30000 },
   });
 
   const programCounts = programStates?.reduce(

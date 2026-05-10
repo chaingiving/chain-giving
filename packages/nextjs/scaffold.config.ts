@@ -19,8 +19,14 @@ export const DEFAULT_ALCHEMY_API_KEY = "cR4WnXePioePZ5fFrnSiR";
 const scaffoldConfig = {
   // The networks on which your DApp is live
   targetNetworks: [chains.baseSepolia, ...(process.env.NODE_ENV === "development" ? [chains.hardhat] : [])],
-  // The interval at which your front-end polls the RPC servers for new data (it has no effect if you only target the local network (default is 4000))
-  pollingInterval: 3000,
+  // Drives wagmi's useBlockNumber polling, which in turn invalidates every
+  // useScaffoldReadContract on each new block. Base Sepolia produces a block
+  // every 2s, so a 3s interval used to fire ~1 contract re-read per useScaffoldRead*
+  // hook per second of page time — enough to rate-limit a free Alchemy key on
+  // a single page. 12s gives a worst-case ~12s staleness, which is fine for
+  // every read this app makes (org/program metadata, balances, distribution
+  // state). Writes still trigger an immediate refetch.
+  pollingInterval: 12000,
   // This is ours Alchemy's default API key.
   // You can get your own at https://dashboard.alchemyapi.io
   // It's recommended to store it in an env variable:

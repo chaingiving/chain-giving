@@ -11,14 +11,14 @@ const KEY = "chaingiving:useSponsoredGas";
 const EVENT = "chaingiving:useSponsoredGasChanged";
 
 const readPreference = (): boolean => {
-  if (typeof window === "undefined") return true;
+  if (typeof window === "undefined") return false;
   const raw = window.localStorage.getItem(KEY);
-  if (raw === null) return true;
-  return raw !== "false";
+  if (raw === null) return false;
+  return raw === "true";
 };
 
 export const useSponsoredGasPreference = () => {
-  // Default false true on the server / first client render to avoid hydration
+  // Default to false on the server / first client render to avoid hydration
   // mismatch; the effect below reconciles with the persisted value.
   const [enabled, setEnabledState] = useState<boolean>(false);
 

@@ -181,6 +181,75 @@ docs/
 
 ---
 
+## Sponsored Gas (CGPaymaster)
+
+`CGPaymaster` is the on-chain ERC-4337 paymaster funded per-organization. Two paths feed into the same paymaster contract:
+
+1. **External wallets** (Coinbase Smart Wallet, MetaMask Smart, …) — wagmi's `useSendCalls` calls `/api/paymaster` with `paymasterService.url + context.orgAddress` (ERC-7677). The route reads `orgAddress` from `context` and returns `paymasterAndData = [paymaster][orgAddress]`.
+
+2. **Openfort embedded wallet** — a 4337 smart account whose UserOps go through Openfort's bundler. Openfort only honors `paymasterService.policy` (a `pol_…` ID), so `useSponsoredWrite` sends that instead. Openfort's bundler then calls our paymaster URL **server-side** with an empty context. The route falls back to decoding the userOp's `execute(target, …)` callData, then resolves `target` back to a registered `CGOrganization` — directly via `CGRegistry.isOrganization(target)`, or via `target.owner()` for programs/tokens — and returns the same `paymasterAndData` shape. Anything not registered fails closed (no sponsorship).
+
+```
+External wallet ──► /api/paymaster (context.orgAddress)        ─► CGPaymaster.validatePaymasterUserOp
+Embedded wallet ──► Openfort bundler ──► /api/paymaster        ─►        ↑ (orgAddress derived from callData)
+                    (capabilities.paymasterService.policy)
+```
+
+### Openfort dashboard setup
+
+The embedded-wallet path requires three Openfort entities, all created once per project:
+
+```bash
+# 1. Register CGPaymaster as an external paymaster entity.
+#    URL is fixed to production — Openfort's bundler calls it server-side, so
+#    preview deploys also hit prod's /api/paymaster.
+openfort paymasters create \
+  --address 0xe4E02848DcDA529d3F5045B50c99044095cE4112 \
+  --url https://app.chain.giving/api/paymaster \
+  --name "Chain.Giving CGPaymaster (Base Sepolia)"
+
+# 2. Create a rules policy that accepts sponsorEvmTransaction on Base Sepolia.
+openfort policies create --scope project \
+  --description "Sponsor Chain.Giving on Base Sepolia" \
+  --rules '[{"action":"accept","operation":"sponsorEvmTransaction","criteria":[{"type":"evmNetwork","operator":"in","chainIds":[84532]}]}]'
+
+# 3. Create a sponsorship and link it to BOTH the paymaster and the rules policy.
+#    The CLI does not expose --paymaster-id, so the link is set via REST:
+curl -X POST https://api.openfort.io/v1/policies \
+  -H "Authorization: Bearer $OPENFORT_API_KEY" -H "Content-Type: application/json" \
+  -d '{
+    "name": "Chain.Giving CGPaymaster (Base Sepolia)",
+    "chainId": 84532,
+    "strategy": { "sponsorSchema": "pay_for_user" },
+    "paymaster": "<pay_… from step 1>"
+  }'
+# Then attach the rules policy:
+openfort sponsorship update <pol_… returned above> --policy-id <ply_… from step 2>
+```
+
+The resulting `pol_…` is what the frontend reads.
+
+### Required environment variables
+
+```
+NEXT_PUBLIC_OPENFORT_PUBLISHABLE_KEY=pk_...
+NEXT_PUBLIC_OPENFORT_SHIELD_PUBLISHABLE_KEY=...
+NEXT_PUBLIC_OPENFORT_FEE_SPONSORSHIP_ID=pol_...     # the sponsorship id
+OPENFORT_SHIELD_SECRET_KEY=...                       # server-only, /api/openfort/encryption-session
+OPENFORT_SHIELD_ENCRYPTION_SHARE=...                 # server-only, project-side encryption share
+```
+
+Set in `packages/nextjs/.env.local` for dev, and in Vercel for preview + production.
+
+### Caveats
+
+- The Openfort paymaster URL is static, so **preview Vercel deploys hit prod's `/api/paymaster`**. Iterating on the route requires a deploy, or registering a second paymaster entity for dev with a tunneled URL and a separate `pol_…`.
+- Switching `accountType` to `SMART_ACCOUNT` invalidates pre-existing EOA embedded wallets. Sign out and back in to provision a fresh smart account.
+- `executeBatch` UserOps use the **first call's target** as the canonical org. CGPaymaster validates one orgAddress per UserOp, so mixed-org batches aren't supported anyway.
+- The route validates resolved orgs via `CGRegistry.isOrganization`. Without that, anyone could submit a UserOp targeting an unrelated contract and drain the paymaster.
+
+---
+
 ## Contract Interaction (Frontend)
 
 The frontend uses Scaffold-ETH 2 hooks for all contract interactions:

@@ -11,7 +11,21 @@ import { WagmiProvider } from "wagmi";
 import { Header } from "~~/components/Header";
 import { BlockieAvatar } from "~~/components/scaffold-eth";
 import scaffoldConfig from "~~/scaffold.config";
-import { wagmiConfig } from "~~/services/web3/wagmiConfig";
+import { enabledChains, wagmiConfig } from "~~/services/web3/wagmiConfig";
+import { getAlchemyHttpUrl } from "~~/utils/scaffold-eth";
+
+// Openfort's embedded wallet ships its own ethers v5 RPC provider that, by
+// default, uses each chain's public RPC (e.g. https://sepolia.base.org). Those
+// are flaky — eth_getTransactionCount routinely 503s. Hand Openfort the same
+// Alchemy URLs we already use for wagmi so its internal calls go through a
+// reliable RPC. Keys whose lookup yields no Alchemy URL are simply omitted;
+// Openfort then falls back to its default for those chains.
+const openfortRpcUrls = Object.fromEntries(
+  enabledChains.flatMap(chain => {
+    const url = getAlchemyHttpUrl(chain.id);
+    return url ? [[chain.id, url] as const] : [];
+  }),
+);
 
 const ScaffoldEthApp = ({ children }: { children: React.ReactNode }) => {
   return (
@@ -45,7 +59,8 @@ export const ScaffoldEthAppWithProviders = ({ children }: { children: React.Reac
             publishableKey={scaffoldConfig.openfortPublishableKey}
             walletConfig={{
               shieldPublishableKey: scaffoldConfig.openfortShieldPublishableKey,
-              ethereum: {},
+              ethereum: { rpcUrls: openfortRpcUrls },
+              createEncryptedSessionEndpoint: "/api/openfort/encryption-session",
               connectOnLogin: true,
             }}
             uiConfig={{
@@ -53,9 +68,11 @@ export const ScaffoldEthAppWithProviders = ({ children }: { children: React.Reac
               mode: isDarkMode ? "dark" : "light",
               authProviders: [AuthProvider.EMAIL_OTP, AuthProvider.GUEST],
               walletRecovery: {
-                // Passkey disabled for now
-                allowedMethods: [RecoveryMethod.PASSWORD],
-                defaultMethod: RecoveryMethod.PASSWORD,
+                // Automatic — recovery share is fetched server-side via
+                // /api/openfort/encryption-session. No user prompt, survives
+                // local-storage clears.
+                allowedMethods: [RecoveryMethod.AUTOMATIC],
+                defaultMethod: RecoveryMethod.AUTOMATIC,
               },
             }}
           >

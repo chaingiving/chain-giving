@@ -1,6 +1,7 @@
 import { Address, formatEther } from "viem";
 import { useAccount, useCapabilities, useReadContract } from "wagmi";
 import { useDeployedContractInfo, useTargetNetwork } from "~~/hooks/scaffold-eth";
+import { useSponsoredGasPreference } from "~~/hooks/useSponsoredGasPreference";
 import scaffoldConfig from "~~/scaffold.config";
 
 // Openfort embedded wallet connector id (see @openfort/react/wagmi).
@@ -21,6 +22,7 @@ export function useOrgGasSponsorship(orgAddress: Address | undefined) {
   const { address: connectedAddress, chainId, connector } = useAccount();
   const { targetNetwork } = useTargetNetwork();
   const { data: paymasterInfo } = useDeployedContractInfo({ contractName: "CGPaymaster" });
+  const { enabled: userOptedIn } = useSponsoredGasPreference();
 
   // Read org balance from CGPaymaster
   const { data: orgBalance, isLoading: balanceLoading } = useReadContract({
@@ -72,7 +74,8 @@ export function useOrgGasSponsorship(orgAddress: Address | undefined) {
   const hasBudget = balance !== undefined && balance > 0n;
   const isHttps = typeof window !== "undefined" && window.location.protocol === "https:";
   const httpsOk = isOpenfortEmbedded || isHttps;
-  const isSponsorshipAvailable = !!paymasterInfo?.address && hasBudget && isPaymasterSupported && httpsOk;
+  const isSponsorshipAvailable =
+    !!paymasterInfo?.address && hasBudget && isPaymasterSupported && httpsOk && userOptedIn;
 
   return {
     /** CGPaymaster contract address */

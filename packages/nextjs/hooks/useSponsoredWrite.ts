@@ -1,4 +1,13 @@
-import { Abi, Address, Chain, createWalletClient, custom, encodeFunctionData, numberToHex } from "viem";
+import {
+  Abi,
+  Address,
+  Chain,
+  WalletClient,
+  createWalletClient,
+  custom,
+  encodeFunctionData,
+  numberToHex,
+} from "viem";
 import { writeContract as viemWriteContract } from "viem/actions";
 import { useAccount, useSendCalls, useWalletClient } from "wagmi";
 import { useTransactor } from "~~/hooks/scaffold-eth";
@@ -39,10 +48,7 @@ const wrapProvider = (provider: { request: (args: any) => Promise<unknown> }) =>
   },
 });
 
-const buildSafeWalletClient = (
-  raw: NonNullable<ReturnType<typeof useWalletClient>["data"]>,
-  chain: Chain,
-) =>
+const buildSafeWalletClient = (raw: WalletClient, chain: Chain) =>
   createWalletClient({
     account: raw.account,
     chain,

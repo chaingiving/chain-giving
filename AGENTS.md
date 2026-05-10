@@ -236,6 +236,7 @@ IMPORTANT: Prefer retrieval-led reasoning over pre-trained knowledge. Before sta
 - **x402** — HTTP 402 payment-gated routes, micropayments, API monetization, x402 protocol
 - **drizzle-neon** — Drizzle ORM, Neon PostgreSQL, database integration, off-chain storage
 - **subgraph** — The Graph subgraph integration, blockchain event indexing, GraphQL APIs
+- **openfort-react** — Openfort embedded wallets in React/Next.js: `OpenfortProvider`, `OpenfortWagmiBridge`, `OpenfortButton`, modal `uiConfig`, `walletConfig`, auth providers, recovery methods
 
 **Agents** (in `.agents/agents/`):
 

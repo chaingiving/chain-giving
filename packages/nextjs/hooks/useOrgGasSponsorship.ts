@@ -1,6 +1,7 @@
 import { Address, formatEther } from "viem";
 import { useAccount, useCapabilities, useReadContract } from "wagmi";
 import { useDeployedContractInfo, useTargetNetwork } from "~~/hooks/scaffold-eth";
+import { useSponsoredGasPreference } from "~~/hooks/useSponsoredGasPreference";
 
 /**
  * Reads gas sponsorship state for an organization from CGPaymaster,
@@ -10,6 +11,7 @@ export function useOrgGasSponsorship(orgAddress: Address | undefined) {
   const { address: connectedAddress, chainId } = useAccount();
   const { targetNetwork } = useTargetNetwork();
   const { data: paymasterInfo } = useDeployedContractInfo({ contractName: "CGPaymaster" });
+  const { enabled: userOptedIn } = useSponsoredGasPreference();
 
   // Read org balance from CGPaymaster
   const { data: orgBalance, isLoading: balanceLoading } = useReadContract({
@@ -52,7 +54,7 @@ export function useOrgGasSponsorship(orgAddress: Address | undefined) {
   const balance = orgBalance as bigint | undefined;
   const hasBudget = balance !== undefined && balance > 0n;
   const isHttps = typeof window !== "undefined" && window.location.protocol === "https:";
-  const isSponsorshipAvailable = !!paymasterInfo?.address && hasBudget && isPaymasterSupported && isHttps;
+  const isSponsorshipAvailable = !!paymasterInfo?.address && hasBudget && isPaymasterSupported && isHttps && userOptedIn;
 
   return {
     /** CGPaymaster contract address */
